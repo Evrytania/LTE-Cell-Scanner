@@ -39,7 +39,7 @@ git clone git://github.com/Evrytania/LTE-Cell-Scanner.git
 ------
 Compiling
 ------
-cd C++/LTE-Cell-Scanner
+cd LTE-Cell-Scanner
 mkdir build
 cd build
 cmake ..
@@ -98,7 +98,7 @@ center frequency (accurate to 0.050 ppm) and several cell parameters including
 downlink bandwidth, CP type, and residual frequency offset.
 
 For example, if the program reports that a cell was found at 740 MHz with a
-residual frequency offset of -25kHz, this means that first of all there is a
+residual frequency offset of -25kHz, this means that the program found a
 basestation transmitting a downlink carrier at 740 MHz. The dongle was
 configured for a receive frequency of 740MHz but a residual frequency error of
 -25kHz was detected. This means that although we requested a frequency of 740
