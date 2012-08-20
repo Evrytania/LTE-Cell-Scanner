@@ -1,0 +1,62 @@
+CMAKE_MINIMUM_REQUIRED( VERSION 2.8.4 )
+# allow more human readable "if then else" constructs
+#SET( CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS TRUE )
+
+# Add the local Find*.cmake scripts
+LIST (APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Modules)
+
+PROJECT( CellSearch )
+ENABLE_TESTING()
+
+#SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror")
+SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror")
+SET (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Werror -ggdb -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC")
+
+# Set default build type
+IF( NOT CMAKE_BUILD_TYPE )
+  SET( CMAKE_BUILD_TYPE "Release" )
+ENDIF()
+
+# Find needed packages.
+FIND_PACKAGE( OpenMP )
+if (OPENMP_FOUND)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+endif()
+FIND_PACKAGE( Boost REQUIRED )
+INCLUDE_DIRECTORIES("${Boost_INCLUDE_DIRS}")
+FIND_PACKAGE( ITPP REQUIRED )
+INCLUDE_DIRECTORIES("${ITPP_INCLUDE_DIR}")
+FIND_PACKAGE( BLAS REQUIRED )
+FIND_PACKAGE( LAPACK REQUIRED )
+FIND_PACKAGE( FFTW REQUIRED )
+INCLUDE_DIRECTORIES("${FFTW_INCLUDE_DIR}")
+FIND_PACKAGE( RTLSDR REQUIRED )
+INCLUDE_DIRECTORIES("${RTLSDR_INCLUDE_DIR}")
+
+# Add version information to build
+SET( ${PROJECT_NAME}_MAJOR_VERSION 0 )
+SET( ${PROJECT_NAME}_MINOR_VERSION 1 )
+SET( ${PROJECT_NAME}_PATCH_LEVEL 0 )
+CONFIGURE_FILE (
+  "${PROJECT_SOURCE_DIR}/include/common.h.in"
+  "${PROJECT_BINARY_DIR}/include/common.h"
+)
+
+# Where .h files are located
+INCLUDE_DIRECTORIES("${PROJECT_SOURCE_DIR}/include")
+INCLUDE_DIRECTORIES("${PROJECT_BINARY_DIR}/include")
+
+# Descend into subdirectories
+ADD_SUBDIRECTORY(src)
+ADD_SUBDIRECTORY(test)
+
+# Uninstall target
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/cmake_uninstall.cmake.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/cmake/cmake_uninstall.cmake"
+  IMMEDIATE @ONLY)
+
+add_custom_target(uninstall
+  COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake/cmake_uninstall.cmake)
+
