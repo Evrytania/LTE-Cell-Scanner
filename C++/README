@@ -1,0 +1,116 @@
+------
+Brief
+------
+This is an LTE cell searcher that scans a set of downlink frequencies and
+reports any LTE cells that were identified. A cell is considered identified
+if the MIB can be decoded and passes the CRC check.
+
+This code is optimized to work with very low performance front ends. For
+example, it works with the RTL-SDR (RTL2832, E4000) dongle which has a
+noise figure of 20dB, only 8 bits in the A/D, and a crystal with a
+frequency error of about 100 ppm. In fact, since the LTE downlink center
+frequencies are accurate to within 0.050 ppm, this program can be used to
+effectively calibrate the attached dongle's oscialltor.
+
+Note that this code has only been tested in an Ubuntu 12.04 system!
+
+To report any bugs, contact James Peroulas <james@evrytania.com>
+
+------
+Required libraries
+------
+
+To successfully compile this program, you must have the following libaries
+installed in your system:
+  Boost
+    http://www.boost.org/
+  ITPP
+    http://itpp.sourceforge.net/current/
+  rtlsdr
+    http://sdr.osmocom.org/trac/wiki/rtl-sdr
+  fftw
+    http://www.fftw.org/
+
+------
+Obtaining source code
+------
+git clone git://github.com/Evrytania/LTE-Cell-Scanner.git
+
+------
+Compiling and installing
+------
+cd LTE-Cell-Scanner
+mkdir build
+cd build
+cmake ..
+make
+make test
+sudo make install
+
+If you want to build the 'debug' version of the code, replace 'cmake ..' with:
+cmake -DCMAKE_BUILD_TYPE=debug ..
+Note that the debug version is 10x slower than the default build type!
+
+------
+Basic usage
+------
+Print out a simple help screen:
+  CellSearch --help
+
+If you do not know the center frequency of the LTE cells in your area, you
+will have to perform a search specifying the first and the last frequency
+that you want the dongle to examine. See http://niviuk.free.fr/lte_band.php
+
+In the US, the LTE downlink frequencies are between 715MHz and 768MHz and
+the following command will search all possible LTE center frequencies in
+this band:
+  CellSearch --freq-start 728000000 -freq-end 768000000
+
+If you know the center frequency of a cell, perhaps from a previous call
+to CellSearch, you can specify just that frequency and the program will search
+for and report all cells detected on that frequency. In my location, in St.
+Louis, there are two LTE carriers, one for AT&T and one for Verizon and I
+can scan for cells on those two frequencies using:
+  CellSearch --freq-start 739000000
+    OR
+  CellSearch --freq-start 751000000
+
+If the program successfully finds a cell, it will print out the cell's true
+center frequency (accurate to 0.050 ppm) and several cell parameters including
+downlink bandwidth, CP type, and residual frequency offset.
+
+For example, if the program reports that a cell was found at 740 MHz with a
+residual frequency offset of -25kHz, this means that first of all there is a
+basestation transmitting a downlink carrier at 740 MHz. The dongle was
+configured for a receive frequency of 740MHz but a residual frequency error of
+-25kHz was detected. This means that although we requested a frequency of 740
+MHz from the dongle, the actual frequency tuned by the dongle was 740MHz+25kHz.
+
+------
+About frequency calibration
+------
+
+The initial uncertainty of the dongle is very high at around 100 ppm. This
+means that if 100 dongles are randomly chosen and measured, each of them
+will have a different frequency error from -100 ppm to +100 ppm. However,
+for any one dongle, the frequency error does not seem to change significantly
+in time, as long as the temperature of the dongle remains relatively constant.
+
+Thus, the first time that a dongle is used, the default settings of '--ppm 100
+--correction 1.0' should be used until a cell is identified and the program
+returns a new correction coefficient.
+
+Subsequently, this correction coefficient can be supplied when re-running the
+program and the ppm value can be reduced, resulting in a much faster cell
+search.
+
+For example, if the program just exited and reported a correction factor of
+1.000052 and I re-run the program later, I can use this correction
+factor to improve execution speed by reducing the ppm value. If I immediately
+re-run the program, I could possibly reduce the ppm value all the way down
+to zero:
+  CellSearch --correction 1.000052 -ppm 0 --freq-start 739000000
+In general, there will always be some remaining frequency uncertainty and
+it is not recommended to set the ppm value less than 10:
+  CellSearch --correction 1.000052 -ppm 10 --freq-start 739000000
+
