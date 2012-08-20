@@ -38,33 +38,47 @@ uint8 verbosity=1;
 
 // Simple usage screen.
 void print_usage() {
+  cout << "CellSearch v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " help screen" << endl << endl;
   cout << "CellSearch -s start_frequency [optional_parameters]" << endl;
-  cout << "  -h --help          print this help screen" << endl;
-  cout << "  -v --verbose       increase status messages from program" << endl;
-  cout << "  -b --brief         reduce status messages from program" << endl;
-  cout << "  -s --freq-start fs frequency where cell search should start" << endl;
-  cout << "  -e --freq-end fe   frequency where cell search should end" << endl;
-  cout << "  -p --ppm ppm       crystal remaining PPM error" << endl;
-  cout << "  -c --correction c  crystal correction factor" << endl;
-  cout << "  -r --record        save captured data in the files capbuf_XXXX.it" << endl;
-  cout << "  -l --load          used data in capbuf_XXXX.it files instead of live data" << endl;
-  cout << "  -d --data-dir dir  directory where capbuf_XXXX.it files are located" << endl;
+  cout << "  Basic options" << endl;
+  cout << "    -h --help" << endl;
+  cout << "      print this help screen" << endl;
+  cout << "    -v --verbose" << endl;
+  cout << "      increase status messages from program" << endl;
+  cout << "    -b --brief" << endl;
+  cout << "      reduce status messages from program" << endl;
+  cout << "  Frequency search options:" << endl;
+  cout << "    -s --freq-start fs" << endl;
+  cout << "      frequency where cell search should start" << endl;
+  cout << "    -e --freq-end fe" << endl;
+  cout << "      frequency where cell search should end" << endl;
+  cout << "  Dongle LO correction options:" << endl;
+  cout << "    -p --ppm ppm" << endl;
+  cout << "      crystal remaining PPM error" << endl;
+  cout << "    -c --correction c" << endl;
+  cout << "      crystal correction factor" << endl;
+  cout << "  Capture buffer save/ load options:" << endl;
+  cout << "    -r --record" << endl;
+  cout << "      save captured data in the files capbuf_XXXX.it" << endl;
+  cout << "    -l --load" << endl;
+  cout << "      used data in capbuf_XXXX.it files instead of live data" << endl;
+  cout << "    -d --data-dir dir" << endl;
+  cout << "      directory where capbuf_XXXX.it files are located" << endl << endl;
   cout << "'c' is the correction factor to apply and indicates that if the desired" << endl;
   cout << "center frequency is fc, the RTL-SDR dongle should be instructed to tune" << endl;
-  cout << "to freqency fc*c so that its true frequency shall be fc. Default: 1.0" << endl;
+  cout << "to freqency fc*c so that its true frequency shall be fc. Default: 1.0" << endl << endl;
   cout << "'ppm' is the remaining frequency error of the crystal. Default: 100" << endl;
   cout << "" << endl;
-  cout << "If the crystal has not been used for a long time use the default values for" << endl;
+  cout << "If the crystal has not been used for a long time, use the default values for" << endl;
   cout << "'ppm' and 'c' until a cell is successfully located. The program will return" << endl;
   cout << "a 'c' value that can be used in the future, assuming that the crystal's" << endl;
   cout << "frequency accuracy does not change significantly." << endl;
   cout << "" << endl;
   cout << "Even if a correction factor has been calculated, there is usually some" << endl;
-  cout << "remaining frequency error in the crystal. Thus, after a c value is calculated," << endl;
-  cout << "the ppm value can be reduced, but typically not to 0." << endl;
-  cout << "" << endl;
-  cout << "Upon initial search the default values for ppm and c should be used." << endl;
-  cout << "After a reliable c value has been determined, ppm can be reduced to 10." << endl;
+  cout << "remaining frequency error in the crystal. Thus, although after a c value is" << endl;
+  cout << "calculated the ppm value can be reduced, it can not be reduced to 0." << endl;
+  cout << "10.0 is a reasiable ppm value to use after a correction factor has been" << endl;
+  cout << "calculated." << endl;
 }
 
 // Parse the command line arguments and return optional parameters as
@@ -186,6 +200,10 @@ void parse_commandline(
 
   // Second order command line checking. Ensure that command line options
   // are consistent.
+  if (freq_start==-1) {
+    cerr << "Error: must specify a start frequency. (Try --help)" << endl;
+    exit(-1);
+  }
   // Start and end frequencies should be on a 100kHz raster.
   if (freq_start<1e6) {
     cerr << "Error: start frequency must be greater than 1MHz" << endl;

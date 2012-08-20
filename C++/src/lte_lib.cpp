@@ -35,6 +35,8 @@ using namespace std;
 
 // Implementation of the LTE PN generator.
 // A faster implementation is possible using uint32 to store the state.
+// This function was coded using vectors and matrices so as to match
+// the Matlab implementation as directly as possible.
 bvec lte_pn(
   const uint32 & c_init,
   const uint32 & len

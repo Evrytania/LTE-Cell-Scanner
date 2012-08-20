@@ -37,23 +37,35 @@ Obtaining source code
 git clone git://github.com/Evrytania/LTE-Cell-Scanner.git
 
 ------
-Compiling and installing
+Compiling
 ------
-cd LTE-Cell-Scanner
+cd C++/LTE-Cell-Scanner
 mkdir build
 cd build
 cmake ..
 make
 make test
-sudo make install
 
 If you want to build the 'debug' version of the code, replace 'cmake ..' with:
 cmake -DCMAKE_BUILD_TYPE=debug ..
 Note that the debug version is 10x slower than the default build type!
 
 ------
+Installing
+------
+sudo make install
+
+------
+Uninstalling
+------
+sudo make uninstall
+
+------
 Basic usage
 ------
+Note that most likely, you need to run this program as root to access the
+USB dongle!
+
 Print out a simple help screen:
   CellSearch --help
 
@@ -64,7 +76,13 @@ that you want the dongle to examine. See http://niviuk.free.fr/lte_band.php
 In the US, the LTE downlink frequencies are between 715MHz and 768MHz and
 the following command will search all possible LTE center frequencies in
 this band:
-  CellSearch --freq-start 728000000 -freq-end 768000000
+  CellSearch --freq-start 728000000 --freq-end 768000000
+
+All center frequencies between the start frequency and the end frequency
+that are multiples of 100kHz will be searched for LTE cells. On an i7-2640
+with the default PPM value of 100, this search takes about 9s per center
+frequency. With a PPM value of 10 (which requires a calibrated LO), the
+search takes about 3s per center frequency.
 
 If you know the center frequency of a cell, perhaps from a previous call
 to CellSearch, you can specify just that frequency and the program will search
@@ -113,4 +131,14 @@ to zero:
 In general, there will always be some remaining frequency uncertainty and
 it is not recommended to set the ppm value less than 10:
   CellSearch --correction 1.000052 -ppm 10 --freq-start 739000000
+
+------
+Known problems
+------
+If you get the following error message:
+usb_open error -3
+This means that you need to be 'root' to access the device. Use:
+  sudo CellSearch XXXXX
+instead of
+  CellSearch XXXXX
 
