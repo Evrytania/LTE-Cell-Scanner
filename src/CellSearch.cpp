@@ -304,16 +304,16 @@ string freq_formatter(
   const double & freq
 ) {
   stringstream temp;
-  if (freq<998.0) {
-    temp << setw(4) << setprecision(3) << freq << "h";
-  } else if (freq<998000.0) {
-    temp << setw(4) << setprecision(3) << freq/1e3 << "k";
-  } else if (freq<998000000.0) {
-    temp << setw(4) << setprecision(3) << freq/1e6 << "m";
-  } else if (freq<998000000000.0) {
-    temp << setw(4) << setprecision(3) << freq/1e9 << "g";
-  } else if (freq<998000000000000.0) {
-    temp << setw(4) << setprecision(3) << freq/1e12 << "t";
+  if (abs(freq)<998.0) {
+    temp << setw(5) << setprecision(3) << freq << "h";
+  } else if (abs(freq)<998000.0) {
+    temp << setw(5) << setprecision(3) << freq/1e3 << "k";
+  } else if (abs(freq)<998000000.0) {
+    temp << setw(5) << setprecision(3) << freq/1e6 << "m";
+  } else if (abs(freq)<998000000000.0) {
+    temp << setw(5) << setprecision(3) << freq/1e9 << "g";
+  } else if (abs(freq)<998000000000000.0) {
+    temp << setw(5) << setprecision(3) << freq/1e12 << "t";
   } else {
     temp << freq;
   }
@@ -457,7 +457,7 @@ int main(
   } else {
     cout << "Detected the following cells:" << endl;
     cout << "C: CP type ; P: PHICH duration ; PR: PHICH resource type" << endl;
-    cout << "CID      fc  foff RXPWR C nRB P  PR CrystalCorrectionFactor" << endl;
+    cout << "CID      fc   foff RXPWR C nRB P  PR CrystalCorrectionFactor" << endl;
     list <Cell>::iterator it=cells_final.begin();
     while (it!=cells_final.end()) {
       // Use a stringstream to avoid polluting the iostream settings of cout.
