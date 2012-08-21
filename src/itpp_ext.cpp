@@ -16,6 +16,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <itpp/itbase.h>
+#include "rtl-sdr.h"
 #include "common.h"
 #include "macros.h"
 

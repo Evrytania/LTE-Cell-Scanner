@@ -17,6 +17,7 @@
 
 #include <itpp/itbase.h>
 #include <list>
+#include "rtl-sdr.h"
 #include "common.h"
 #include "macros.h"
 #include "lte_lib.h"

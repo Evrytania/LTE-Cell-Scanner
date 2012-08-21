@@ -34,6 +34,8 @@ inline std::ostream & operator<< (
 // 2 indicates maximum amount of status messages to cout
 extern uint8 verbosity;
 
+extern rtlsdr_dev_t * dev;
+
 // complex<float> 2d/3d vectors
 typedef std::vector < std::vector < std::vector < std::complex < float > > > > vcf3d;
 typedef std::vector < std::vector < std::complex < float > > > vcf2d;

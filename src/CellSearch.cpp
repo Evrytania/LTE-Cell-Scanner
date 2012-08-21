@@ -22,6 +22,8 @@
 #include <boost/math/special_functions/gamma.hpp>
 #include <list>
 #include <sstream>
+#include <signal.h>
+#include "rtl-sdr.h"
 #include "common.h"
 #include "macros.h"
 #include "lte_lib.h"
@@ -30,15 +32,28 @@
 #include "itpp_ext.h"
 #include "searcher.h"
 #include "dsp.h"
+#include "rtl-sdr.h"
 
 using namespace itpp;
 using namespace std;
 
 uint8 verbosity=1;
+// Declared as global so the sig handler can have access to it.
+rtlsdr_dev_t * dev=NULL;
+
+static void sighandler(
+  int signum
+) {
+  cerr << "Error: caught signal, exiting!" << endl;
+  if (dev!=NULL) {
+    rtlsdr_close(dev);
+  }
+  exit(-1);
+}
 
 // Simple usage screen.
 void print_usage() {
-  cout << "CellSearch v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " help screen" << endl << endl;
+  cout << "LTE CellSearch v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " help screen" << endl << endl;
   cout << "CellSearch -s start_frequency [optional_parameters]" << endl;
   cout << "  Basic options" << endl;
   cout << "    -h --help" << endl;
@@ -47,6 +62,8 @@ void print_usage() {
   cout << "      increase status messages from program" << endl;
   cout << "    -b --brief" << endl;
   cout << "      reduce status messages from program" << endl;
+  cout << "    -i --device-index N" << endl;
+  cout << "      specify which attached RTLSDR dongle to use" << endl;
   cout << "  Frequency search options:" << endl;
   cout << "    -s --freq-start fs" << endl;
   cout << "      frequency where cell search should start" << endl;
@@ -95,7 +112,8 @@ void parse_commandline(
   double & correction,
   bool & save_cap,
   bool & use_recorded_data,
-  string & data_dir
+  string & data_dir,
+  int & device_index
 ) {
   // Default values
   freq_start=-1;
@@ -105,24 +123,26 @@ void parse_commandline(
   save_cap=false;
   use_recorded_data=false;
   data_dir=".";
+  device_index=-1;
 
   while (1) {
     static struct option long_options[] = {
-      {"help",       no_argument,       0, 'h'},
-      {"verbose",    no_argument,       0, 'v'},
-      {"brief",      no_argument,       0, 'b'},
-      {"freq-start", required_argument, 0, 's'},
-      {"freq-end",   required_argument, 0, 'e'},
-      {"ppm",        required_argument, 0, 'p'},
-      {"correction", required_argument, 0, 'c'},
-      {"record",     no_argument,       0, 'r'},
-      {"load",       no_argument,       0, 'l'},
-      {"data-dir",   required_argument, 0, 'd'},
+      {"help",         no_argument,       0, 'h'},
+      {"verbose",      no_argument,       0, 'v'},
+      {"brief",        no_argument,       0, 'b'},
+      {"freq-start",   required_argument, 0, 's'},
+      {"freq-end",     required_argument, 0, 'e'},
+      {"ppm",          required_argument, 0, 'p'},
+      {"correction",   required_argument, 0, 'c'},
+      {"record",       no_argument,       0, 'r'},
+      {"load",         no_argument,       0, 'l'},
+      {"data-dir",     required_argument, 0, 'd'},
+      {"device-index", required_argument, 0, 'i'},
       {0, 0, 0, 0}
     };
     /* getopt_long stores the option index here. */
     int option_index = 0;
-    int c = getopt_long (argc, argv, "hvbs:e:p:c:rld:",
+    int c = getopt_long (argc, argv, "hvbs:e:p:c:rld:i:",
                      long_options, &option_index);
 
     /* Detect the end of the options. */
@@ -184,6 +204,17 @@ void parse_commandline(
       case 'd':
         data_dir=optarg;
         break;
+      case 'i':
+        device_index=strtol(optarg,&endp,10);
+        if ((optarg==endp)||(*endp!='\0')) {
+          cerr << "Error: could not parse device index" << endl;
+          exit(-1);
+        }
+        if (device_index<0) {
+          cerr << "Error: device index cannot be negative" << endl;
+          exit(-1);
+        }
+        break;
       case '?':
         /* getopt_long already printed an error message. */
         exit(-1);
@@ -243,7 +274,7 @@ void parse_commandline(
   }
 
   if (verbosity>=1) {
-    cout << "CellSearch v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " beginning" << endl;
+    cout << "LTE CellSearch v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " beginning" << endl;
     if (freq_start==freq_end) {
       cout << "  Search frequency: " << freq_start/1e6 << " MHz" << endl;
     } else {
@@ -320,11 +351,105 @@ string freq_formatter(
   return temp.str();
 }
 
+// Open the USB device
+void config_usb(
+  const double & correction,
+  const int32 & device_index_cmdline,
+  const double & fc
+) {
+  int32 device_index=device_index_cmdline;
+
+  int8 n_rtlsdr=rtlsdr_get_device_count();
+  if (n_rtlsdr==0) {
+    cerr << "Error: no RTL-SDR USB devices found..." << endl;
+    exit(-1);
+  }
+
+  // Choose which device to use
+  if ((n_rtlsdr==1)&&(device_index==-1)) {
+    device_index=0;
+  }
+  if ((device_index<0)||(device_index>=n_rtlsdr)) {
+    cerr << "Error: must specify which USB device to use with --device-index" << endl;
+    cerr << "Found the following USB devices:" << endl;
+    char vendor[256],product[256],serial[256];
+    for (uint8 t=0;t<n_rtlsdr;t++) {
+      rtlsdr_get_device_usb_strings(t,vendor,product,serial);
+      cerr << "Device index " << t << ": [Vendor: " << vendor << "] [Product: " << product << "] [Serial#: " << serial << "]" << endl;
+    }
+    exit(-1);
+  }
+
+  // Open device
+  if (rtlsdr_open(&dev,device_index)<0) {
+    cerr << "Error: unable to open RTLSDR device" << endl;
+    exit(-1);
+  }
+
+  // Sampling frequency
+  if (rtlsdr_set_sample_rate(dev,itpp::round(1920000*correction))<0) {
+    cerr << "Error: unable to set sampling rate" << endl;
+    exit(-1);
+  }
+
+  // Center frequency
+  if (rtlsdr_set_center_freq(dev,itpp::round(fc*correction))<0) {
+    cerr << "Error: unable to set center frequency" << endl;
+    exit(-1);
+  }
+
+  // Turn on AGC
+  if (rtlsdr_set_tuner_gain_mode(dev,0)<0) {
+    cerr << "Error: unable to enter AGC mode" << endl;
+    exit(-1);
+  }
+
+  // Reset the buffer
+  if (rtlsdr_reset_buffer(dev)<0) {
+    cerr << "Error: unable to reset RTLSDR buffer" << endl;
+    exit(-1);
+  }
+
+  // Discard about 1.5s worth of data to give the AGC time to converge
+  if (verbosity>=2) {
+    cout << "Waiting for AGC to converge..." << endl;
+  }
+  uint32 n_read=0;
+  int n_read_current;
+#define BLOCK_SIZE 16*16384
+  uint8 * buffer=(uint8 *)malloc(BLOCK_SIZE*sizeof(uint8));
+  while (true) {
+    if (rtlsdr_read_sync(dev,buffer,BLOCK_SIZE,&n_read_current)<0) {
+      cerr << "Error: synchronous read failed" << endl;
+      break;
+    }
+    if (n_read_current<BLOCK_SIZE) {
+      cerr << "Error: short read; samples lost" << endl;
+      break;
+    }
+    n_read+=n_read_current;
+    if (n_read>2880000)
+      break;
+  }
+  free(buffer);
+}
+
 // Main cell search routine.
 int main(
   const int argc,
   char * const argv[]
 ) {
+  // This is so that CTRL-C properly closes the rtl-sdr device before exiting
+  // the program.
+  struct sigaction sigact;
+  sigact.sa_handler=sighandler;
+  sigemptyset(&sigact.sa_mask);
+  sigact.sa_flags=0;
+  sigaction(SIGINT,&sigact,NULL);
+  sigaction(SIGTERM,&sigact,NULL);
+  sigaction(SIGQUIT,&sigact,NULL);
+  sigaction(SIGPIPE,&sigact,NULL);
+
   // Command line parameters are stored here.
   double freq_start;
   double freq_end;
@@ -333,9 +458,14 @@ int main(
   bool save_cap;
   bool use_recorded_data;
   string data_dir;
+  int32 device_index;
 
   // Get search parameters from user
-  parse_commandline(argc,argv,freq_start,freq_end,ppm,correction,save_cap,use_recorded_data,data_dir);
+  parse_commandline(argc,argv,freq_start,freq_end,ppm,correction,save_cap,use_recorded_data,data_dir,device_index);
+
+  // Open the USB device (if necessary).
+  if (!use_recorded_data)
+    config_usb(correction,device_index,freq_start);
 
   // Generate a list of center frequencies that should be searched and also
   // a list of frequency offsets that should be searched for each center

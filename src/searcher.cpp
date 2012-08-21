@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <vector>
 #include <boost/math/special_functions/gamma.hpp>
+#include "rtl-sdr.h"
 #include "common.h"
 #include "lte_lib.h"
 #include "constants.h"

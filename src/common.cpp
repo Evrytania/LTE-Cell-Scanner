@@ -17,6 +17,7 @@
 
 #include <itpp/itbase.h>
 #include <boost/math/special_functions/gamma.hpp>
+#include "rtl-sdr.h"
 #include "common.h"
 #include "macros.h"
 #include "itpp_ext.h"

@@ -17,6 +17,7 @@
 
 #include <itpp/itbase.h>
 #include <vector>
+#include "rtl-sdr.h"
 #include "common.h"
 #include "lte_lib.h"
 #include "constants.h"

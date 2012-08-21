@@ -80,9 +80,9 @@ this band:
 
 All center frequencies between the start frequency and the end frequency
 that are multiples of 100kHz will be searched for LTE cells. On an i7-2640
-with the default PPM value of 100, this search takes about 9s per center
+with the default PPM value of 100, this search takes about 6s per center
 frequency. With a PPM value of 10 (which requires a calibrated LO), the
-search takes about 3s per center frequency.
+search takes about 1s per center frequency.
 
 If you know the center frequency of a cell, perhaps from a previous call
 to CellSearch, you can specify just that frequency and the program will search

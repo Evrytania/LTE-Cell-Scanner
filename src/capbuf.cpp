@@ -19,9 +19,10 @@
 #include <iomanip>
 #include <sstream>
 #include <queue>
+#include "rtl-sdr.h"
 #include "common.h"
 #include "capbuf.h"
-#include "rtl-sdr.h"
+#include "macros.h"
 
 using namespace itpp;
 using namespace std;
@@ -68,46 +69,15 @@ void capture_data(
     itf.close();
 
   } else {
-    // In the current implementation, the device is opened and closed
-    // for each capture.
-    // Performance can be improved by keeping the device open and simply
-    // changin the center frequency.
     if (verbosity>=2) {
       cout << "Capturing live data" << endl;
     }
 #define BLOCK_SIZE 16*16384
     uint8 * buffer=(uint8 *)malloc(BLOCK_SIZE*sizeof(uint8));
-    int8 n_rtlsdr=rtlsdr_get_device_count();
-    if (n_rtlsdr==0) {
-      cerr << "Error: no RTL-SDR USB devices found..." << endl;
-      exit(-1);
-    }
-    if (n_rtlsdr>1) {
-      cout << "Warning: more than one RTLSDR device found. Using device index 0!" << endl;
-    }
-
-    rtlsdr_dev_t *dev=NULL;
-    // Open device
-    if (rtlsdr_open(&dev,0)<0) {
-      cerr << "Error: unable to open RTLSDR device" << endl;
-      exit(-1);
-    }
-
-    // Sampling frequency
-    if (rtlsdr_set_sample_rate(dev,itpp::round(1920000*correction))<0) {
-      cerr << "Error: unable to set sampling rate" << endl;
-      exit(-1);
-    }
 
     // Center frequency
     if (rtlsdr_set_center_freq(dev,itpp::round(fc*correction))<0) {
       cerr << "Error: unable to set center frequency" << endl;
-      exit(-1);
-    }
-
-    // Turn on AGC
-    if (rtlsdr_set_tuner_gain_mode(dev,0)<0) {
-      cerr << "Error: unable to enter AGC mode" << endl;
       exit(-1);
     }
 
@@ -125,7 +95,6 @@ void capture_data(
 #ifndef NDEBUG
     capbuf=NAN;
 #endif
-    queue <int16> fifo;
     while (true) {
       // Read some data
       if (rtlsdr_read_sync(dev,buffer,BLOCK_SIZE,&n_read_current)<0) {
@@ -137,33 +106,20 @@ void capture_data(
         break;
       }
 
-      // This fifo was created to simplify coding to keep track of whether
-      // an odd number of samples was read from the device. There are other
-      // (more complex) ways to code this loop that do not require this fifo.
-      for (int32 t=0;t<n_read_current;t++) {
-        fifo.push(((int16)buffer[t])-127);
-      }
-
-      // Pop from fifo and store
-      while (fifo.size()>=2) {
-        double re=fifo.front();
-        fifo.pop();
-        double im=fifo.front();
-        fifo.pop();
-        n_read++;
-        // Ignore the first 1.5 seconds of data while the AGC converges.
-        if (n_read<2880000) {
+      for (uint32 t=0;t<BLOCK_SIZE;t+=2) {
+        n_read+=2;
+        // Ignore first 10ms... Hopefully PLL will lock by then...
+        if (n_read<19200) {
           continue;
         }
-        capbuf(n_saved++)=complex<double>(re/128,im/128);
+        capbuf(n_saved++)=complex<double>((buffer[t]-127.0)/128.0,(buffer[t+1]-127.0)/128.0);
         if (n_saved==CAPLENGTH) {
-          goto exit_read_loop;
+          goto cbuf_full;
         }
       }
     }
 
-    exit_read_loop:
-    rtlsdr_close(dev);
+    cbuf_full:
     free(buffer);
     if (n_saved!=CAPLENGTH) {
       cerr << "Error: unable to fill capture buffer..." << endl;
