@@ -53,7 +53,7 @@ static void sighandler(
 
 // Simple usage screen.
 void print_usage() {
-  cout << "LTE CellSearch v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " help screen" << endl << endl;
+  cout << "LTE CellSearch v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " (" << BUILD_TYPE << ") help screen" << endl << endl;
   cout << "CellSearch -s start_frequency [optional_parameters]" << endl;
   cout << "  Basic options" << endl;
   cout << "    -h --help" << endl;
@@ -274,7 +274,7 @@ void parse_commandline(
   }
 
   if (verbosity>=1) {
-    cout << "LTE CellSearch v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " beginning" << endl;
+    cout << "LTE CellSearch v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " (" << BUILD_TYPE << ") beginning" << endl;
     if (freq_start==freq_end) {
       cout << "  Search frequency: " << freq_start/1e6 << " MHz" << endl;
     } else {

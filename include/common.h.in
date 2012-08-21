@@ -5,6 +5,7 @@
 #define MAJOR_VERSION @CellSearch_MAJOR_VERSION@
 #define MINOR_VERSION @CellSearch_MINOR_VERSION@
 #define PATCH_LEVEL @CellSearch_PATCH_LEVEL@
+#define BUILD_TYPE "@CMAKE_BUILD_TYPE@"
 
 // Typedefs
 typedef char int8;

@@ -14,7 +14,7 @@ SET (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Werror -ggdb -D_GLIB
 
 # Set default build type
 IF( NOT CMAKE_BUILD_TYPE )
-  SET( CMAKE_BUILD_TYPE "Release" )
+  SET( CMAKE_BUILD_TYPE "release" )
 ENDIF()
 
 # Find needed packages.
