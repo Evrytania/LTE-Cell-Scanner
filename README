@@ -56,9 +56,8 @@ Note that the debug version is 10x slower than the default build type!
 ------
 Test scripts
 ------
-Several test scripts are included and can be executed by typing:
-make test
-After successfully compiling the program!
+Several test scripts are included and can be executed by typing 'make test'
+after successfully compiling the program.
 
 ------
 Installing
@@ -86,7 +85,7 @@ that you want the dongle to examine. See http://niviuk.free.fr/lte_band.php
 In the US, the LTE downlink frequencies are between 715MHz and 768MHz and
 the following command will search all possible LTE center frequencies in
 this band:
-  CellSearch --freq-start 728000000 --freq-end 768000000
+  CellSearch --freq-start 715e6 --freq-end 768e6
 
 All center frequencies between the start frequency and the end frequency
 that are multiples of 100kHz will be searched for LTE cells. On an i7-2640
@@ -97,7 +96,7 @@ search takes about 1s per center frequency.
 If you know the center frequency of a cell, perhaps from a previous call
 to CellSearch, you can specify just that frequency and the program will search
 for and report all cells detected on that frequency. In my location, in St.
-Louis, there are two LTE carriers, one for AT&T and one for Verizon and I
+Louis, there are two LTE carriers, one for AT&T and one for Verizon, and I
 can scan for cells on those two frequencies using:
   CellSearch --freq-start 739000000
     OR
