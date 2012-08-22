@@ -77,7 +77,7 @@ int main(
     for (list<Cell>::iterator iterator=cells.begin();iterator!=cells.end();iterator++) {
       failed+=
         ((*iterator).pss_pow-peaks_pow[offset]>1e-6)||
-        ((*iterator).ind!=(unsigned)peaks_ind[offset])||
+        ((*iterator).ind!=peaks_ind[offset])||
         ((*iterator).freq!=peaks_freq[offset])||
         ((*iterator).n_id_2!=peaks_n_id_2[offset])
       ;
