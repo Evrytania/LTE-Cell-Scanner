@@ -16,6 +16,9 @@ Note that this code has only been tested in an Ubuntu 12.04 system!
 
 To report any bugs, contact James Peroulas <james@evrytania.com>
 
+A related project that helped create this code is OpenLTE:
+http://sourceforge.net/p/openlte/home/Home/
+
 ------
 Required libraries
 ------
