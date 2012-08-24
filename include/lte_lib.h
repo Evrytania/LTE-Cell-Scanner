@@ -32,7 +32,7 @@ class PSS_fd {
     // Return vector
     const itpp::cvec & operator[](const uint8 & idx) const;
   private:
-    static std::vector <itpp::cvec> table;
+    std::vector <itpp::cvec> table;
 };
 class PSS_td {
   public:
@@ -41,7 +41,7 @@ class PSS_td {
     // Return vector
     const itpp::cvec & operator[](const uint8 & idx) const;
   private:
-    static std::vector <itpp::cvec> table;
+    std::vector <itpp::cvec> table;
 };
 
 // SSS is only needed in the frequency domain
@@ -52,7 +52,7 @@ class SSS_fd {
     // Return vector
     const itpp::ivec & operator()(const uint8 & n_id_1,const uint8 & n_id_2,const uint8 & n_slot) const;
   private:
-    static std::vector < std::vector < std::vector <itpp::ivec> > > table;
+    std::vector < std::vector < std::vector <itpp::ivec> > > table;
 };
 
 // Class used to precompute all DL RS.
@@ -104,7 +104,7 @@ class Mod_map {
       const modulation_t::modulation_t & mod
     ) const;
   private:
-    static itpp::Array <itpp::cvec> table;
+    itpp::Array <itpp::cvec> table;
 };
 
 // Modulate and demodulate bits to/from symbols according to LTE specs.
