@@ -47,6 +47,7 @@ Cell::Cell() :
 
   freq_superfine(NAN),
 
+  n_ports(-1),
   n_rb_dl(-1),
   phich_duration(phich_duration_t::UNKNOWN),
   phich_resource(phich_resource_t::UNKNOWN),
@@ -89,10 +90,11 @@ ostream & operator<< (
   os << endl;
   os << "freq_superfine = " << c.freq_superfine;
 
-  if ((c.n_rb_dl==-1)&&(c.phich_duration==phich_duration_t::UNKNOWN)&&(c.phich_resource==phich_resource_t::UNKNOWN)&&(c.sfn==-1))
+  if ((c.n_ports==-1)&&(c.n_rb_dl==-1)&&(c.phich_duration==phich_duration_t::UNKNOWN)&&(c.phich_resource==phich_resource_t::UNKNOWN)&&(c.sfn==-1))
     return os;
 
   os << endl;
+  os << "n_ports = " << c.n_ports << endl;
   os << "n_rb_dl = " << c.n_rb_dl << endl;
   os << "phich_duration = " << c.phich_duration << endl;
   os << "phich_resource = " << c.phich_resource << endl;

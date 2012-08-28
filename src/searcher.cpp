@@ -1571,6 +1571,7 @@ Cell decode_mib(
       // Did we find it?
       if (crc_est==c_est(24,-1)) {
         // YES!
+        cell_out.n_ports=n_ports;
         // Unpack the MIB
         ivec c_est_ivec=to_ivec(c_est);
         // DL bandwidth

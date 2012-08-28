@@ -586,13 +586,14 @@ int main(
     cout << "No LTE cells were found..." << endl;
   } else {
     cout << "Detected the following cells:" << endl;
-    cout << "C: CP type ; P: PHICH duration ; PR: PHICH resource type" << endl;
-    cout << "CID      fc   foff RXPWR C nRB P  PR CrystalCorrectionFactor" << endl;
+    cout << "A: #antenna ports C: CP type ; P: PHICH duration ; PR: PHICH resource type" << endl;
+    cout << "CID A      fc   foff RXPWR C nRB P  PR CrystalCorrectionFactor" << endl;
     list <Cell>::iterator it=cells_final.begin();
     while (it!=cells_final.end()) {
       // Use a stringstream to avoid polluting the iostream settings of cout.
       stringstream ss;
       ss << setw(3) << (*it).n_id_cell();
+      ss << setw(2) << (*it).n_ports;
       ss << " " << setw(6) << setprecision(4) << (*it).fc/1e6 << "M";
       ss << " " << freq_formatter((*it).freq_superfine);
       ss << " " << setw(5) << setprecision(3) << db10((*it).pss_pow);

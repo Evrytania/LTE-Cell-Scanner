@@ -3,10 +3,16 @@ add_library(LTE_MISC capbuf.cpp constants.cpp itpp_ext.cpp macros.cpp searcher.c
 
 # Create the cell search executable
 ADD_EXECUTABLE (CellSearch CellSearch.cpp)
-SET (common_link_libs ${Boost_LIBRARIES} ${LAPACK_LIBRARIES} ${FFTW_LIBRARIES} ${RTLSDR_LIBRARIES})
+SET (common_link_libs ${Boost_LIBRARIES} ${Boost_THREAD_LIBRARY} ${LAPACK_LIBRARIES} ${FFTW_LIBRARIES} ${RTLSDR_LIBRARIES})
 TARGET_LINK_LIBRARIES (CellSearch general LTE_MISC)
 TARGET_LINK_LIBRARIES (CellSearch debug itpp_debug ${common_link_libs})
 TARGET_LINK_LIBRARIES (CellSearch optimized itpp ${common_link_libs})
+
+# Create the cell tracker
+ADD_EXECUTABLE (LTE-Tracker LTE-Tracker.cpp)
+TARGET_LINK_LIBRARIES (LTE-Tracker general LTE_MISC)
+TARGET_LINK_LIBRARIES (LTE-Tracker debug itpp_debug ${common_link_libs})
+TARGET_LINK_LIBRARIES (LTE-Tracker optimized itpp ${common_link_libs})
 
 # Create a test that tests the overall functionality of the cell searcher.
 # The tests in the 'tests' subdirectory test some of the smaller internal
