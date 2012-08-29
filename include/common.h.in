@@ -113,6 +113,7 @@ class Cell {
 
     double freq_superfine;
 
+    int8 n_ports;
     int8 n_rb_dl;
     phich_duration_t::phich_duration_t phich_duration;
     phich_resource_t::phich_resource_t phich_resource;

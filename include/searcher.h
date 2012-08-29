@@ -106,5 +106,10 @@ Cell decode_mib(
   const RS_DL & rs_dl
 );
 
+// Small helper function that is used by LTE-Tracker
+void del_oob(
+  itpp::ivec & v
+);
+
 #endif
 
