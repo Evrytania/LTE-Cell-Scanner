@@ -403,7 +403,9 @@ typedef struct {
   uint8 slot_num;
   uint8 sym_num;
   double late;
-} fifo_pdu;
+  double frequency_offset;
+  double frame_timing;
+} td_fifo_pdu_t;
 // Structure to describe a cell which is currently being tracked.
 class tracked_cell_t {
   public:
@@ -424,7 +426,7 @@ class tracked_cell_t {
       ac_fd.set_size(12);
       ac_fd=complex <double> (0,0);
       bulk_phase_offset=0;
-      ready=false;
+      tracker_proc_ready=false;
     }
     uint8 const n_symb_dl() const {
       return (cp_type==cp_type_t::NORMAL)?7:((cp_type==cp_type_t::EXTENDED)?6:-1);
@@ -433,14 +435,14 @@ class tracked_cell_t {
     boost::condition condition;
     boost::thread thread;
     // Indicates that the tracker process is ready to receive data.
-    bool ready;
+    bool tracker_proc_ready;
     // These are not allowed to change
     const uint16 n_id_cell;
     const int8 n_ports;
     const cp_type_t::cp_type_t cp_type;
     // These are constantly changing
     double frame_timing;
-    queue <fifo_pdu> fifo;
+    queue <td_fifo_pdu_t> fifo;
     bool kill_me;
     // Calculated values returned by the cell tracker process.
     // Changing constantly.
@@ -737,6 +739,8 @@ typedef struct {
   uint8 slot_num;
   uint8 sym_num;
   cvec ce;
+  double frequency_offset;
+  double frame_timing;
 } ce_raw_fifo_pdu_t;
 // Data structure used to store the filtered channel estimates
 typedef struct {
@@ -761,17 +765,17 @@ typedef struct {
   vec np;
 } mib_fifo_pdu_t;
 
-cvec get_fd(
+void get_fd(
   tracked_cell_t & tracked_cell,
-  global_thread_data_t & global_thread_data,
+  const double & fc,
   const uint8 & slot_num,
   const uint8 & sym_num,
   const ivec & cn,
-  double & bulk_phase_offset
+  double & bulk_phase_offset,
+  cvec & syms,
+  double & frequency_offset,
+  double & frame_timing
 ) {
-  double frequency_offset;
-  double k_factor;
-
   // Lock the tracked_cell data until we obtain one element from
   // the fifo and convert to the frequency domain.
   boost::mutex::scoped_lock lock(tracked_cell.mutex);
@@ -779,7 +783,6 @@ cvec get_fd(
     tracked_cell.condition.wait(lock);
   }
   ASSERT(!tracked_cell.fifo.empty());
-  //cout << "inside get_fd " << tracked_cell.fifo.front().slot_num << " " << slot_num << " " << tracked_cell.fifo.front().sym_num << " " << sym_num << endl;
   if ((tracked_cell.fifo.front().slot_num!=slot_num)||(tracked_cell.fifo.front().sym_num!=sym_num)) {
     // We should never get here...
     cerr << "Error: cell tracker synchronization error! Check code!" << endl;
@@ -787,17 +790,15 @@ cvec get_fd(
   }
 
   // Convert to frequency domain and extract 6 center RB's.
-  {
-    boost::mutex::scoped_lock lock(global_thread_data.frequency_offset_mutex);
-    frequency_offset=global_thread_data.frequency_offset;
-    k_factor=(global_thread_data.fc-frequency_offset)/global_thread_data.fc;
-  }
+  frequency_offset=tracked_cell.fifo.front().frequency_offset;
+  frame_timing=tracked_cell.fifo.front().frame_timing;
+  double k_factor=(fc-frequency_offset)/fc;
   // Also perform FOC to remove ICI
   cvec dft_in=fshift(tracked_cell.fifo.front().data,-frequency_offset,FS_LTE/16);
   // Remove the 2 sample delay
   dft_in=concat(dft_in(2,-1),dft_in(0,1));
   cvec dft_out=dft(dft_in);
-  cvec syms=concat(dft_out.right(36),dft_out.mid(1,36));
+  syms=concat(dft_out.right(36),dft_out.mid(1,36));
   // Compensate for the fact that the DFT was located improperly and also
   // for the bulk phase offset due to frequency errors.
   uint8 n_samp_elapsed;
@@ -813,7 +814,6 @@ cvec get_fd(
   tracked_cell.fifo.pop();
   // At this point, we have the frequency domain data for this slot and
   // this symbol number. FOC and TOC has already been performed.
-  return syms;
 }
 
 cvec filter_ce(
@@ -865,19 +865,19 @@ void do_foe(
   foe_comb_np=foe_comb_np*scale*scale;
 
   // Update system frequency offset.
+  double frequency_offset=rs_prev.frequency_offset;
+  double k_factor=(global_thread_data.fc-frequency_offset)/global_thread_data.fc;
+  double residual_f=arg(foe_comb)/(2*pi)/(k_factor*.0005);
+  double residual_f_np=MAX(foe_comb_np/2,.001);
+  //cout << residual_f << " f " << db10(residual_f_np) << endl;
+  //residual_f=0;
   {
     boost::mutex::scoped_lock lock(global_thread_data.frequency_offset_mutex);
-    double frequency_offset=global_thread_data.frequency_offset;
-    double k_factor=(global_thread_data.fc-frequency_offset)/global_thread_data.fc;
-    double residual_f=arg(foe_comb)/(2*pi)/(k_factor*.0005);
-    double residual_f_np=foe_comb_np/2;
     global_thread_data.frequency_offset=(
       global_thread_data.frequency_offset*(1/.0001)+
-      (global_thread_data.frequency_offset+residual_f)*(1/residual_f_np)
-    )/( 1/.0001+1/residual_f_np);
-    frequency_offset=global_thread_data.frequency_offset;
-    k_factor=(global_thread_data.fc-frequency_offset)/global_thread_data.fc;
-    //cout << "FO: " << frequency_offset << endl;
+      (frequency_offset+residual_f)*(1/residual_f_np)
+    )/(1/.0001+1/residual_f_np);
+    cout << "FO: " << frequency_offset << endl;
   }
 }
 
@@ -903,7 +903,7 @@ void do_toe(
   toe_comb=toe_comb*scale;
   toe_comb_np=toe_comb_np*scale*scale;
   double delay=-arg(toe_comb)/6/(2*pi/128);
-  double delay_np=toe_comb_np/2;
+  double delay_np=MAX(toe_comb_np/2,.001);
   //cout << delay << " " << db10(delay_np) << endl;
   //delay=0;
   //cout << delay_np << endl;
@@ -913,7 +913,7 @@ void do_toe(
     boost::mutex::scoped_lock lock(tracked_cell.mutex);
     tracked_cell.frame_timing=(
       tracked_cell.frame_timing*(1/.0001)+
-      (tracked_cell.frame_timing+delay)*(1/delay_np)
+      (rs_curr.frame_timing+delay)*(1/delay_np)
     )/(1/.0001+1/delay_np);
     tracked_cell.frame_timing=itpp_ext::matlab_mod(tracked_cell.frame_timing,19200.0);
     cout << "TO: " << setprecision(15) << tracked_cell.frame_timing << endl;
@@ -1106,7 +1106,7 @@ void do_mib_decode(
   // Does the MIB fifo have enough data to attempt MIB decoding?
   //cout << mib_fifo.size() << endl;
   if (mib_fifo.size()==16) {
-    cout << "MIB decode starting" << endl;
+    //cout << "MIB decode starting" << endl;
     cvec pbch_sym;
     cmat pbch_ce;
     mat np_pre;
@@ -1226,13 +1226,16 @@ void do_mib_decode(
       }
     }
 
-    // 10ms of time increases mib_fifo_decode_failures by 0.25
+    // 10ms of time increases mib_fifo_decode_failures by 0.25. After 4s
+    // of MIB decoding failures, drop the cell.
     if (mib_fifo_decode_failures>=100) {
       cout << "Dropped a cell!" << endl;
-      cout << "Unfinished code here..." << endl;
+      sleep(100000);
+      //boost::mutex:scoped_lock lock(tracked_cell.mutex);
+      //tracked_cell.kill_me=true;
       return;
     }
-    cout << "MIB decode finished" << endl;
+    //cout << "MIB decode finished" << endl;
   }
 }
 
@@ -1261,12 +1264,15 @@ void tracker_proc(
   // thread that we are ready for data.
   {
     boost::mutex::scoped_lock lock(tracked_cell.mutex);
-    tracked_cell.ready=true;
+    tracked_cell.tracker_proc_ready=true;
   }
   // Each iteration of this loop processes one OFDM symbol.
   while (true) {
     // Get the next frequency domain sample from the fifo.
-    cvec syms=get_fd(tracked_cell,global_thread_data,slot_num,sym_num,cn,bulk_phase_offset);
+    cvec syms;
+    double frequency_offset;
+    double frame_timing;
+    get_fd(tracked_cell,global_thread_data.fc,slot_num,sym_num,cn,bulk_phase_offset,syms,frequency_offset,frame_timing);
 
     // Save this information into the data fifo for further processing
     // once the channel estimates are ready for this ofdm symbol.
@@ -1276,7 +1282,7 @@ void tracker_proc(
     dfp.syms=syms;
     data_fifo.push_back(dfp);
 
-    // Extract any RS that might be present and perform TOE.
+    // Extract any RS that might be present.
     for (uint8 port_num=0;port_num<tracked_cell.n_ports;port_num++) {
       double shift=rs_dl.get_shift(slot_num,sym_num,port_num);
       if (isnan(shift))
@@ -1292,6 +1298,8 @@ void tracker_proc(
       cerp.slot_num=slot_num;
       cerp.sym_num=sym_num;
       cerp.ce=ce_raw;
+      cerp.frequency_offset=frequency_offset;
+      cerp.frame_timing=frame_timing;
       ce_raw_fifo[port_num].push_back(cerp);
     }
 
@@ -1304,6 +1312,7 @@ void tracker_proc(
       // we need the raw channel estimates for OFDM symbols n-1, n, and n+1.
       if (ce_raw_fifo[port_num].size()!=3)
         continue;
+
       // Shortcuts
       ce_raw_fifo_pdu_t & rs_prev=ce_raw_fifo[port_num][0];
       ce_raw_fifo_pdu_t & rs_curr=ce_raw_fifo[port_num][1];
@@ -1323,6 +1332,8 @@ void tracker_proc(
       pdu.sp=rs_curr_sp;
       pdu.np=rs_curr_np;
       pdu.ce_filt=rs_curr_filt;
+      //pdu.frequency_offset=rs_curr.frequency_offset;
+      //pdu.frame_timing=rs_curr.frame_timing;
       ce_filt_fifo[port_num].push_back(pdu);
 
       // FOE
@@ -1358,8 +1369,8 @@ void tracker_proc(
       ce_filt_fifo[port_num].pop_front();
     }
 
-    // Process data now that channel estimates are available for every
-    // data sample.
+    // Process data if channel estimates are available for each antenna and for
+    // every data sample.
     while ((!data_fifo.empty())&&ce_ready(ce_interp_fifo)) {
       // Synchronization check.
       for (uint8 t=0;t<tracked_cell.n_ports;t++) {
@@ -1671,7 +1682,7 @@ int main(
         boost::mutex::scoped_lock lock2(tracked_cell.mutex);
 
         // See if we should start filling the buffer.
-        if (tracked_cell.ready&&!tracked_cell.filling) {
+        if (tracked_cell.tracker_proc_ready&&!tracked_cell.filling) {
           double tdiff=WRAP(sample_time-(tracked_cell.frame_timing+tracked_cell.target_cap_start_time),-19200.0/2,19200.0/2);
           if (
             // Ideal start time is 0.5 samples away from current time
@@ -1695,20 +1706,20 @@ int main(
           if (tracked_cell.buffer_offset==128) {
             // Buffer is full!
             // Send PDU
-            fifo_pdu p;
+            td_fifo_pdu_t p;
             p.data=tracked_cell.buffer;
             p.slot_num=tracked_cell.slot_num;
             p.sym_num=tracked_cell.sym_num;
             p.late=tracked_cell.late;
             // Record the frequency offset and frame timing as they were
             // during the capture.
-            //p.frequency_offset=frequency_offset;
-            //p.frame_timing=tracked_cell.frame_timing;
+            p.frequency_offset=frequency_offset;
+            p.frame_timing=tracked_cell.frame_timing;
             tracked_cell.fifo.push(p);
             tracked_cell.condition.notify_one();
-            cout << "Sleeping..." << endl;
+            //cout << "Sleeping..." << endl;
             //sleep(0.0005/7);
-            cout << "fifo size: " << tracked_cell.fifo.size() << endl;
+            //cout << "fifo size: " << tracked_cell.fifo.size() << endl;
             // Calculate trigger parameters of next capture
             tracked_cell.filling=false;
             if (tracked_cell.cp_type==cp_type_t::EXTENDED) {
