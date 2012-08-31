@@ -390,6 +390,8 @@ void peak_search(
   const vec & Z_th1,
   const vec & f_search_set,
   const double & fc,
+  const vf3d & xc_incoherent_single,
+  const uint8 & ds_comb_arm,
   // Outputs
   list <Cell> & cells
 ) {
@@ -410,11 +412,27 @@ void peak_search(
       break;
     }
 
+    // A peak was found at location peak_ind and has frequency index
+    // xc_incoherent_collapsed_frq(peak_n_id_2,peak_ind). This peak
+    // is the sum of the energy within ds_comb_arm samples around this
+    // peak location. From the samples within ds_comb_arm samples
+    // around peak_ind, find the index with the highest power.
+    double best_pow=-INFINITY;
+    int16 best_ind=-1;
+    for (uint16 t=peak_ind-ds_comb_arm;t<=peak_ind+ds_comb_arm;t++) {
+      uint16 t_wrap=mod(t,9600);
+      if (xc_incoherent_single[peak_n_id_2][t_wrap][xc_incoherent_collapsed_frq(peak_n_id_2,peak_ind)]>best_pow) {
+        best_pow=xc_incoherent_single[peak_n_id_2][t_wrap][xc_incoherent_collapsed_frq(peak_n_id_2,peak_ind)];
+        best_ind=t_wrap;
+      }
+    }
+
     // Record this peak for further processing
     Cell cell;
     cell.fc=fc;
     cell.pss_pow=peak_pow;
-    cell.ind=peak_ind;
+    //cell.ind=peak_ind;
+    cell.ind=best_ind;
     cell.freq=f_search_set(xc_incoherent_collapsed_frq(peak_n_id_2,peak_ind));
     cell.n_id_2=peak_n_id_2;
     cells.push_back(cell);
@@ -812,7 +830,7 @@ void extract_tfg(
   if (cp_type==cp_type_t::NORMAL) {
     dft_location=frame_start+10;
   } else if (cp_type==cp_type_t::EXTENDED) {
-    dft_location=frame_start+16;
+    dft_location=frame_start+32;
   } else {
     throw("Check code...");
   }
@@ -842,7 +860,7 @@ void extract_tfg(
     tfg_timestamp(t)=dft_location;
     // Calculate location of next DFT
     if (n_symb_dl==6) {
-      dft_location+=k_factor*(128+16);
+      dft_location+=k_factor*(128+32);
     } else {
       if (sym_num==6) {
         dft_location+=k_factor*(128+10);
@@ -1526,11 +1544,11 @@ Cell decode_mib(
             if (mod(t,4)==0) {
               h1=(pbch_ce(0,t)+pbch_ce(0,t+1))/2;
               h2=(pbch_ce(2,t)+pbch_ce(2,t+1))/2;
-              np_temp=mean(np_v(0,2));
+              np_temp=(np_v(0)+np_v(2))/2;
             } else {
               h1=(pbch_ce(1,t)+pbch_ce(1,t+1))/2;
               h2=(pbch_ce(3,t)+pbch_ce(3,t+1))/2;
-              np_temp=mean(np_v(1,3));
+              np_temp=(np_v(1)+np_v(3))/2;
             }
           }
           complex <double> x1=pbch_sym(t);

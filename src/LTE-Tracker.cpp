@@ -202,7 +202,7 @@ void parse_commandline(
   }
 
   // Error if extra arguments are found on the command line
-  if (optind < argc) {
+  if (optind<argc) {
     cerr << "Error: unknown/extra arguments specified on command line" << endl;
     exit(-1);
   }
@@ -243,6 +243,17 @@ void parse_commandline(
     temp << setprecision(20) << correction;
     cout << "  correction: " << temp.str() << endl;
   }
+}
+
+// Small helper function to increment the slot number and the symbol number.
+void slot_sym_inc(
+  const uint8 n_symb_dl,
+  uint8 & slot_num,
+  uint8 & sym_num
+) {
+  sym_num=mod(sym_num+1,n_symb_dl);
+  if (sym_num==0)
+    slot_num=mod(slot_num+1,20);
 }
 
 // In high SNR environments, a cell may be detected on different carrier
@@ -358,7 +369,7 @@ void config_usb(
     exit(-1);
   }
 
-  // Discard about 1.5s worth of data to give the AGC time to converge
+  // Discard about 3s worth of data to give the AGC time to converge
   if (verbosity>=2) {
     cout << "Waiting for AGC to converge..." << endl;
   }
@@ -376,7 +387,7 @@ void config_usb(
       break;
     }
     n_read+=n_read_current;
-    if (n_read>2880000)
+    if (n_read>2880000*2)
       break;
   }
   free(buffer);
@@ -406,10 +417,14 @@ class tracked_cell_t {
       kill_me=false;
       sym_num=0;
       slot_num=0;
-      target_cap_start_time=(n_symb_dl()==7)?10:32;
+      target_cap_start_time=(cp_type==cp_type_t::NORMAL)?10:32;
       filling=0;
       buffer.set_size(128);
       buffer_offset=0;
+      ac_fd.set_size(12);
+      ac_fd=complex <double> (0,0);
+      bulk_phase_offset=0;
+      ready=false;
     }
     uint8 const n_symb_dl() const {
       return (cp_type==cp_type_t::NORMAL)?7:((cp_type==cp_type_t::EXTENDED)?6:-1);
@@ -417,6 +432,8 @@ class tracked_cell_t {
     boost::mutex mutex;
     boost::condition condition;
     boost::thread thread;
+    // Indicates that the tracker process is ready to receive data.
+    bool ready;
     // These are not allowed to change
     const uint16 n_id_cell;
     const int8 n_ports;
@@ -427,10 +444,11 @@ class tracked_cell_t {
     bool kill_me;
     // Calculated values returned by the cell tracker process.
     // Changing constantly.
-    double power;
-    // The producer process (main) will use the private members as
+    cvec ac_fd;
+    // Tracker process uses these as local variables.
+    double bulk_phase_offset;
+    // The producer process (main) will use these members as
     // local variables...
-    friend int main(const int argc,char * const argv[]);
     uint8 sym_num;
     uint8 slot_num;
     uint32 target_cap_start_time;
@@ -540,10 +558,8 @@ complex <double> rtl_wrap::get_samp() {
 
 // Perform an initial cell search solely for the purpose of calibrating
 // the oscillator.
-// This code performs a full cell search on one particular center frequency.
-// Future cell searches, after calibration, perform someone limited cell
-// searches and this it is possible for this search to find cells that
-// subsequent searches cannot.
+// This code can probably be rolled into the searcher so as to eliminate
+// some duplicated code.
 double kalibrate(
   const double & fc,
   const double & ppm,
@@ -585,6 +601,7 @@ double kalibrate(
       capbuf+=blnoise(length(capbuf))*sqrt(noise_power);
 
     // Correlate
+    //cout << "DS_COMB_ARM override!!!" << endl;
 #define DS_COMB_ARM 2
     mat xc_incoherent_collapsed_pow;
     imat xc_incoherent_collapsed_frq;
@@ -610,7 +627,7 @@ double kalibrate(
     if (verbosity>=2) {
       cout << "  Searching for and examining correlation peaks..." << endl;
     }
-    peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,f_search_set,fc,detected_cells);
+    peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,f_search_set,fc,xc_incoherent_single,DS_COMB_ARM,detected_cells);
 
     // Loop and check each peak
     list<Cell>::iterator iterator=detected_cells.begin();
@@ -708,12 +725,11 @@ double kalibrate(
   return best.freq_superfine;
 }
 
-// Process that tracks a cell that has been found by the searcher.
 // Data structure stored in the 'data' fifo.
 typedef struct{
   uint8 slot_num;
   uint8 sym_num;
-  cvec fd;
+  cvec syms;
 } data_fifo_pdu_t;
 // Data structure used to store the 'raw' channel estimates
 typedef struct {
@@ -731,6 +747,496 @@ typedef struct {
   double np;
   cvec ce_filt;
 } ce_filt_fifo_pdu_t;
+typedef struct {
+  uint8 slot_num;
+  uint8 sym_num;
+  double sp;
+  double np;
+  cvec ce_interp;
+} ce_interp_fifo_pdu_t;
+typedef struct {
+  cvec syms;
+  cmat ce;
+  vec sp;
+  vec np;
+} mib_fifo_pdu_t;
+
+cvec get_fd(
+  tracked_cell_t & tracked_cell,
+  global_thread_data_t & global_thread_data,
+  const uint8 & slot_num,
+  const uint8 & sym_num,
+  const ivec & cn,
+  double & bulk_phase_offset
+) {
+  double frequency_offset;
+  double k_factor;
+
+  // Lock the tracked_cell data until we obtain one element from
+  // the fifo and convert to the frequency domain.
+  boost::mutex::scoped_lock lock(tracked_cell.mutex);
+  if (tracked_cell.fifo.empty()) {
+    tracked_cell.condition.wait(lock);
+  }
+  ASSERT(!tracked_cell.fifo.empty());
+  //cout << "inside get_fd " << tracked_cell.fifo.front().slot_num << " " << slot_num << " " << tracked_cell.fifo.front().sym_num << " " << sym_num << endl;
+  if ((tracked_cell.fifo.front().slot_num!=slot_num)||(tracked_cell.fifo.front().sym_num!=sym_num)) {
+    // We should never get here...
+    cerr << "Error: cell tracker synchronization error! Check code!" << endl;
+    exit(-1);
+  }
+
+  // Convert to frequency domain and extract 6 center RB's.
+  {
+    boost::mutex::scoped_lock lock(global_thread_data.frequency_offset_mutex);
+    frequency_offset=global_thread_data.frequency_offset;
+    k_factor=(global_thread_data.fc-frequency_offset)/global_thread_data.fc;
+  }
+  // Also perform FOC to remove ICI
+  cvec dft_in=fshift(tracked_cell.fifo.front().data,-frequency_offset,FS_LTE/16);
+  // Remove the 2 sample delay
+  dft_in=concat(dft_in(2,-1),dft_in(0,1));
+  cvec dft_out=dft(dft_in);
+  cvec syms=concat(dft_out.right(36),dft_out.mid(1,36));
+  // Compensate for the fact that the DFT was located improperly and also
+  // for the bulk phase offset due to frequency errors.
+  uint8 n_samp_elapsed;
+  // How many time samples have passed since the previous DFT?
+  if (tracked_cell.cp_type==cp_type_t::EXTENDED) {
+    n_samp_elapsed=128+32;
+  } else {
+    n_samp_elapsed=(sym_num==0)?128+10:128+9;
+  }
+  bulk_phase_offset=WRAP(bulk_phase_offset+2*pi*n_samp_elapsed*k_factor*(1/(FS_LTE/16))*-frequency_offset,-pi,pi);
+  syms=exp(J*bulk_phase_offset)*elem_mult(syms,exp((-J*2*pi*tracked_cell.fifo.front().late/128)*cn));
+  // POP the fifo
+  tracked_cell.fifo.pop();
+  // At this point, we have the frequency domain data for this slot and
+  // this symbol number. FOC and TOC has already been performed.
+  return syms;
+}
+
+cvec filter_ce(
+  const ce_raw_fifo_pdu_t & rs_prev,
+  const ce_raw_fifo_pdu_t & rs_curr,
+  const ce_raw_fifo_pdu_t & rs_next
+) {
+  cvec ce_filt(12);
+  for (uint8 t=0;t<12;t++) {
+    complex <double> total=0;
+    uint8 n_total=0;
+    ivec ind;
+    ind=itpp_ext::matlab_range(t-1,t+1);
+    del_oob(ind);
+    total=sum(rs_curr.ce.get(ind));
+    n_total=length(ind);
+    if (rs_prev.shift<rs_curr.shift) {
+      ind=itpp_ext::matlab_range(t,t+1);
+    } else {
+      ind=itpp_ext::matlab_range(t-1,t);
+    }
+    del_oob(ind);
+    total=total+sum(rs_prev.ce.get(ind));
+    total=total+sum(rs_next.ce.get(ind));
+    n_total+=2*length(ind);
+    ce_filt(t)=total/n_total;
+  }
+  return ce_filt;
+}
+
+void do_foe(
+  global_thread_data_t & global_thread_data,
+  const ce_raw_fifo_pdu_t & rs_prev,
+  const ce_raw_fifo_pdu_t & rs_next,
+  const double & rs_curr_np,
+  const cvec & ce_filt
+) {
+  cvec foe=elem_mult(conj(rs_prev.ce),rs_next.ce);
+  // Calculate the noise on each FOE estimate.
+  vec foe_np=rs_curr_np*rs_curr_np+2*rs_curr_np*sqr(ce_filt);
+  // Calculate the weight to use for each estimate
+  vec weight=elem_div(sqr(ce_filt),foe_np);
+  // MRC
+  complex <double> foe_comb=sum(elem_mult(foe,to_cvec(weight)));
+  double foe_comb_np=sum(elem_mult(foe_np,weight,weight));
+  // Scale. Only necessary for NP.
+  double scale=1/sum(elem_mult(sqr(ce_filt),weight));
+  foe_comb=foe_comb*scale;
+  foe_comb_np=foe_comb_np*scale*scale;
+
+  // Update system frequency offset.
+  {
+    boost::mutex::scoped_lock lock(global_thread_data.frequency_offset_mutex);
+    double frequency_offset=global_thread_data.frequency_offset;
+    double k_factor=(global_thread_data.fc-frequency_offset)/global_thread_data.fc;
+    double residual_f=arg(foe_comb)/(2*pi)/(k_factor*.0005);
+    double residual_f_np=foe_comb_np/2;
+    global_thread_data.frequency_offset=(
+      global_thread_data.frequency_offset*(1/.0001)+
+      (global_thread_data.frequency_offset+residual_f)*(1/residual_f_np)
+    )/( 1/.0001+1/residual_f_np);
+    frequency_offset=global_thread_data.frequency_offset;
+    k_factor=(global_thread_data.fc-frequency_offset)/global_thread_data.fc;
+    //cout << "FO: " << frequency_offset << endl;
+  }
+}
+
+void do_toe(
+  tracked_cell_t & tracked_cell,
+  const ce_raw_fifo_pdu_t & rs_curr,
+  const cvec & rs_curr_filt,
+  const double & rs_curr_np
+) {
+  cvec toe=concat(
+    elem_mult(conj(rs_curr.ce(0,4)),rs_curr.ce(1,5)),
+    elem_mult(conj(rs_curr.ce(6,10)),rs_curr.ce(7,11))
+  );
+  // Calculate the noise on each TOE estimate.
+  vec toe_np=rs_curr_np*rs_curr_np+2*rs_curr_np*sqr(concat(rs_curr_filt(0,4),rs_curr_filt(6,10)));
+  // Calculate the weight to use for each estimate
+  vec weight=elem_div(sqr(concat(rs_curr_filt(0,4),rs_curr_filt(6,10))),toe_np);
+  // MRC
+  complex <double> toe_comb=sum(elem_mult(toe,to_cvec(weight)));
+  double toe_comb_np=sum(elem_mult(toe_np,weight,weight));
+  // Scale. Only necessary for NP.
+  double scale=1.0/sum(elem_mult(sqr(concat(rs_curr_filt(0,4),rs_curr_filt(6,10))),weight));
+  toe_comb=toe_comb*scale;
+  toe_comb_np=toe_comb_np*scale*scale;
+  double delay=-arg(toe_comb)/6/(2*pi/128);
+  double delay_np=toe_comb_np/2;
+  //cout << delay << " " << db10(delay_np) << endl;
+  //delay=0;
+  //cout << delay_np << endl;
+
+  // Update frame timing based on TOE
+  {
+    boost::mutex::scoped_lock lock(tracked_cell.mutex);
+    tracked_cell.frame_timing=(
+      tracked_cell.frame_timing*(1/.0001)+
+      (tracked_cell.frame_timing+delay)*(1/delay_np)
+    )/(1/.0001+1/delay_np);
+    tracked_cell.frame_timing=itpp_ext::matlab_mod(tracked_cell.frame_timing,19200.0);
+    cout << "TO: " << setprecision(15) << tracked_cell.frame_timing << endl;
+  }
+}
+
+void do_fd_ac(
+  tracked_cell_t & tracked_cell,
+  const ce_raw_fifo_pdu_t & rs_curr,
+  const double & rs_curr_sp,
+  const double & rs_curr_np
+) {
+  cvec ac_fd(12);
+  ac_fd=complex <double> (0,0);
+  for (uint8 d=0;d<12;d++) {
+    for (uint8 t=0;t<12-d;t++) {
+      ac_fd(d)+=conj(rs_curr.ce(t))*rs_curr.ce(t+d);
+    }
+    ac_fd(d)=ac_fd(d)/(12-d);
+  }
+  // Normalize
+  //ac_fd=ac_fd/ac_fd(0);
+  ac_fd=ac_fd/rs_curr_sp;
+  vec ac_fd_np=(rs_curr_np*rs_curr_np/(rs_curr_sp*rs_curr_sp)+2*rs_curr_np/rs_curr_sp)/itpp_ext::matlab_range(12.0,-1.0,1.0);
+  {
+    boost::mutex::scoped_lock lock(tracked_cell.mutex);
+    tracked_cell.ac_fd=elem_div(tracked_cell.ac_fd*(1/.001)+elem_mult(ac_fd,to_cvec(1.0/ac_fd_np)),to_cvec(1/.001+1.0/ac_fd_np));
+  }
+}
+
+void interp2d(
+  const tracked_cell_t & tracked_cell,
+  const ce_filt_fifo_pdu_t & rs_prev,
+  const ce_filt_fifo_pdu_t & rs_curr,
+  const uint8 & port_num,
+  deque <ce_interp_fifo_pdu_t> & ce_interp_fifo,
+  uint8 & ce_interp_fifo_initialized
+) {
+  // Interpolate in the frequency domain.
+  vec X=itpp_ext::matlab_range(rs_prev.shift,6.0,71.0);
+  cvec Y=rs_prev.ce_filt;
+  vec x=itpp_ext::matlab_range(0.0,71.0);
+  cvec rs_prev_interp=interp1(X,Y,x);
+  X=itpp_ext::matlab_range(rs_curr.shift,6.0,71.0);
+  Y=rs_curr.ce_filt;
+  cvec rs_curr_interp=interp1(X,Y,x);
+
+  // Interpolate in the time domain and push onto FIFO
+  uint8 slot_num=rs_prev.slot_num;
+  uint8 sym_num=rs_prev.sym_num;
+  // Time difference between the current and previous channel estimates.
+  double time_diff;
+  if (port_num>2) {
+    time_diff=0.0005;
+  } else {
+    if (tracked_cell.cp_type==cp_type_t::EXTENDED) {
+      time_diff=3*(128+32);
+    } else {
+      if (rs_prev.sym_num==0) {
+        time_diff=4*(128+9);
+      } else {
+        time_diff=2*(128+9)+(128+10);
+      }
+    }
+    time_diff=time_diff*(1/(FS_LTE/16));
+  }
+
+  double time_offset=0;
+  while ((slot_num!=rs_curr.slot_num)||(sym_num!=rs_curr.sym_num)) {
+    // Interpolate in the time domain.
+    cvec rs_mid=rs_prev_interp+(rs_curr_interp-rs_prev_interp)*(time_offset/time_diff);
+    double rs_mid_sp=rs_prev.sp+(rs_curr.sp-rs_prev.sp)*(time_offset/time_diff);
+    double rs_mid_np=rs_prev.np+(rs_curr.np-rs_prev.np)*(time_offset/time_diff);
+
+    // Push onto the interpolated CE fifo.
+    ce_interp_fifo_pdu_t pdu;
+    pdu.ce_interp=rs_mid;
+    pdu.sp=rs_mid_sp;
+    pdu.np=rs_mid_np;
+    if (!ce_interp_fifo_initialized) {
+      ce_interp_fifo_initialized=true;
+      uint8 tsy=0;
+      uint8 tsl=0;
+      while ((tsy!=sym_num)||(tsl!=slot_num)) {
+        pdu.sym_num=tsy;
+        pdu.slot_num=tsl;
+        ce_interp_fifo.push_back(pdu);
+        tsy=mod(tsy+1,tracked_cell.n_symb_dl());
+        if (tsy==0) {
+          tsl=mod(tsl+1,20);
+        }
+      }
+    }
+    pdu.slot_num=slot_num;
+    pdu.sym_num=sym_num;
+    ce_interp_fifo.push_back(pdu);
+
+    // Increment counters.
+    if (tracked_cell.cp_type==cp_type_t::EXTENDED) {
+      time_offset+=(128+32)*(1/(FS_LTE/16));
+    } else {
+      if (sym_num==6) {
+        time_offset+=(128+10)*(1/(FS_LTE/16));
+      } else {
+        time_offset+=(128+9)*(1/(FS_LTE/16));
+      }
+    }
+    slot_sym_inc(tracked_cell.n_symb_dl(),slot_num,sym_num);
+    //sym_num=mod(sym_num+1,tracked_cell.n_symb_dl());
+    //if (sym_num==0) {
+    //  slot_num=mod(slot_num+1,20);
+    //}
+  }
+}
+
+// Small helper function returns true if all the fifos contain data.
+bool ce_ready(
+  const vector <deque <ce_interp_fifo_pdu_t> > & ce_interp_fifo
+) {
+  bool ready=true;
+  for (uint8 t=0;t<ce_interp_fifo.size();t++) {
+    ready=ready&&(!ce_interp_fifo[t].empty());
+    if (!ready)
+      break;
+  }
+  return ready;
+}
+
+// Similar to pbch_extract but this one works only on MIB samples. The
+// other function has access to all the OFDM symbols.
+void pbch_extract_rt(
+  const tracked_cell_t & tracked_cell,
+  const deque <mib_fifo_pdu_t> & mib_fifo,
+  cvec & pbch_sym,
+  cmat & pbch_ce,
+  mat & np
+) {
+  // Shortcuts
+  const int16 & n_id_cell=tracked_cell.n_id_cell;
+  const uint8 & n_ports=tracked_cell.n_ports;
+  const cp_type_t::cp_type_t & cp_type=tracked_cell.cp_type;
+
+  uint16 n_syms=(cp_type==cp_type_t::NORMAL)?(1920/2):(1728/2);
+  pbch_sym.set_size(n_syms);
+  pbch_ce.set_size(n_ports,n_syms);
+  np.set_size(n_ports,n_syms);
+
+  const uint8 v_shift_m3=mod(n_id_cell,3);
+  uint16 idx=0;
+  for (uint8 fr=0;fr<4;fr++) {
+    for (uint8 symn=0;symn<4;symn++) {
+      for (uint16 sc=0;sc<72;sc++) {
+        // Skip if there might be an RS occupying this position.
+        if ((mod(sc,3)==v_shift_m3)&&((symn==0)||(symn==1)||((symn==3)&&(cp_type==cp_type_t::EXTENDED)))) {
+          continue;
+        }
+        pbch_sym(idx)=mib_fifo[fr*4+symn].syms(sc);
+        pbch_ce.set_col(idx,mib_fifo[fr*4+symn].ce.get_col(sc));
+        np.set_col(idx,mib_fifo[fr*4+symn].np);
+        //cout << mib_fifo[fr*4+symn].np << endl;
+        idx++;
+      }
+    }
+  }
+  ASSERT(idx==n_syms);
+}
+
+void do_mib_decode(
+  const tracked_cell_t & tracked_cell,
+  const cvec & syms,
+  const cmat & ce,
+  const vec & sp,
+  const vec & np,
+  const uint8 & data_slot_num,
+  const uint8 & data_sym_num,
+  deque <mib_fifo_pdu_t> & mib_fifo,
+  bool & mib_fifo_synchronized,
+  double & mib_fifo_decode_failures
+) {
+  // Assemble symbols for MIB decoding.
+  if ((data_slot_num==1)&&(data_sym_num<=3)) {
+    mib_fifo_pdu_t pdu;
+    pdu.syms=syms;
+    pdu.ce=ce;
+    pdu.sp=sp;
+    pdu.np=np;
+    mib_fifo.push_back(pdu);
+  }
+
+  // Does the MIB fifo have enough data to attempt MIB decoding?
+  //cout << mib_fifo.size() << endl;
+  if (mib_fifo.size()==16) {
+    cout << "MIB decode starting" << endl;
+    cvec pbch_sym;
+    cmat pbch_ce;
+    mat np_pre;
+    pbch_extract_rt(tracked_cell,mib_fifo,pbch_sym,pbch_ce,np_pre);
+    //cout << abs(pbch_sym) << endl;
+    //cout << arg(pbch_sym) << endl;
+    //exit(-1);
+    //cout << pbch_sym << endl;
+    //cout << "pbch_sym: " << pbch_sym << endl;
+    //cout << "pbch_ce: " << pbch_ce << endl;
+
+    vec np_mib;
+    cvec syms_mib;
+    // Much of the following code is copied from the searcher...
+    // TODO: wrap copied code into a function.
+    // Perform channel compensation and also estimate noise power in each
+    // symbol.
+    if (tracked_cell.n_ports==1) {
+      cvec gain=conj(elem_div(pbch_ce.get_row(0),to_cvec(sqr(pbch_ce.get_row(0)))));
+      syms_mib=elem_mult(pbch_sym,gain);
+      np_mib=elem_mult(np_pre.get_row(0),sqr(gain));
+      //cout << db10(np_mib) << endl;
+      //cout << np_mib << endl;
+      //cout << abs(gain) << endl;
+      //cout << np_pre.get_row(0) << endl;
+      //cout << (np_pre.get_row(0)<0) << endl;
+      //exit(-1);
+    } else {
+      syms_mib.set_size(length(pbch_sym));
+      np_mib.set_size(length(pbch_sym));
+#ifndef NDEBUG
+      syms_mib=NAN;
+      np_mib=NAN;
+#endif
+      for (int32 t=0;t<length(syms_mib);t+=2) {
+        // Simple zero-forcing
+        // http://en.wikipedia.org/wiki/Space-time_block_coding_based_transmit_diversity
+        complex <double> h1,h2;
+        double np_temp;
+        if (tracked_cell.n_ports==2) {
+          h1=(pbch_ce(0,t)+pbch_ce(0,t+1))/2;
+          h2=(pbch_ce(1,t)+pbch_ce(1,t+1))/2;
+          np_temp=(np_pre(0,t)+np_pre(1,t))/2;
+        } else {
+          if (mod(t,4)==0) {
+            h1=(pbch_ce(0,t)+pbch_ce(0,t+1))/2;
+            h2=(pbch_ce(2,t)+pbch_ce(2,t+1))/2;
+            np_temp=(np_pre(0,t)+np_pre(2,t))/2;
+          } else {
+            h1=(pbch_ce(1,t)+pbch_ce(1,t+1))/2;
+            h2=(pbch_ce(3,t)+pbch_ce(3,t+1))/2;
+            np_temp=(np_pre(1,t)+np_pre(3,t))/2;
+          }
+        }
+        complex <double> x1=pbch_sym(t);
+        complex <double> x2=pbch_sym(t+1);
+        double scale=pow(h1.real(),2)+pow(h1.imag(),2)+pow(h2.real(),2)+pow(h2.imag(),2);
+        syms_mib(t)=(conj(h1)*x1+h2*conj(x2))/scale;
+        syms_mib(t+1)=conj((-conj(h2)*x1+h1*conj(x2))/scale);
+        np_mib(t)=(pow(abs(h1)/scale,2)+pow(abs(h2)/scale,2))*np_temp;
+        np_mib(t+1)=np_mib(t);
+      }
+      // 3dB factor comes from precoding for transmit diversity
+      syms_mib*=pow(2,0.5);
+    }
+    //cout << abs(syms_mib) << endl;
+    //cout << arg(syms_mib) << endl;
+    //cout << db10(np_mib) << endl;
+    //exit(-1);
+    //cout << "syms_mib: " << syms_mib << endl;
+
+    // Extract the bits from the complex modulated symbols.
+    vec e_est=lte_demodulate(syms_mib,np_mib,modulation_t::QAM);
+    // Unscramble
+    bvec scr=lte_pn(tracked_cell.n_id_cell,length(e_est));
+    for (int32 t=0;t<length(e_est);t++) {
+      if (scr(t)) e_est(t)=-e_est(t);
+    }
+    // Undo ratematching
+    mat d_est=lte_conv_deratematch(e_est,40);
+    // Decode
+    bvec c_est=lte_conv_decode(d_est);
+    // Calculate received CRC
+    bvec crc_est=lte_calc_crc(c_est(0,23),CRC16);
+    // Apply CRC mask
+    if (tracked_cell.n_ports==2) {
+      for (uint8 t=0;t<16;t++) {
+        crc_est(t)=1-((int)crc_est(t));
+      }
+    } else if (tracked_cell.n_ports==4) {
+      for (uint8 t=1;t<length(crc_est);t+=2) {
+        crc_est(t)=1-((int)crc_est(t));
+      }
+    }
+    // Did we find it?
+    if (crc_est==c_est(24,-1)) {
+      // YES!
+      cout << "MIB SUCCESS!" << endl;
+      mib_fifo_synchronized=1;
+      mib_fifo_decode_failures=0;
+      for (uint8 t=0;t<16;t++) {
+        mib_fifo.pop_front();
+      }
+    } else {
+      // No :(
+      cout << "MIB failure!" << endl;
+      if (mib_fifo_synchronized) {
+        mib_fifo_decode_failures++;
+        for (uint8 t=0;t<16;t++) {
+          mib_fifo.pop_front();
+        }
+      } else {
+        mib_fifo_decode_failures+=0.25;
+        for (uint8 t=0;t<4;t++) {
+          mib_fifo.pop_front();
+        }
+      }
+    }
+
+    // 10ms of time increases mib_fifo_decode_failures by 0.25
+    if (mib_fifo_decode_failures>=100) {
+      cout << "Dropped a cell!" << endl;
+      cout << "Unfinished code here..." << endl;
+      return;
+    }
+    cout << "MIB decode finished" << endl;
+  }
+}
+
+// Process that tracks a cell that has been found by the searcher.
 void tracker_proc(
   tracked_cell_t & tracked_cell,
   global_thread_data_t & global_thread_data
@@ -744,58 +1250,30 @@ void tracker_proc(
   deque <data_fifo_pdu_t> data_fifo;
   vector <deque <ce_raw_fifo_pdu_t> > ce_raw_fifo(tracked_cell.n_ports);
   vector <deque <ce_filt_fifo_pdu_t> > ce_filt_fifo(tracked_cell.n_ports);
+  vector <deque <ce_interp_fifo_pdu_t> > ce_interp_fifo(tracked_cell.n_ports);
+  // Cannot use bool here because all the bits would be packed into bytes
+  // and could not be passed by reference.
+  vector <uint8> ce_interp_fifo_initialized(tracked_cell.n_ports,0);
+  deque <mib_fifo_pdu_t> mib_fifo;
+  bool mib_fifo_synchronized=false;
+  double mib_fifo_decode_failures=0;
+  // Now that everything has been initialized, indicate to the producer
+  // thread that we are ready for data.
+  {
+    boost::mutex::scoped_lock lock(tracked_cell.mutex);
+    tracked_cell.ready=true;
+  }
   // Each iteration of this loop processes one OFDM symbol.
   while (true) {
-    cvec fd;
-    double frequency_offset;
-    double k_factor;
-    {
-      boost::mutex::scoped_lock lock(tracked_cell.mutex);
-      if (tracked_cell.fifo.empty()) {
-        tracked_cell.condition.wait(lock);
-      }
-      ASSERT(!tracked_cell.fifo.empty());
-      if ((tracked_cell.fifo.front().slot_num!=slot_num)||(tracked_cell.fifo.front().sym_num!=sym_num)) {
-        // We should never get here...
-        cerr << "Error: cell tracker synchronization error! Check code!" << endl;
-        exit(-1);
-      }
-
-      // Convert to frequency domain and extract 6 center RB's.
-      {
-        boost::mutex::scoped_lock lock(global_thread_data.frequency_offset_mutex);
-        frequency_offset=global_thread_data.frequency_offset;
-        k_factor=(global_thread_data.fc-frequency_offset)/global_thread_data.fc;
-      }
-      // How many time samples have passed since the previous DFT?
-      // Also perform FOC to remove ICI
-      cvec dft_in=fshift(tracked_cell.fifo.front().data,-frequency_offset,FS_LTE/16);
-      // Remove the 2 sample delay
-      dft_in=concat(dft_in(2,-1),dft_in(0,1));
-      cvec dft_out=dft(fshift(tracked_cell.fifo.front().data,-frequency_offset,FS_LTE/16));
-      fd=concat(dft_out.right(36),dft_out.mid(1,36));
-      // Compensate for the fact that the DFT was located improperly and also
-      // for the bulk phase offset due to frequency errors.
-      uint8 n_samp_elapsed;
-      if (tracked_cell.cp_type==cp_type_t::EXTENDED) {
-        n_samp_elapsed=128+32;
-      } else {
-        n_samp_elapsed=(sym_num==0)?128+10:128+9;
-      }
-      bulk_phase_offset=WRAP(bulk_phase_offset+2*pi*n_samp_elapsed*k_factor*(1/(FS_LTE/16))*-frequency_offset,-pi,pi);
-      fd=exp(J*bulk_phase_offset)*elem_mult(fd,exp((-J*2*pi*tracked_cell.fifo.front().late/128)*cn));
-      // POP the fifo
-      tracked_cell.fifo.pop();
-    }
-    // At this point, we have the frequency domain data for this slot and
-    // this symbol number. FOC and TOC has already been performed.
+    // Get the next frequency domain sample from the fifo.
+    cvec syms=get_fd(tracked_cell,global_thread_data,slot_num,sym_num,cn,bulk_phase_offset);
 
     // Save this information into the data fifo for further processing
     // once the channel estimates are ready for this ofdm symbol.
     data_fifo_pdu_t dfp;
     dfp.slot_num=slot_num;
     dfp.sym_num=sym_num;
-    dfp.fd=fd;
+    dfp.syms=syms;
     data_fifo.push_back(dfp);
 
     // Extract any RS that might be present and perform TOE.
@@ -803,7 +1281,11 @@ void tracker_proc(
       double shift=rs_dl.get_shift(slot_num,sym_num,port_num);
       if (isnan(shift))
         continue;
-      cvec rs_raw=fd(itpp_ext::matlab_range(round_i(shift),6,71));
+      //cout << "S" << shift << endl;
+      cvec rs_raw=syms(itpp_ext::matlab_range(round_i(shift),6,71));
+      //cout << "A" << rs_dl.get_rs(slot_num,sym_num) << endl;
+      //cout << slot_num << " x " << sym_num << endl;
+      //cout << "B" << rs_raw << endl;
       cvec ce_raw=elem_mult(rs_raw,conj(rs_dl.get_rs(slot_num,sym_num)));
       ce_raw_fifo_pdu_t cerp;
       cerp.shift=shift;
@@ -813,119 +1295,115 @@ void tracker_proc(
       ce_raw_fifo[port_num].push_back(cerp);
     }
 
-    // Filter and perform FOE and TOE on the raw channel estimates
+    // For each port, filter and perform FOE, TOE, and interpolation on the raw
+    // channel estimates. Also perform some measurements.
+    // All tasks that need access to the raw channel estimates should
+    // go in this loop.
     for (uint8 port_num=0;port_num<tracked_cell.n_ports;port_num++) {
+      // In order to filter the raw channel estimates for OFDM symbol n,
+      // we need the raw channel estimates for OFDM symbols n-1, n, and n+1.
       if (ce_raw_fifo[port_num].size()!=3)
         continue;
+      // Shortcuts
+      ce_raw_fifo_pdu_t & rs_prev=ce_raw_fifo[port_num][0];
+      ce_raw_fifo_pdu_t & rs_curr=ce_raw_fifo[port_num][1];
+      ce_raw_fifo_pdu_t & rs_next=ce_raw_fifo[port_num][2];
 
       // Perform primitive filtering by averaging nearby samples.
-      cvec ce_filt(12);
-      for (uint8 t=0;t<12;t++) {
-        complex <double> total=0;
-        uint8 n_total=0;
-        ivec ind;
-        ind=itpp_ext::matlab_range(t-1,t+1);
-        del_oob(ind);
-        total=sum(ce_raw_fifo[port_num][1].ce.get(ind));
-        n_total=length(ind);
-        if (ce_raw_fifo[port_num][0].shift<ce_raw_fifo[port_num][1].shift) {
-          ind=itpp_ext::matlab_range(t,t+1);
-        } else {
-          ind=itpp_ext::matlab_range(t-1,t);
-        }
-        del_oob(ind);
-        total=total+sum(ce_raw_fifo[port_num][0].ce.get(ind));
-        total=total+sum(ce_raw_fifo[port_num][2].ce.get(ind));
-        n_total=2*length(ind);
-        ce_filt(t)=total/n_total;
-      }
+      const cvec rs_curr_filt=filter_ce(rs_prev,rs_curr,rs_next);
+      const double rs_curr_sp=sigpower(rs_curr_filt);
+      const double rs_curr_np=sigpower(rs_curr.ce-rs_curr_filt);
+      //cout << "SP RSC " << db10(sigpower(rs_curr.ce)) << endl;
+      //cout << "SP/NP " << db10(rs_curr_sp) << " / " << db10(rs_curr_np) << endl;
       // Store filtered channel estimates.
       ce_filt_fifo_pdu_t pdu;
-      pdu.shift=ce_raw_fifo[port_num][1].shift;
-      pdu.slot_num=ce_raw_fifo[port_num][1].slot_num;
-      pdu.sym_num=ce_raw_fifo[port_num][1].sym_num;
-      pdu.sp=sigpower(ce_filt);
-      pdu.np=sigpower(ce_raw_fifo[port_num][1].ce-ce_filt);
-      pdu.ce_filt=ce_filt;
+      pdu.shift=rs_curr.shift;
+      pdu.slot_num=rs_curr.slot_num;
+      pdu.sym_num=rs_curr.sym_num;
+      pdu.sp=rs_curr_sp;
+      pdu.np=rs_curr_np;
+      pdu.ce_filt=rs_curr_filt;
       ce_filt_fifo[port_num].push_back(pdu);
 
       // FOE
-      cvec foe=elem_mult(conj(ce_raw_fifo[port_num][0].ce),ce_raw_fifo[port_num][2].ce);
-      // Calculate the noise on each FOE estimate.
-      vec foe_np=pdu.np*pdu.np+2*pdu.np*sqr(ce_filt);
-      // Calculate the weight to use for each estimate
-      vec weight=elem_div(sqr(ce_filt),foe_np);
-      // MRC
-      complex <double> foe_comb=sum(elem_mult(foe,to_cvec(weight)));
-      double foe_comb_np=sum(elem_mult(foe_np,weight,weight));
-      // Scale. Only necessary for NP.
-      double scale=1/sum(elem_mult(sqr(ce_filt),weight));
-      foe_comb=foe_comb*scale;
-      foe_comb_np=foe_comb_np*scale*scale;
-
-      // Update system frequency offset.
-      double residual_f=arg(foe_comb)/(2*pi)/(k_factor*.0005);
-      double residual_f_np=foe_comb_np/2;
-      {
-        boost::mutex::scoped_lock lock(global_thread_data.frequency_offset_mutex);
-        global_thread_data.frequency_offset=(
-          global_thread_data.frequency_offset*(1/.0001)+
-          (global_thread_data.frequency_offset+residual_f)*(1/residual_f_np)
-        )/( 1/.0001+1/residual_f_np);
-        frequency_offset=global_thread_data.frequency_offset;
-        k_factor=(global_thread_data.fc-frequency_offset)/global_thread_data.fc;
-        cout << "FO: " << frequency_offset << endl;
-      }
+      do_foe(global_thread_data,rs_prev,rs_next,rs_curr_np,rs_curr_filt);
 
       // TOE
-      cvec toe=concat(
-        elem_mult(conj(ce_raw_fifo[port_num][1].ce(0,4)),ce_raw_fifo[port_num][1].ce(1,5)),
-        elem_mult(conj(ce_raw_fifo[port_num][1].ce(6,10)),ce_raw_fifo[port_num][1].ce(7,11))
-      );
-      // Calculate the noise on each TOE estimate.
-      vec toe_np=pdu.np*pdu.np+2*pdu.np*sqr(concat(ce_filt(0,4),ce_filt(6,10)));
-      // Calculate the weight to use for each estimate
-      weight=elem_div(sqr(concat(ce_filt(0,4),ce_filt(6,10))),toe_np);
-      // MRC
-      complex <double> toe_comb=sum(elem_mult(toe,to_cvec(weight)));
-      double toe_comb_np=sum(elem_mult(toe_np,weight,weight));
-      // Scale. Only necessary for NP.
-      scale=1/sum(elem_mult(sqr(concat(ce_filt(0,4),ce_filt(6,10))),weight));
-      toe_comb=toe_comb*scale;
-      toe_comb_np=toe_comb_np*scale*scale;
-      double delay=-arg(toe_comb)/6/(2*pi/128);
-      double delay_np=toe_comb_np/2;
+      do_toe(tracked_cell,rs_curr,rs_curr_filt,rs_curr_np);
 
-      // Update frame timing based on TOE
-      {
-        boost::mutex::scoped_lock lock(tracked_cell.mutex);
-        tracked_cell.frame_timing=(
-          tracked_cell.frame_timing*(1/.0001)+
-          (tracked_cell.frame_timing+delay)*(1/delay_np)
-        )/( 1/.0001+1/delay_np);
-        tracked_cell.frame_timing=itpp_ext::matlab_mod(tracked_cell.frame_timing,19200.0);
-        cout << "TO: " << tracked_cell.frame_timing << endl;
-      }
+      // Estimate frequency domain autocorrelations.
+      do_fd_ac(tracked_cell,rs_curr,rs_curr_sp,rs_curr_np);
 
-      // Finished with the raw channel estimates.
+      // Estimate the time domain autocorrelations.
+      //do_td_ac();
+
+      // Finished working with the raw channel estimates.
       ce_raw_fifo[port_num].pop_front();
+    }
 
-      // Interpolate filtered channel estimates
-      while (!ce_filt_fifo[port_num].empty())
-        ce_filt_fifo[port_num].pop_front();
+    // Tasks that need access to the filtered channel estimates should
+    // go in this loop.
+    for (uint8 port_num=0;port_num<tracked_cell.n_ports;port_num++) {
+      // For interpolation, we need two OFDM symbols.
+      if (ce_filt_fifo[port_num].size()!=2)
+        continue;
 
+      // Shortcuts
+      ce_filt_fifo_pdu_t & rs_prev=ce_filt_fifo[port_num][0];
+      ce_filt_fifo_pdu_t & rs_curr=ce_filt_fifo[port_num][1];
+
+      interp2d(tracked_cell,rs_prev,rs_curr,port_num,ce_interp_fifo[port_num],ce_interp_fifo_initialized[port_num]);
+
+      // Finished working with the filtered channel estimates.
+      ce_filt_fifo[port_num].pop_front();
     }
 
     // Process data now that channel estimates are available for every
     // data sample.
-    while (!data_fifo.empty())
+    while ((!data_fifo.empty())&&ce_ready(ce_interp_fifo)) {
+      // Synchronization check.
+      for (uint8 t=0;t<tracked_cell.n_ports;t++) {
+        if (
+          (data_fifo.front().slot_num!=ce_interp_fifo[t].front().slot_num)||
+          (data_fifo.front().sym_num!=ce_interp_fifo[t].front().sym_num)
+        ) {
+          cerr << "Error: synchronization error! Check code!" << endl;
+          exit(-1);
+        }
+      }
+
+      // Shortcuts
+      cvec & syms=data_fifo.front().syms;
+      cmat ce(tracked_cell.n_ports,72);
+      vec sp(tracked_cell.n_ports);
+      vec np(tracked_cell.n_ports);
+      uint8 data_slot_num=data_fifo.front().slot_num;
+      uint8 data_sym_num=data_fifo.front().sym_num;
+      for (uint8 t=0;t<tracked_cell.n_ports;t++) {
+        ce.set_row(t,ce_interp_fifo[t].front().ce_interp);
+        sp(t)=ce_interp_fifo[t].front().sp;
+        np(t)=ce_interp_fifo[t].front().np;
+      }
+
+      // Measure signal power and noise power on PSS/SSS
+      //do_pss_sss_sigpwer();
+
+      // Perform MIB decoding
+      do_mib_decode(tracked_cell,syms,ce,sp,np,data_slot_num,data_sym_num,mib_fifo,mib_fifo_synchronized,mib_fifo_decode_failures);
+
+      // Done processing data. Pop data vector and CE vectors.
       data_fifo.pop_front();
+      for (uint8 t=0;t<tracked_cell.n_ports;t++) {
+        ce_interp_fifo[t].pop_front();
+      }
+    }
 
     // Increase the local counter
-    sym_num=mod(sym_num+1,tracked_cell.n_symb_dl());
-    if (sym_num==0) {
-      slot_num=mod(slot_num+1,20);
-    }
+    slot_sym_inc(tracked_cell.n_symb_dl(),slot_num,sym_num);
+    //sym_num=mod(sym_num+1,tracked_cell.n_symb_dl());
+    //if (sym_num==0) {
+    //  slot_num=mod(slot_num+1,20);
+    //}
   }
 }
 
@@ -995,7 +1473,7 @@ void searcher_proc(
     if (verbosity>=2) {
       cout << "  Searching for and examining correlation peaks..." << endl;
     }
-    peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,f_search_set,fc,detected_cells);
+    peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,f_search_set,fc,xc_incoherent_single,DS_COMB_ARM,detected_cells);
 
     // Loop and check each peak
     list<Cell>::iterator iterator=detected_cells.begin();
@@ -1071,6 +1549,7 @@ void searcher_proc(
         cout << "  cell ID: " << (*iterator).n_id_cell() << endl;
         cout << "  RX power level: " << db10((*iterator).pss_pow) << " dB" << endl;
         cout << "  residual frequency offset: " << (*iterator).freq_superfine << " Hz" << endl;
+        cout << "Frame start " << (*iterator).frame_start << endl;
       }
 
       // Launch a cell tracker process!
@@ -1140,20 +1619,24 @@ int main(
   boost::thread searcher_thread(searcher_proc,boost::ref(capbuf_sync),boost::ref(global_thread_data),boost::ref(tracked_cell_list));
 
   // Wrap the USB device to simplify obtaining complex samples one by one.
-  double sample_time=0;
+  double sample_time=-1;
   rtl_wrap sample_source(dev,use_recorded_data,filename,noise_power);
 
   // Main loop which distributes data to the appropriate subthread.
   bool searcher_capbuf_filling=false;
   uint32 searcher_capbuf_idx;
+  uint32 n_samps_read=0;
   while (true) {
     // Each iteration of this loop processes one sample.
     double k_factor;
+    double frequency_offset;
     {
       boost::mutex::scoped_lock lock(global_thread_data.frequency_offset_mutex);
-      k_factor=(fc-global_thread_data.frequency_offset)/fc;
+      frequency_offset=global_thread_data.frequency_offset;
+      k_factor=(fc-frequency_offset)/fc;
     }
     complex <double> sample=sample_source.get_samp();
+    n_samps_read++;
     sample_time+=k_factor;
     sample_time=WRAP(sample_time,0.0,19200.0);
 
@@ -1188,7 +1671,7 @@ int main(
         boost::mutex::scoped_lock lock2(tracked_cell.mutex);
 
         // See if we should start filling the buffer.
-        if (!tracked_cell.filling) {
+        if (tracked_cell.ready&&!tracked_cell.filling) {
           double tdiff=WRAP(sample_time-(tracked_cell.frame_timing+tracked_cell.target_cap_start_time),-19200.0/2,19200.0/2);
           if (
             // Ideal start time is 0.5 samples away from current time
@@ -1217,20 +1700,28 @@ int main(
             p.slot_num=tracked_cell.slot_num;
             p.sym_num=tracked_cell.sym_num;
             p.late=tracked_cell.late;
+            // Record the frequency offset and frame timing as they were
+            // during the capture.
+            //p.frequency_offset=frequency_offset;
+            //p.frame_timing=tracked_cell.frame_timing;
             tracked_cell.fifo.push(p);
             tracked_cell.condition.notify_one();
+            cout << "Sleeping..." << endl;
+            //sleep(0.0005/7);
+            cout << "fifo size: " << tracked_cell.fifo.size() << endl;
             // Calculate trigger parameters of next capture
             tracked_cell.filling=false;
-            if (tracked_cell.n_symb_dl()==6) {
+            if (tracked_cell.cp_type==cp_type_t::EXTENDED) {
               tracked_cell.target_cap_start_time+=32+128;
             } else {
               tracked_cell.target_cap_start_time+=(tracked_cell.sym_num==6)?128+10:128+9;
             }
             tracked_cell.target_cap_start_time=mod(tracked_cell.target_cap_start_time,19200);
-            tracked_cell.sym_num=mod(tracked_cell.sym_num+1,tracked_cell.n_symb_dl());
-            if (tracked_cell.sym_num==0) {
-              tracked_cell.slot_num=mod(tracked_cell.slot_num+1,20);
-            }
+            slot_sym_inc(tracked_cell.n_symb_dl(),tracked_cell.slot_num,tracked_cell.sym_num);
+            //tracked_cell.sym_num=mod(tracked_cell.sym_num+1,tracked_cell.n_symb_dl());
+            //if (tracked_cell.sym_num==0) {
+            //  tracked_cell.slot_num=mod(tracked_cell.slot_num+1,20);
+            //}
           }
         }
         ++it;

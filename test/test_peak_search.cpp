@@ -65,9 +65,19 @@ int main(
 
   f_in.close();
 
+  uint8 n_f=length(f_search_set);
+  vf3d xc_incoherent_single=vector < vector < vector < float > > > (3,vector< vector < float > >(9600, vector < float > (n_f,NAN)));
+  for (uint32 k=0;k<3;k++) {
+    for (uint32 m=0;m<9600;m++) {
+      for (uint8 t=0;t<n_f;t++) {
+        xc_incoherent_single[k][m][t]=xc_incoherent_collapsed_pow(k,m);
+      }
+    }
+  }
+
   // Call peak_search
   list <Cell> cells;
-  peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,f_search_set,739e6,cells);
+  peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,f_search_set,739e6,xc_incoherent_single,0,cells);
 
   // Check results
   if (cells.size()!=(unsigned)peaks_pow.length()) {

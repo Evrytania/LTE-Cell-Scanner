@@ -336,9 +336,9 @@ RS_DL::RS_DL(
   // Fill in the tables
   table.resize(20*n_symb_dl);
   shift_table=mat(20*n_symb_dl,4);
-#ifndef NDEBUG
+  // Table must be initialized with NAN since NAN is used
+  // to signal that there are no RS in this OFDM symbol.
   shift_table=NAN;
-#endif
   for (uint8 slot_num=0;slot_num<20;slot_num++) {
     for (uint8 t=0;t<3;t++) {
       uint8 sym_num=(t==2)?(n_symb_dl-3):t;

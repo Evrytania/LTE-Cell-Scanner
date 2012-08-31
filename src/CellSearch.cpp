@@ -516,7 +516,7 @@ int main(
       cout << "  Searching for and examining correlation peaks..." << endl;
     }
     list <Cell> peak_search_cells;
-    peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,f_search_set,fc,peak_search_cells);
+    peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,f_search_set,fc,xc_incoherent_single,DS_COMB_ARM,peak_search_cells);
     detected_cells[fci]=peak_search_cells;
 
     // Loop and check each peak

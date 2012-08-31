@@ -46,6 +46,8 @@ void peak_search(
   const itpp::vec & Z_th1,
   const itpp::vec & f_search_set,
   const double & fc,
+  const vf3d & xc_incoherent_single,
+  const uint8 & ds_comb_arm,
   // Outputs
   std::list <Cell> & cells
 );
