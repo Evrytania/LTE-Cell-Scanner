@@ -477,10 +477,11 @@ void peak_search(
 // Called by more than one function!
 inline cvec extract_psss(
   const cvec td_samps,
-  const double foc_freq
+  const double foc_freq,
+  const double & k_factor
 ) {
   // Frequency shift
-  cvec dft_in=fshift(td_samps,foc_freq,FS_LTE/16);
+  cvec dft_in=fshift(td_samps,foc_freq,FS_LTE/16*k_factor);
   // Remove the 2 sample time offset
   dft_in=concat(dft_in(2,-1),dft_in.left(2));
   // DFT
@@ -537,7 +538,7 @@ void sss_detect_getce_sss(
     uint32 pss_dft_location=pss_loc+9-2;
 
     // Calculate channel response
-    h_raw.set_row(k,elem_mult(extract_psss(capbuf.mid(pss_dft_location,128),-peak_freq),conj(ROM_TABLES.pss_fd[n_id_2_est])));
+    h_raw.set_row(k,elem_mult(extract_psss(capbuf.mid(pss_dft_location,128),-peak_freq,k_factor),conj(ROM_TABLES.pss_fd[n_id_2_est])));
     // Basic smoothing. Average nearest 6 subcarriers.
     for (uint8 t=0;t<62;t++) {
       uint8 lt=MAX(0,t-6);
@@ -550,9 +551,9 @@ void sss_detect_getce_sss(
 
     // Calculate SSS in the frequency domain for extended and normal CP
     uint32 sss_dft_location=pss_dft_location-128-32;
-    sss_ext_raw.set_row(k,extract_psss(capbuf.mid(sss_dft_location,128),-peak_freq));
+    sss_ext_raw.set_row(k,extract_psss(capbuf.mid(sss_dft_location,128),-peak_freq,k_factor));
     sss_dft_location=pss_dft_location-128-9;
-    sss_nrm_raw.set_row(k,extract_psss(capbuf.mid(sss_dft_location,128),-peak_freq));
+    sss_nrm_raw.set_row(k,extract_psss(capbuf.mid(sss_dft_location,128),-peak_freq,k_factor));
   }
 
   // Combine results from different slots
@@ -769,7 +770,7 @@ Cell pss_sss_foe(
 
     // Find the PSS and use it to estimate the channel.
     uint32 pss_dft_location=sss_dft_location+pss_sss_dist;
-    h_raw_fo_pss.set_row(k,extract_psss(capbuf.mid(pss_dft_location,128),-cell_in.freq));
+    h_raw_fo_pss.set_row(k,extract_psss(capbuf.mid(pss_dft_location,128),-cell_in.freq,k_factor));
     h_raw_fo_pss.set_row(k,elem_mult(h_raw_fo_pss.get_row(k),conj(ROM_TABLES.pss_fd[cell_in.n_id_2])));
 
     // Smoothing... Basic...
@@ -783,7 +784,7 @@ Cell pss_sss_foe(
     pss_np(k)=sigpower(h_sm.get_row(k)-h_raw_fo_pss.get_row(k));
 
     // Calculate the SSS in the frequency domain
-    sss_raw_fo.set_row(k,extract_psss(capbuf.mid(sss_dft_location,128),-cell_in.freq)*exp(J*pi*-cell_in.freq/(FS_LTE/16/2)*-pss_sss_dist));
+    sss_raw_fo.set_row(k,extract_psss(capbuf.mid(sss_dft_location,128),-cell_in.freq,k_factor)*exp(J*pi*-cell_in.freq/(FS_LTE/16/2)*-pss_sss_dist));
     sss_raw_fo.set_row(k,elem_mult(sss_raw_fo.get_row(k),to_cvec(ROM_TABLES.sss_fd(cell_in.n_id_1,cell_in.n_id_2,sn))));
 
     // Compare PSS to SSS. With no frequency offset, arg(M) is zero.
@@ -841,7 +842,7 @@ void extract_tfg(
   }
 
   // Perform FOC
-  cvec capbuf=fshift(capbuf_raw,-freq_fine,FS_LTE/16);
+  cvec capbuf=fshift(capbuf_raw,-freq_fine,FS_LTE/16*k_factor);
 
   // Extract 6 frames + 2 slots worth of data
   uint16 n_ofdm_sym=6*10*2*n_symb_dl+2*n_symb_dl;
@@ -914,7 +915,7 @@ Cell tfoec(
 ) {
   // Local shortcuts
   const int8 n_symb_dl=cell.n_symb_dl();
-  double k_factor=(fc-cell.freq_fine)/fc;
+  //double k_factor=(fc-cell.freq_fine)/fc;
   uint16 n_ofdm=tfg.rows();
   uint16 n_slot=floor(((double)n_ofdm)/n_symb_dl);
 
@@ -938,7 +939,7 @@ Cell tfoec(
       foe=foe+sum(elem_mult(conj(col(0,n_slot-2)),col(1,-1)));
     }
   }
-  double residual_f=arg(foe)/(2*pi)/(k_factor*.0005);
+  double residual_f=arg(foe)/(2*pi)/0.0005;
 
   // Perform FOC. Does not fix ICI!
   double k_factor_residual=(fc-residual_f)/fc;
