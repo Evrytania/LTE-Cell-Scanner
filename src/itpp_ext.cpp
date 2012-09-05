@@ -16,6 +16,9 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <itpp/itbase.h>
+#include <sys/stat.h>
+#include <string.h>
+#include <stdlib.h>
 #include "rtl-sdr.h"
 #include "common.h"
 #include "macros.h"
@@ -24,6 +27,7 @@
 namespace itpp_ext {
 
 using namespace itpp;
+using namespace std;
 
 // Flatten 3D vector m. Similar to Matlab's m(:) functionality.
 //
@@ -153,6 +157,51 @@ bool and_reduce(
     if ((retval=retval&&v(t++))==0) break;
   }
   return retval;
+}
+
+// Read data captured by the rtl_sdr program into a cvec.
+void rtl_sdr_to_cvec(
+  const string & filename,
+  cvec & v
+) {
+  // Get filesize
+  struct stat filestatus;
+  stat(filename.c_str(),&filestatus);
+  uint32 file_length=filestatus.st_size;
+  //cout << "file length: " << file_length << " bytes\n";
+  if (floor(file_length/2.0)!=file_length/2.0) {
+    cout << "Warning: file contains an odd number of samples" << endl;
+  }
+  uint32 n_samp=floor(file_length/2.0);
+
+  // Open file
+  FILE *file;
+  file=fopen(filename.c_str(),"rb");
+  if (!file) {
+    cerr << "Error: could not open input file" << endl;
+    exit(-1);
+  }
+
+  // Read entire file, all at once!
+  uint8 * buffer=(uint8 *)malloc(n_samp*2*sizeof(uint8));
+  uint32 n_read=fread(buffer,1,n_samp*2,file);
+  if (n_read!=2*n_samp) {
+    cerr << "Error: error while reading file" << endl;
+    exit(-1);
+  }
+
+  // Convert to cvec
+  v.set_size(n_samp);
+  for (uint32 t=0;t<n_read-1;t+=2) {
+    complex <double> sample=complex <double>((buffer[t]-127.0)/128.0,(buffer[t+1]-127.0)/128.0);
+    // Append to vector.
+    v(t>>1)=sample;
+  }
+
+  // Cleanup
+  free(buffer);
+  fclose(file);
+  cout << "Finished reading binary file..." << endl;
 }
 
 }

@@ -271,6 +271,32 @@ const ivec & SSS_fd::operator()(const uint8 & n_id_1,const uint8 & n_id_2,const 
   return table[n_id_1][n_id_2][n_slot!=0];
 }
 
+// Instantiate the static members
+vector < vector < vector <cvec> > > SSS_td::table;
+
+// Initialize table
+SSS_td::SSS_td(void) {
+  table=vector < vector < vector < cvec > > > (168,vector< vector < cvec > >(3, vector < cvec > (2)));
+  ivec fd;
+  cvec td;
+  cvec idft_in;
+  for (uint8 n_id_1=0;n_id_1<168;n_id_1++) {
+    for (uint8 n_id_2=0;n_id_2<3;n_id_2++) {
+      for (uint8 n_slot=0;n_slot<2;n_slot++) {
+        fd=sss_fd_calc(n_id_1,n_id_2,n_slot*10);
+        idft_in=concat(zeros_c(1),to_cvec(fd(31,61)),zeros_c(65),to_cvec(fd(0,30)));
+        td=idft(idft_in)*sqrt(128.0/62.0);
+        table[n_id_1][n_id_2][n_slot]=concat(td(119,127),td);
+      }
+    }
+  }
+}
+
+// Return the requested SSS in the time domain.
+const cvec & SSS_td::operator()(const uint8 & n_id_1,const uint8 & n_id_2,const uint8 & n_slot) const {
+  return table[n_id_1][n_id_2][n_slot!=0];
+}
+
 // Function to calculate the reference symbols.
 // This function executes rather slowly and hence it is usually better
 // to use the RS_DL class which precomputes all the needed DL RS at once.

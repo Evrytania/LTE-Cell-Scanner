@@ -54,6 +54,15 @@ class SSS_fd {
   private:
     static std::vector < std::vector < std::vector <itpp::ivec> > > table;
 };
+class SSS_td {
+  public:
+    // Constructor
+    SSS_td(void);
+    // Return vector
+    const itpp::cvec & operator()(const uint8 & n_id_1,const uint8 & n_id_2,const uint8 & n_slot) const;
+  private:
+    static std::vector < std::vector < std::vector <itpp::cvec> > > table;
+};
 
 // Class used to precompute all DL RS.
 class RS_DL {

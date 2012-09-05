@@ -97,6 +97,9 @@ inline T last(const itpp::Vec <T> & v) {
   return v(length(v)-1);
 }
 
+// Read an rtl_sdr capture file into a cvec.
+void rtl_sdr_to_cvec(const std::string & filename,itpp::cvec & v);
+
 }
 
 #endif

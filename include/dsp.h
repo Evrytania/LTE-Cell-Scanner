@@ -166,5 +166,11 @@ inline double chi2cdf(
   return boost::math::gamma_p(k/2,x/2);
 }
 
+// Interpolate, using fft's, time domain signal x so that is of length n_y.
+itpp::cvec interpft(
+  const itpp::cvec & x,
+  const uint32 & n_y_pre
+);
+
 #endif
 

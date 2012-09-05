@@ -87,6 +87,7 @@ void xc_correlate(
   // Inputs
   const cvec & capbuf,
   const vec & f_search_set,
+  const double & fc,
   // Outputs
   vcf3d & xc
 ) {
@@ -114,9 +115,10 @@ void xc_correlate(
   //tt.tic();
   for (foi=0;foi<n_f;foi++) {
     f_off=f_search_set(foi);
+    double k_factor=(fc-f_off)/fc;
     for (t=0;t<3;t++) {
       temp=ROM_TABLES.pss_td[t];
-      temp=fshift(temp,f_off,FS_LTE/16);
+      temp=fshift(temp,f_off,FS_LTE/16*k_factor);
       temp=conj(temp)/137;
 #ifdef _OPENMP
 #pragma omp parallel for shared(temp,capbuf,xc) private(k,acc,m)
@@ -371,7 +373,7 @@ void xcorr_pss(
   uint16 & n_comb_sp
 ) {
   // Perform correlations
-  xc_correlate(capbuf,f_search_set,xc);
+  xc_correlate(capbuf,f_search_set,fc,xc);
   // Incoherently combine correlations
   xc_combine(capbuf,xc,fc,f_search_set,xc_incoherent_single,n_comb_xc);
   // Combine according to delay spread

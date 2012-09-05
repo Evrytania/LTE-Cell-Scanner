@@ -16,6 +16,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <itpp/itbase.h>
+#include <itpp/signal/transforms.h>
 #include <complex>
 #include <cmath>
 #include <boost/math/special_functions/gamma.hpp>
@@ -41,5 +42,49 @@ cvec fshift(const cvec &seq,const double f,const double fs) {
 // Shift vector seq up by f Hz assuming that seq was sampled at 2 Hz.
 cvec fshift(const cvec &seq,const double f) {
   return fshift(seq,f,2);
+}
+
+// Perform FFT based interpolation. Assuming input signal is cyclically
+// repeating signal sampled at M points, return a cyclically repeating
+// signal that is sampled at N points.
+cvec interpft(
+  const cvec & x,
+  const uint32 & n_y_pre
+) {
+  const uint32 n_x=length(x);
+
+  // If decimation is requested, first interpolate by an integer factor and
+  // then decimate.
+  uint32 dec_factor;
+  uint32 n_y;
+  if (n_y_pre<n_x) {
+    dec_factor=floor(n_x/n_y_pre)+1;
+    n_y=n_y_pre*dec_factor;
+  } else {
+    dec_factor=1;
+    n_y=n_y_pre;
+  }
+
+  // Interpolate
+  cvec x_fd=fft(x);
+  uint32 nyqst=floor(n_x/2);
+  cvec y_fd_interp=concat(x_fd(0,nyqst),zeros_c(n_y-n_x),x_fd(nyqst+1,n_x-1));
+
+  // Treat the nyquist sample specially when x is of even length.
+  if (mod(n_x,2)==0) {
+    y_fd_interp(nyqst)=y_fd_interp(nyqst)/2;
+    y_fd_interp(nyqst+n_y-n_x)=y_fd_interp(nyqst);
+  }
+  cvec y_interp=ifft(y_fd_interp);
+
+  // Decimate and scale
+  cvec y(n_y);
+  uint32 idx=0;
+  for (uint32 t=0;t<n_y;t++) {
+    y(t)=(((double)n_y)/n_x)*y_interp(idx);
+    idx+=dec_factor;
+  }
+
+  return y;
 }
 

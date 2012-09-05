@@ -27,7 +27,6 @@
 #include <sstream>
 #include <signal.h>
 #include <queue>
-#include <sys/stat.h>
 #include "rtl-sdr.h"
 #include "common.h"
 #include "macros.h"
@@ -348,7 +347,7 @@ void parse_commandline(
   }
 
   if (verbosity>=1) {
-    cout << "LTE CellSearch v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " (" << BUILD_TYPE << ") beginning" << endl;
+    cout << "LTE Tracker v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " (" << BUILD_TYPE << ") beginning" << endl;
     cout << "  Search frequency: " << fc/1e6 << " MHz" << endl;
     cout << "  PPM: " << ppm << endl;
     stringstream temp;
@@ -611,46 +610,9 @@ void read_datafile(
     cout << "read itpp format" << endl;
     return;
   } else {
-    cout << "Trying binary file" << endl;
-
-    // Get filesize
-    struct stat filestatus;
-    stat(filename.c_str(),&filestatus);
-    uint32 file_length=filestatus.st_size;
-    cout << "file length: " << file_length << " bytes\n";
-    if (floor(file_length/2.0)!=file_length/2.0) {
-      cout << "Warning: file contains an odd number of samples" << endl;
-    }
-    uint32 n_samp=floor(file_length/2.0);
-
-    // Open file
-    FILE *file;
-    file=fopen(filename.c_str(),"rb");
-    if (!file) {
-      cerr << "Error: could not open input file" << endl;
-      exit(-1);
-    }
-
-    // Read entire file, all at once!
-    uint8 * buffer=(uint8 *)malloc(n_samp*2*sizeof(uint8));
-    uint32 n_read=fread(buffer,1,n_samp*2,file);
-    if (n_read!=2*n_samp) {
-      cerr << "Error: error while reading file" << endl;
-      exit(-1);
-    }
-
-    // Convert to cvec
-    sig_tx.set_size(n_samp);
-    for (uint32 t=0;t<n_read-1;t+=2) {
-      complex <double> sample=complex <double>((buffer[t]-127.0)/128.0,(buffer[t+1]-127.0)/128.0);
-      // Append to vector.
-      sig_tx(t>>1)=sample;
-    }
-
-    // Cleanup
-    free(buffer);
-    fclose(file);
-    cout << "Finished reading binary file..." << endl;
+    itpp_ext::rtl_sdr_to_cvec(filename,sig_tx);
+    // Drop several seconds while AGC converges.
+    sig_tx=sig_tx(FS_LTE/16*4,-1);
   }
   if (length(sig_tx)==0) {
     cerr << "Error: no data in file!" << endl;
@@ -666,6 +628,7 @@ class rtl_wrap {
     // Destructor
     ~rtl_wrap();
     complex <double> get_samp();
+    void reset();
   private:
     bool use_recorded_data;
     cvec sig_tx;
@@ -747,6 +710,9 @@ complex <double> rtl_wrap::get_samp() {
   } else {
     return samp;
   }
+}
+void rtl_wrap::reset() {
+  offset=0;
 }
 
 // Perform an initial cell search solely for the purpose of calibrating
@@ -1880,7 +1846,20 @@ int main(
   uint32 searcher_capbuf_idx=0;
   uint32 n_samps_read=0;
   unsigned long long int sample_number=0;
+  //bool data_source_reset=false;
   while (true) {
+    /*
+    {
+      boost::mutex::scoped_lock lock(tracked_cell_list.mutex);
+      if ((!data_source_reset)&&(tracked_cell_list.tracked_cells.size()>0)) {
+        data_source_reset=true;
+        cout << "Resetting data source!" << endl;
+        sample_time=0;
+        sample_source.reset();
+      }
+    }
+    */
+
     // Each iteration of this loop processes one sample.
     double k_factor;
     double frequency_offset;
