@@ -201,7 +201,6 @@ void rtl_sdr_to_cvec(
   // Cleanup
   free(buffer);
   fclose(file);
-  cout << "Finished reading binary file..." << endl;
 }
 
 }

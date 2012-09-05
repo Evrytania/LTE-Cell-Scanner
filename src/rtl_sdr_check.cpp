@@ -248,7 +248,7 @@ void parse_commandline(
   // Second order command line checking. Ensure that command line options
   // are consistent.
   if (!filename_set||!fc_set||!fs_set||!n_id_cell_set||!f_off_set) {
-    cerr << "Error: required parameter missing" << endl;
+    cerr << "Error: required parameter missing (try --help)" << endl;
     exit(-1);
   }
   // Frequencies should be on a 100kHz raster.

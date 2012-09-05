@@ -457,7 +457,7 @@ void config_usb(
   }
 
   // Sampling frequency
-  if (rtlsdr_set_sample_rate(dev,itpp::round(1920000*correction))<0) {
+  if (rtlsdr_set_sample_rate(dev,itpp::round(960000*correction))<0) {
     cerr << "Error: unable to set sampling rate" << endl;
     exit(-1);
   }
@@ -486,16 +486,16 @@ void config_usb(
   }
   uint32 n_read=0;
   int n_read_current;
-#define BLOCK_SIZE 16*16384
+#define BLOCK_SIZE (16*16384)
   uint8 * buffer=(uint8 *)malloc(BLOCK_SIZE*sizeof(uint8));
   while (true) {
     if (rtlsdr_read_sync(dev,buffer,BLOCK_SIZE,&n_read_current)<0) {
       cerr << "Error: synchronous read failed" << endl;
-      break;
+      exit(-1);
     }
     if (n_read_current<BLOCK_SIZE) {
       cerr << "Error: short read; samples lost" << endl;
-      break;
+      exit(-1);
     }
     n_read+=n_read_current;
     if (n_read>2880000*2)
@@ -610,7 +610,14 @@ void read_datafile(
     cout << "read itpp format" << endl;
     return;
   } else {
-    itpp_ext::rtl_sdr_to_cvec(filename,sig_tx);
+    cvec sig_tx_pre;
+    itpp_ext::rtl_sdr_to_cvec(filename,sig_tx_pre);
+    sig_tx.set_size(length(sig_tx_pre)*2-10);
+    for (int32 t=0;t<length(sig_tx);t+=2) {
+      // FIXME: Do proper interpolation
+      sig_tx(t)=sig_tx_pre(t>>1);
+      sig_tx(t+1)=(sig_tx_pre(t>>1)+sig_tx_pre((t>>1)+1))/2;
+    }
     // Drop several seconds while AGC converges.
     sig_tx=sig_tx(FS_LTE/16*4,-1);
   }
@@ -628,7 +635,7 @@ class rtl_wrap {
     // Destructor
     ~rtl_wrap();
     complex <double> get_samp();
-    void reset();
+    //void reset();
   private:
     bool use_recorded_data;
     cvec sig_tx;
@@ -637,6 +644,10 @@ class rtl_wrap {
     double noise_power_sqrt;
     bool repeat;
     bool rtl_sdr_format;
+    bool phase_even;
+    complex <double> samp_d1;
+    complex <double> samp_d2;
+    //FILE * file;
 };
 rtl_wrap::rtl_wrap(
   rtlsdr_dev_t * dev,
@@ -650,6 +661,16 @@ rtl_wrap::rtl_wrap(
   use_recorded_data=urd;
   repeat=rpt;
   rtl_sdr_format=rsdf;
+  phase_even=true;
+  samp_d1=complex <double> (0,0);
+  samp_d2=complex <double> (0,0);
+  //cout << "Opening log file" << endl;
+  //file=fopen("tracker_log.dat","wb");
+  //if (!file) {
+  //  cerr << "Error: could not open ddata capture log file" << endl;
+  //  exit(-1);
+  //}
+  //cout << "Log file opened!" << endl;
   if (isfinite(noise_power)) {
     noise_power_sqrt=sqrt(noise_power);
   } else {
@@ -680,7 +701,7 @@ complex <double> rtl_wrap::get_samp() {
   complex <double> samp;
   if (use_recorded_data) {
     //samp=sig_tx(offset);
-    samp=0*sig_tx(offset)+(1.0*J)*exp(J*((double)(cnt++))*2*pi/10000000)*sig_tx(mod(offset-5000,length(sig_tx)));;
+    samp=1*sig_tx(offset)+(0.0*J)*exp(J*((double)(cnt++))*2*pi/10000000)*sig_tx(mod(offset-5000,length(sig_tx)));;
     offset=mod(offset+1,length(sig_tx));
     if ((offset==0)&&(!repeat)) {
       // Not that if N complex samples are read from the file and repeat is
@@ -697,6 +718,10 @@ complex <double> rtl_wrap::get_samp() {
         cerr << "Error: synchronous read failed" << endl;
         exit(-1);
       }
+      //if (fwrite(buffer, 1, n_read, file)!=(size_t)n_read) {
+      //  cerr<<"Error: Short write, samples lost, exiting!" << endl;
+      //  exit(-1);
+      //}
       if (n_read<BLOCK_SIZE) {
         cerr << "Error: short read; samples lost" << endl;
         exit(-1);
@@ -711,9 +736,25 @@ complex <double> rtl_wrap::get_samp() {
     return samp;
   }
 }
+/*
+complex <double> rtl_wrap::get_samp() {
+  complex <double> samp;
+  if (phase_even==true) {
+    samp_d2=samp_d1;
+    samp_d1=get_samp_pre();
+    samp=samp_d1;
+  } else {
+    samp=(samp_d1+samp_d2)/2;
+  }
+  phase_even=!phase_even;
+  return samp;
+}
+*/
+/*
 void rtl_wrap::reset() {
   offset=0;
 }
+*/
 
 // Perform an initial cell search solely for the purpose of calibrating
 // the oscillator.
@@ -740,9 +781,10 @@ double kalibrate(
   list <Cell> detected_cells;
   // Loop until a cell is found
   while (detected_cells.size()<1) {
+    cvec capbuf;
     // Fill capture buffer either from a file or from live data.
-    cvec capbuf(153600);
     if (use_recorded_data) {
+      capbuf.set_size(153600);
       cvec cbload;
       read_datafile(filename,rtl_sdr_format,cbload);
       //it_ifile itf(filename);
@@ -758,7 +800,7 @@ double kalibrate(
     } else {
       capture_data(fc,correction,false,false,".",capbuf);
     }
-    cout << "Capbuf power: " << db10(sigpower(capbuf)) << " dB" << endl;
+    //cout << "Capbuf power: " << db10(sigpower(capbuf)) << " dB" << endl;
     if (isfinite(noise_power))
       capbuf+=blnoise(length(capbuf))*sqrt(noise_power);
 
@@ -1400,7 +1442,7 @@ int8 do_mib_decode(
     // Did we find it?
     if (crc_est==c_est(24,-1)) {
       // YES!
-      cout << "MIB SUCCESS!" << endl;
+      cout << "Cell ID " << tracked_cell.n_id_cell << " MIB SUCCESS!" << endl;
       mib_fifo_synchronized=1;
       mib_fifo_decode_failures=0;
       for (uint8 t=0;t<16;t++) {
@@ -1408,7 +1450,7 @@ int8 do_mib_decode(
       }
     } else {
       // No :(
-      cout << "MIB failure!" << endl;
+      cout << "Cell ID " << tracked_cell.n_id_cell << " MIB failure!" << endl;
       if (mib_fifo_synchronized) {
         mib_fifo_decode_failures++;
         for (uint8 t=0;t<16;t++) {
@@ -1424,7 +1466,7 @@ int8 do_mib_decode(
 
     // 10ms of time increases mib_fifo_decode_failures by 0.25.
     // After several seconds of MIB decoding failures, drop the cell.
-    if (mib_fifo_decode_failures>=400) {
+    if (mib_fifo_decode_failures>=100) {
       cout << "Dropped a cell!" << endl;
       boost::mutex::scoped_lock lock(tracked_cell.mutex);
       tracked_cell.kill_me=true;
@@ -1764,20 +1806,21 @@ void searcher_proc(
         cout << "  cell ID: " << (*iterator).n_id_cell() << endl;
         cout << "  RX power level: " << db10((*iterator).pss_pow) << " dB" << endl;
         cout << "  residual frequency offset: " << (*iterator).freq_superfine << " Hz" << endl;
-        cout << "Frame start " << (*iterator).frame_start << endl;
+        cout << "  frame start: " << (*iterator).frame_start << endl;
       }
 
       // Launch a cell tracker process!
       k_factor=k_factor;
-      cout << "Timing error is purposely introduced here!!!" << endl;
-      tracked_cell_t * new_cell = new tracked_cell_t((*iterator).n_id_cell(),(*iterator).n_ports,(*iterator).cp_type,(*iterator).frame_start/k_factor+capbuf_sync.late+global_1);
+      //cout << "Timing error is purposely introduced here!!!" << endl;
+      //tracked_cell_t * new_cell = new tracked_cell_t((*iterator).n_id_cell(),(*iterator).n_ports,(*iterator).cp_type,(*iterator).frame_start/k_factor+capbuf_sync.late+global_1);
+      tracked_cell_t * new_cell = new tracked_cell_t((*iterator).n_id_cell(),(*iterator).n_ports,(*iterator).cp_type,(*iterator).frame_start/k_factor+capbuf_sync.late);
       (*new_cell).thread=boost::thread(tracker_proc,boost::ref(*new_cell),boost::ref(global_thread_data));
       {
         boost::mutex::scoped_lock lock(tracked_cell_list.mutex);
         tracked_cell_list.tracked_cells.push_back(new_cell);
       }
-      cout << "Only one cell is allowed to be detected!!!" << endl;
-      sleep(1000000);
+      //cout << "Only one cell is allowed to be detected!!!" << endl;
+      //sleep(1000000);
 
       ++iterator;
     }
@@ -1887,7 +1930,7 @@ int main(
     {
       boost::mutex::scoped_lock lock(capbuf_sync.mutex);
       if ((capbuf_sync.request)&&(!searcher_capbuf_filling)&&(abs(WRAP(sample_time-0,-19200.0/2,19200.0/2))<0.5)) {
-        cout << "searcher data cap beginning" << endl;
+        //cout << "searcher data cap beginning" << endl;
         capbuf_sync.request=false;
         searcher_capbuf_filling=true;
         searcher_capbuf_idx=0;
@@ -1903,7 +1946,7 @@ int main(
         searcher_capbuf_filling=false;
         boost::mutex::scoped_lock lock(capbuf_sync.mutex);
         capbuf_sync.condition.notify_one();
-        cout << "searcher data cap finished" << endl;
+        //cout << "searcher data cap finished" << endl;
       }
     }
 

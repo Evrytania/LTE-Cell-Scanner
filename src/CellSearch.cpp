@@ -387,7 +387,7 @@ void config_usb(
   }
 
   // Sampling frequency
-  if (rtlsdr_set_sample_rate(dev,itpp::round(1920000*correction))<0) {
+  if (rtlsdr_set_sample_rate(dev,itpp::round(960000*correction))<0) {
     cerr << "Error: unable to set sampling rate" << endl;
     exit(-1);
   }
@@ -421,11 +421,11 @@ void config_usb(
   while (true) {
     if (rtlsdr_read_sync(dev,buffer,BLOCK_SIZE,&n_read_current)<0) {
       cerr << "Error: synchronous read failed" << endl;
-      break;
+      exit(-1);
     }
     if (n_read_current<BLOCK_SIZE) {
       cerr << "Error: short read; samples lost" << endl;
-      break;
+      exit(-1);
     }
     n_read+=n_read_current;
     if (n_read>2880000*2)

@@ -91,29 +91,32 @@ void capture_data(
     uint32 n_read=0;
     int n_read_current=0;
     uint32 n_saved=0;
-    capbuf.set_size(CAPLENGTH);
+    //capbuf.set_size(CAPLENGTH);
+#define FIR_LENGTH 10
+    cvec capbuf_0p5x(CAPLENGTH/2+FIR_LENGTH+10);
 #ifndef NDEBUG
-    capbuf=NAN;
+    //capbuf=NAN;
+    capbuf_0p5x=NAN;
 #endif
     while (true) {
       // Read some data
       if (rtlsdr_read_sync(dev,buffer,BLOCK_SIZE,&n_read_current)<0) {
         cerr << "Error: synchronous read failed" << endl;
-        break;
+        exit(-1);
       }
       if (n_read_current<BLOCK_SIZE) {
         cerr << "Error: short read; samples lost" << endl;
-        break;
+        exit(-1);
       }
 
       for (uint32 t=0;t<BLOCK_SIZE;t+=2) {
         n_read+=2;
-        // Ignore first 10ms... Hopefully PLL will lock by then...
+        // Ignore first 20ms... Hopefully PLL will lock by then...
         if (n_read<19200) {
           continue;
         }
-        capbuf(n_saved++)=complex<double>((buffer[t]-127.0)/128.0,(buffer[t+1]-127.0)/128.0);
-        if (n_saved==CAPLENGTH) {
+        capbuf_0p5x(n_saved++)=complex<double>((buffer[t]-127.0)/128.0,(buffer[t+1]-127.0)/128.0);
+        if ((signed)n_saved==length(capbuf_0p5x)) {
           goto cbuf_full;
         }
       }
@@ -121,9 +124,18 @@ void capture_data(
 
     cbuf_full:
     free(buffer);
-    if (n_saved!=CAPLENGTH) {
+    if ((signed)n_saved!=length(capbuf_0p5x)) {
       cerr << "Error: unable to fill capture buffer..." << endl;
       exit(-1);
+    }
+
+    // Interpolate.
+    // FIXME: Do proper interpolation.
+    capbuf.set_size(CAPLENGTH);
+    capbuf=NAN;
+    for (uint32 t=0;t<CAPLENGTH;t+=2) {
+      capbuf(t)=capbuf_0p5x(t>>1);
+      capbuf(t+1)=(capbuf_0p5x(t>>1)+capbuf_0p5x((t>>1)+1))/2;
     }
   }
 
