@@ -597,6 +597,12 @@ typedef struct {
   cvec capbuf;
   double late;
 } capbuf_sync_t;
+// IPC between main thread and producer thread.
+typedef struct {
+  boost::mutex mutex;
+  boost::condition condition;
+  deque <uint8> fifo;
+} sampbuf_sync_t;
 
 void read_datafile(
   const string & filename,
@@ -734,6 +740,7 @@ complex <double> rtl_wrap::get_samp() {
       exit(-1);
     }
   } else {
+    // This code is wrong! FIXME
     if (phase_even==true) {
       samp_d2=samp_d1;
       samp_d1=get_samp_pre();
@@ -1832,63 +1839,18 @@ void searcher_proc(
   // Will never reach here...
 }
 
-// Main routine.
-int main(
-  const int argc,
-  char * const argv[]
+// Process that takes samples and distributes them to the appropriate
+// process.
+void producer_proc(
+  sampbuf_sync_t & sampbuf_sync,
+  capbuf_sync_t & capbuf_sync,
+  global_thread_data_t & global_thread_data,
+  tracked_cell_list_t & tracked_cell_list,
+  double & fc
 ) {
-  // This is so that CTRL-C properly closes the rtl-sdr device before exiting
-  // the program.
-  //struct sigaction sigact;
-  //sigact.sa_handler=sighandler;
-  //sigemptyset(&sigact.sa_mask);
-  //sigact.sa_flags=0;
-  //sigaction(SIGINT,&sigact,NULL);
-  //sigaction(SIGTERM,&sigact,NULL);
-  //sigaction(SIGQUIT,&sigact,NULL);
-  //sigaction(SIGPIPE,&sigact,NULL);
-
-  // Command line parameters are stored here.
-  double fc;
-  double ppm;
-  double correction;
-  int32 device_index;
-  bool use_recorded_data;
-  string filename;
-  bool repeat;
-  bool rtl_sdr_format;
-  double noise_power;
-
-  // Get search parameters from the user
-  parse_commandline(argc,argv,fc,ppm,correction,device_index,use_recorded_data,filename,repeat,rtl_sdr_format,noise_power);
-
-  // Open the USB device.
-  if (!use_recorded_data)
-    config_usb(correction,device_index,fc);
-
-  // Data shared between threads
-  tracked_cell_list_t tracked_cell_list;
-  capbuf_sync_t capbuf_sync;
-  global_thread_data_t global_thread_data;
-
-  // Calibrate the dongle's oscillator. This is similar to running the
-  // program CellSearch with only one center frequency. All information
-  // is discarded except for the frequency offset.
-  global_thread_data.frequency_offset=kalibrate(fc,ppm,correction,use_recorded_data,filename,rtl_sdr_format,noise_power);
-
-  // Start the cell searcher thread.
-  // Now that the oscillator has been calibrated, we can perform
-  // a 'real' search.
-  capbuf_sync.request=false;
-  capbuf_sync.capbuf.set_size(19200*8);
-  global_thread_data.fc=fc;
-  boost::thread searcher_thread(searcher_proc,boost::ref(capbuf_sync),boost::ref(global_thread_data),boost::ref(tracked_cell_list));
-
-  // Wrap the USB device to simplify obtaining complex samples one by one.
-  double sample_time=-1;
-  rtl_wrap sample_source(dev,use_recorded_data,filename,repeat,rtl_sdr_format,noise_power);
-
   // Main loop which distributes data to the appropriate subthread.
+  //Real_Timer tt;
+  double sample_time=-1;
   bool searcher_capbuf_filling=false;
   uint32 searcher_capbuf_idx=0;
   uint32 n_samps_read=0;
@@ -1907,6 +1869,8 @@ int main(
   //  cerr << "Error: could not elevate main thread priority" << endl;
   //  exit(-1);
   //}
+  bool phase_even=true;
+  //tt.tic();
   while (true) {
     // Each iteration of this loop processes one sample.
     double k_factor;
@@ -1916,6 +1880,8 @@ int main(
       frequency_offset=global_thread_data.frequency_offset;
       k_factor=(fc-frequency_offset)/fc;
       if (mod(sample_number++,19200*100)==0) {
+        //tt.toc_print();
+        //cout << sample_number << endl;
         // Status message displayed every second.
         cout << "System frequency offset is currently: " << frequency_offset << endl;
         boost::mutex::scoped_lock lock(tracked_cell_list.mutex);
@@ -1926,7 +1892,33 @@ int main(
         }
       }
     }
-    complex <double> sample=sample_source.get_samp();
+
+    // Get the next sample
+    complex <double> sample;
+    if (phase_even) {
+      boost::mutex::scoped_lock lock(sampbuf_sync.mutex);
+      while (sampbuf_sync.fifo.size()<2) {
+        sampbuf_sync.condition.wait(lock);
+      }
+      uint8 real=sampbuf_sync.fifo[0];
+      uint8 imag=sampbuf_sync.fifo[1];
+      sample=complex <double>((real-127.0)/128.0,(imag-127.0)/128.0);
+    } else {
+      boost::mutex::scoped_lock lock(sampbuf_sync.mutex);
+      while (sampbuf_sync.fifo.size()<4) {
+        sampbuf_sync.condition.wait(lock);
+      }
+      uint8 real=sampbuf_sync.fifo[0];
+      uint8 imag=sampbuf_sync.fifo[1];
+      complex <double> sample1=complex <double>((real-127.0)/128.0,(imag-127.0)/128.0);
+      real=sampbuf_sync.fifo[2];
+      imag=sampbuf_sync.fifo[3];
+      complex <double> sample2=complex <double>((real-127.0)/128.0,(imag-127.0)/128.0);
+      sample=(sample1+sample2)/2;
+      sampbuf_sync.fifo.pop_front();
+      sampbuf_sync.fifo.pop_front();
+    }
+    phase_even=!phase_even;
     n_samps_read++;
     sample_time+=1.0/k_factor;
     sample_time=WRAP(sample_time,0.0,19200.0);
@@ -2026,6 +2018,90 @@ int main(
       }
     }
   }
+}
+
+static void rtlsdr_callback(
+  unsigned char * buf,
+  uint32_t len,
+  void * ctx
+) {
+  sampbuf_sync_t & sampbuf_sync=*((sampbuf_sync_t *)ctx);
+
+  //cout << "Callback with " << len << " samples" << endl;
+
+  if (len==0) {
+    cerr << "Received 'zero' samples from USB..." << endl;
+    exit(-1);
+  }
+
+  boost::mutex::scoped_lock lock(sampbuf_sync.mutex);
+  for (uint32 t=0;t<len;t++) {
+    sampbuf_sync.fifo.push_back(buf[t]);
+  }
+  sampbuf_sync.condition.notify_one();
+}
+
+// Main routine.
+int main(
+  const int argc,
+  char * const argv[]
+) {
+  // This is so that CTRL-C properly closes the rtl-sdr device before exiting
+  // the program.
+  //struct sigaction sigact;
+  //sigact.sa_handler=sighandler;
+  //sigemptyset(&sigact.sa_mask);
+  //sigact.sa_flags=0;
+  //sigaction(SIGINT,&sigact,NULL);
+  //sigaction(SIGTERM,&sigact,NULL);
+  //sigaction(SIGQUIT,&sigact,NULL);
+  //sigaction(SIGPIPE,&sigact,NULL);
+
+  // Command line parameters are stored here.
+  double fc;
+  double ppm;
+  double correction;
+  int32 device_index;
+  bool use_recorded_data;
+  string filename;
+  bool repeat;
+  bool rtl_sdr_format;
+  double noise_power;
+
+  // Get search parameters from the user
+  parse_commandline(argc,argv,fc,ppm,correction,device_index,use_recorded_data,filename,repeat,rtl_sdr_format,noise_power);
+
+  // Open the USB device.
+  if (!use_recorded_data)
+    config_usb(correction,device_index,fc);
+
+  // Data shared between threads
+  sampbuf_sync_t sampbuf_sync;
+  tracked_cell_list_t tracked_cell_list;
+  capbuf_sync_t capbuf_sync;
+  global_thread_data_t global_thread_data;
+
+  // Calibrate the dongle's oscillator. This is similar to running the
+  // program CellSearch with only one center frequency. All information
+  // is discarded except for the frequency offset.
+  global_thread_data.frequency_offset=kalibrate(fc,ppm,correction,use_recorded_data,filename,rtl_sdr_format,noise_power);
+
+  // Start the cell searcher thread.
+  // Now that the oscillator has been calibrated, we can perform
+  // a 'real' search.
+  capbuf_sync.request=false;
+  capbuf_sync.capbuf.set_size(19200*8);
+  global_thread_data.fc=fc;
+  boost::thread searcher_thread(searcher_proc,boost::ref(capbuf_sync),boost::ref(global_thread_data),boost::ref(tracked_cell_list));
+
+  // Wrap the USB device to simplify obtaining complex samples one by one.
+  rtl_wrap sample_source(dev,use_recorded_data,filename,repeat,rtl_sdr_format,noise_power);
+
+  // Start the producer thread.
+  boost::thread producer_thread(producer_proc,boost::ref(sampbuf_sync),boost::ref(capbuf_sync),boost::ref(global_thread_data),boost::ref(tracked_cell_list),boost::ref(fc));
+
+  // Start the async read process. This should never return.
+  rtlsdr_read_async(dev,rtlsdr_callback,(void *)&sampbuf_sync,0,0);
 
   // Successful exit.
   exit (0);
