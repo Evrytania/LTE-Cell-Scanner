@@ -91,12 +91,9 @@ void capture_data(
     uint32 n_read=0;
     int n_read_current=0;
     uint32 n_saved=0;
-    //capbuf.set_size(CAPLENGTH);
-#define FIR_LENGTH 10
-    cvec capbuf_0p5x(CAPLENGTH/2+FIR_LENGTH+10);
+    capbuf.set_size(CAPLENGTH);
 #ifndef NDEBUG
-    //capbuf=NAN;
-    capbuf_0p5x=NAN;
+    capbuf=NAN;
 #endif
     while (true) {
       // Read some data
@@ -111,12 +108,12 @@ void capture_data(
 
       for (uint32 t=0;t<BLOCK_SIZE;t+=2) {
         n_read+=2;
-        // Ignore first 20ms... Hopefully PLL will lock by then...
+        // Ignore first 10ms... Hopefully PLL will lock by then...
         if (n_read<19200) {
           continue;
         }
-        capbuf_0p5x(n_saved++)=complex<double>((buffer[t]-127.0)/128.0,(buffer[t+1]-127.0)/128.0);
-        if ((signed)n_saved==length(capbuf_0p5x)) {
+        capbuf(n_saved++)=complex<double>((buffer[t]-127.0)/128.0,(buffer[t+1]-127.0)/128.0);
+        if ((signed)n_saved==length(capbuf)) {
           goto cbuf_full;
         }
       }
@@ -124,18 +121,9 @@ void capture_data(
 
     cbuf_full:
     free(buffer);
-    if ((signed)n_saved!=length(capbuf_0p5x)) {
+    if ((signed)n_saved!=length(capbuf)) {
       cerr << "Error: unable to fill capture buffer..." << endl;
       exit(-1);
-    }
-
-    // Interpolate.
-    // FIXME: Do proper interpolation.
-    capbuf.set_size(CAPLENGTH);
-    capbuf=NAN;
-    for (uint32 t=0;t<CAPLENGTH;t+=2) {
-      capbuf(t)=capbuf_0p5x(t>>1);
-      capbuf(t+1)=(capbuf_0p5x(t>>1)+capbuf_0p5x((t>>1)+1))/2;
     }
   }
 

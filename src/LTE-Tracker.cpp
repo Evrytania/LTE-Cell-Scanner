@@ -458,7 +458,7 @@ void config_usb(
   }
 
   // Sampling frequency
-  if (rtlsdr_set_sample_rate(dev,itpp::round(960000*correction))<0) {
+  if (rtlsdr_set_sample_rate(dev,itpp::round(1920000*correction))<0) {
     cerr << "Error: unable to set sampling rate" << endl;
     exit(-1);
   }
@@ -1869,7 +1869,6 @@ void producer_proc(
   //  cerr << "Error: could not elevate main thread priority" << endl;
   //  exit(-1);
   //}
-  bool phase_even=true;
   //tt.tic();
   while (true) {
     // Each iteration of this loop processes one sample.
@@ -1895,7 +1894,7 @@ void producer_proc(
 
     // Get the next sample
     complex <double> sample;
-    if (phase_even) {
+    {
       boost::mutex::scoped_lock lock(sampbuf_sync.mutex);
       while (sampbuf_sync.fifo.size()<2) {
         sampbuf_sync.condition.wait(lock);
@@ -1903,22 +1902,9 @@ void producer_proc(
       uint8 real=sampbuf_sync.fifo[0];
       uint8 imag=sampbuf_sync.fifo[1];
       sample=complex <double>((real-127.0)/128.0,(imag-127.0)/128.0);
-    } else {
-      boost::mutex::scoped_lock lock(sampbuf_sync.mutex);
-      while (sampbuf_sync.fifo.size()<4) {
-        sampbuf_sync.condition.wait(lock);
-      }
-      uint8 real=sampbuf_sync.fifo[0];
-      uint8 imag=sampbuf_sync.fifo[1];
-      complex <double> sample1=complex <double>((real-127.0)/128.0,(imag-127.0)/128.0);
-      real=sampbuf_sync.fifo[2];
-      imag=sampbuf_sync.fifo[3];
-      complex <double> sample2=complex <double>((real-127.0)/128.0,(imag-127.0)/128.0);
-      sample=(sample1+sample2)/2;
       sampbuf_sync.fifo.pop_front();
       sampbuf_sync.fifo.pop_front();
     }
-    phase_even=!phase_even;
     n_samps_read++;
     sample_time+=1.0/k_factor;
     sample_time=WRAP(sample_time,0.0,19200.0);
