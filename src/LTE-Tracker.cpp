@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <getopt.h>
+#include <unistd.h>
 #include <itpp/itbase.h>
 #include <itpp/signal/transforms.h>
 #include <boost/math/special_functions/gamma.hpp>
@@ -637,6 +638,7 @@ class rtl_wrap {
     complex <double> get_samp();
     //void reset();
   private:
+    complex <double> get_samp_pre();
     bool use_recorded_data;
     cvec sig_tx;
     uint8 * buffer;
@@ -695,6 +697,27 @@ rtl_wrap::rtl_wrap(
 rtl_wrap::~rtl_wrap() {
   free(buffer);
 }
+complex <double> rtl_wrap::get_samp_pre() {
+  if (offset==BLOCK_SIZE) {
+    offset=0;
+    int n_read;
+    if (rtlsdr_read_sync(dev,buffer,BLOCK_SIZE,&n_read)<0) {
+      cerr << "Error: synchronous read failed" << endl;
+      exit(-1);
+    }
+    //if (fwrite(buffer, 1, n_read, file)!=(size_t)n_read) {
+    //  cerr<<"Error: Short write, samples lost, exiting!" << endl;
+    //  exit(-1);
+    //}
+    if (n_read<BLOCK_SIZE) {
+      cerr << "Error: short read; samples lost" << endl;
+      exit(-1);
+    }
+  }
+  complex <double>samp=complex<double>((buffer[offset]-127.0)/128.0,(buffer[offset+1]-127.0)/128.0);
+  offset+=2;
+  return samp;
+}
 complex <double> rtl_wrap::get_samp() {
   static long long cnt=0;
 
@@ -711,24 +734,15 @@ complex <double> rtl_wrap::get_samp() {
       exit(-1);
     }
   } else {
-    if (offset==BLOCK_SIZE) {
-      offset=0;
-      int n_read;
-      if (rtlsdr_read_sync(dev,buffer,BLOCK_SIZE,&n_read)<0) {
-        cerr << "Error: synchronous read failed" << endl;
-        exit(-1);
-      }
-      //if (fwrite(buffer, 1, n_read, file)!=(size_t)n_read) {
-      //  cerr<<"Error: Short write, samples lost, exiting!" << endl;
-      //  exit(-1);
-      //}
-      if (n_read<BLOCK_SIZE) {
-        cerr << "Error: short read; samples lost" << endl;
-        exit(-1);
-      }
+    if (phase_even==true) {
+      samp_d2=samp_d1;
+      samp_d1=get_samp_pre();
+      samp=samp_d1;
+    } else {
+      samp=(samp_d1+samp_d2)/2;
     }
-    samp=complex<double>((buffer[offset]-127.0)/128.0,(buffer[offset+1]-127.0)/128.0);
-    offset+=2;
+    phase_even=!phase_even;
+    return samp;
   }
   if (isfinite(noise_power_sqrt)) {
     return samp+blnoise(1).get(0)*noise_power_sqrt;
@@ -738,16 +752,6 @@ complex <double> rtl_wrap::get_samp() {
 }
 /*
 complex <double> rtl_wrap::get_samp() {
-  complex <double> samp;
-  if (phase_even==true) {
-    samp_d2=samp_d1;
-    samp_d1=get_samp_pre();
-    samp=samp_d1;
-  } else {
-    samp=(samp_d1+samp_d2)/2;
-  }
-  phase_even=!phase_even;
-  return samp;
 }
 */
 /*
@@ -1889,20 +1893,21 @@ int main(
   uint32 searcher_capbuf_idx=0;
   uint32 n_samps_read=0;
   unsigned long long int sample_number=0;
-  //bool data_source_reset=false;
+  // Elevate privileges of the producer thread.
+  //int retval=nice(-10);
+  //if (retval==-1) {
+  //  cerr << "Error: could not set elevated privileges" << endl;
+  //  exit(-1);
+  //}
+  //int policy=SCHED_RR;
+  //struct sched_param param;
+  //param.sched_priority=50;
+  ////pthread_getschedparam(pthread_self(), &policy, &param);
+  //if (pthread_setschedparam(pthread_self(),policy,&param)) {
+  //  cerr << "Error: could not elevate main thread priority" << endl;
+  //  exit(-1);
+  //}
   while (true) {
-    /*
-    {
-      boost::mutex::scoped_lock lock(tracked_cell_list.mutex);
-      if ((!data_source_reset)&&(tracked_cell_list.tracked_cells.size()>0)) {
-        data_source_reset=true;
-        cout << "Resetting data source!" << endl;
-        sample_time=0;
-        sample_source.reset();
-      }
-    }
-    */
-
     // Each iteration of this loop processes one sample.
     double k_factor;
     double frequency_offset;
