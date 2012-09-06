@@ -10,7 +10,7 @@ TARGET_LINK_LIBRARIES (CellSearch debug itpp_debug ${common_link_libs})
 TARGET_LINK_LIBRARIES (CellSearch optimized itpp ${common_link_libs})
 
 # Create the cell tracker
-ADD_EXECUTABLE (LTE-Tracker LTE-Tracker.cpp)
+ADD_EXECUTABLE (LTE-Tracker LTE-Tracker.cpp producer_thread.cpp tracker_thread.cpp searcher_thread.cpp)
 TARGET_LINK_LIBRARIES (LTE-Tracker general LTE_MISC)
 TARGET_LINK_LIBRARIES (LTE-Tracker debug itpp_debug ${common_link_libs})
 TARGET_LINK_LIBRARIES (LTE-Tracker optimized itpp ${common_link_libs})
