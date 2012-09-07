@@ -121,7 +121,7 @@ void xc_correlate(
       temp=fshift(temp,f_off,FS_LTE/16*k_factor);
       temp=conj(temp)/137;
 #ifdef _OPENMP
-#pragma omp parallel for shared(temp,capbuf,xc) private(k,acc,m)
+//#pragma omp parallel for shared(temp,capbuf,xc) private(k,acc,m)
 #endif
       for (k=0;k<n_cap-136;k++) {
         acc=0;

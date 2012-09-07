@@ -57,6 +57,11 @@ void searcher_thread(
     cout << "Searcher process has been launched." << endl;
   }
 
+  if (nice(10)==-1) {
+    cerr << "Error: could not reduce searcher process priority" << endl;
+    exit(-1);
+  }
+
   // Shortcut
   double & fc=global_thread_data.fc;
 
@@ -182,6 +187,7 @@ void searcher_thread(
         continue;
       }
 
+      /*
       if (verbosity>=1) {
         cout << "Detected a new cell!" << endl;
         cout << "  cell ID: " << (*iterator).n_id_cell() << endl;
@@ -189,6 +195,7 @@ void searcher_thread(
         cout << "  residual frequency offset: " << (*iterator).freq_superfine << " Hz" << endl;
         cout << "  frame start: " << (*iterator).frame_start << endl;
       }
+      */
 
       // Launch a cell tracker process!
       k_factor=k_factor;

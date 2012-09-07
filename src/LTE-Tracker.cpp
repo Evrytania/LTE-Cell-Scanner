@@ -849,6 +849,7 @@ static void rtlsdr_callback(
   for (uint32 t=0;t<len;t++) {
     sampbuf_sync.fifo.push_back(buf[t]);
   }
+  sampbuf_sync.fifo_peak_size=MAX(sampbuf_sync.fifo.size(),sampbuf_sync.fifo_peak_size);
   sampbuf_sync.condition.notify_one();
 }
 
@@ -910,6 +911,11 @@ int main(
 
   // Start the producer thread.
   boost::thread producer_thr(producer_thread,boost::ref(sampbuf_sync),boost::ref(capbuf_sync),boost::ref(global_thread_data),boost::ref(tracked_cell_list),boost::ref(fc));
+
+  sampbuf_sync.fifo_peak_size=0;
+
+  // Launch the display thread
+  boost::thread display_thr(display_thread,boost::ref(sampbuf_sync),boost::ref(global_thread_data),boost::ref(tracked_cell_list));
 
   // Start the async read process. This should never return.
   rtlsdr_read_async(dev,rtlsdr_callback,(void *)&sampbuf_sync,0,0);

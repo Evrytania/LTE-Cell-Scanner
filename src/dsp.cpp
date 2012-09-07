@@ -29,6 +29,7 @@
 using namespace itpp;
 using namespace std;
 
+/*
 // Shift vector seq up by f Hz assuming that seq was sampled at fs Hz.
 cvec fshift(const cvec &seq,const double f,const double fs) {
   complex <double> k=complex<double>(0,pi*f/(fs/2));
@@ -43,6 +44,7 @@ cvec fshift(const cvec &seq,const double f,const double fs) {
 cvec fshift(const cvec &seq,const double f) {
   return fshift(seq,f,2);
 }
+*/
 
 // Perform FFT based interpolation. Assuming input signal is cyclically
 // repeating signal sampled at M points, return a cyclically repeating

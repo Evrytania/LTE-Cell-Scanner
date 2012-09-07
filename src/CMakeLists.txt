@@ -1,7 +1,7 @@
 # Create a library of all the shared functions.
 add_library(LTE_MISC capbuf.cpp constants.cpp itpp_ext.cpp macros.cpp searcher.cpp common.cpp dsp.cpp lte_lib.cpp)
 
-SET (common_link_libs ${Boost_LIBRARIES} ${Boost_THREAD_LIBRARY} ${LAPACK_LIBRARIES} ${FFTW_LIBRARIES} ${RTLSDR_LIBRARIES})
+SET (common_link_libs ${Boost_LIBRARIES} ${Boost_THREAD_LIBRARY} ${LAPACK_LIBRARIES} ${FFTW_LIBRARIES} ${RTLSDR_LIBRARIES} ${CURSES_LIBRARIES})
 
 # Create the cell search executable
 ADD_EXECUTABLE (CellSearch CellSearch.cpp)
@@ -10,8 +10,8 @@ TARGET_LINK_LIBRARIES (CellSearch debug itpp_debug ${common_link_libs})
 TARGET_LINK_LIBRARIES (CellSearch optimized itpp ${common_link_libs})
 
 # Create the cell tracker
-ADD_EXECUTABLE (LTE-Tracker LTE-Tracker.cpp producer_thread.cpp tracker_thread.cpp searcher_thread.cpp)
-TARGET_LINK_LIBRARIES (LTE-Tracker general LTE_MISC)
+ADD_EXECUTABLE (LTE-Tracker LTE-Tracker.cpp producer_thread.cpp tracker_thread.cpp searcher_thread.cpp display_thread.cpp)
+TARGET_LINK_LIBRARIES (LTE-Tracker general LTE_MISC curses)
 TARGET_LINK_LIBRARIES (LTE-Tracker debug itpp_debug ${common_link_libs})
 TARGET_LINK_LIBRARIES (LTE-Tracker optimized itpp ${common_link_libs})
 

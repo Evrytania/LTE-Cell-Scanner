@@ -86,11 +86,11 @@ void producer_thread(
         //tt.toc_print();
         //cout << sample_number << endl;
         // Status message displayed every second.
-        cout << "System frequency offset is currently: " << frequency_offset << endl;
+        //cout << "System frequency offset is currently: " << frequency_offset << endl;
         boost::mutex::scoped_lock lock(tracked_cell_list.mutex);
         list <tracked_cell_t *>::iterator it=tracked_cell_list.tracked_cells.begin();
         while (it!=tracked_cell_list.tracked_cells.end()) {
-          cout << "Cell ID " << (*(*it)).n_id_cell << " TO: " << setprecision(10) << (*(*it)).frame_timing << endl;
+          //cout << "Cell ID " << (*(*it)).n_id_cell << " TO: " << setprecision(10) << (*(*it)).frame_timing << endl;
           ++it;
         }
       }
@@ -189,9 +189,10 @@ void producer_thread(
             p.frequency_offset=frequency_offset;
             p.frame_timing=tracked_cell.frame_timing;
             tracked_cell.fifo.push(p);
+            tracked_cell.fifo_peak_size=MAX(tracked_cell.fifo.size(),tracked_cell.fifo_peak_size);
             tracked_cell.condition.notify_one();
             //cout << "Sleeping..." << endl;
-            sleep(0.0005/8);
+            //sleep(0.0005/8);
             //cout << "fifo size: " << tracked_cell.fifo.size() << endl;
             // Calculate trigger parameters of next capture
             tracked_cell.filling=false;

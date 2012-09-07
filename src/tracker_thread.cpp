@@ -81,6 +81,8 @@ typedef struct {
   vec np;
 } mib_fifo_pdu_t;
 
+// Pop 128 time domain samples from the fifo, convert to the frequency
+// domain, and extract the 72 desired subcarriers.
 void get_fd(
   tracked_cell_t & tracked_cell,
   const double & fc,
@@ -99,22 +101,37 @@ void get_fd(
     tracked_cell.condition.wait(lock);
   }
   ASSERT(!tracked_cell.fifo.empty());
+#ifndef NDEBUG
   if ((tracked_cell.fifo.front().slot_num!=slot_num)||(tracked_cell.fifo.front().sym_num!=sym_num)) {
     // We should never get here...
     cerr << "Error: cell tracker synchronization error! Check code!" << endl;
     exit(-1);
   }
+#endif
 
   // Convert to frequency domain and extract 6 center RB's.
+  // Also perform FOC to remove ICI
   frequency_offset=tracked_cell.fifo.front().frequency_offset;
   frame_timing=tracked_cell.fifo.front().frame_timing;
   double k_factor=(fc-frequency_offset)/fc;
-  // Also perform FOC to remove ICI
-  cvec dft_in=fshift(tracked_cell.fifo.front().data,-frequency_offset,FS_LTE/16*k_factor);
+  // Directly manipulate data on the fifo to minimize vector copies.
+  // Remove ICI
+  fshift_inplace(tracked_cell.fifo.front().data,-frequency_offset,FS_LTE/16*k_factor);
   // Remove the 2 sample delay
-  dft_in=concat(dft_in(2,-1),dft_in(0,1));
+  cvec dft_in(128);
+  //dft_in=concat(dft_in(2,-1),dft_in(0,1));
+  for (uint8 t=0;t<126;t++) {
+    dft_in(t)=tracked_cell.fifo.front().data.get(t+2);
+  }
+  dft_in(126)=tracked_cell.fifo.front().data.get(0);
+  dft_in(127)=tracked_cell.fifo.front().data.get(1);
   cvec dft_out=dft(dft_in);
-  syms=concat(dft_out.right(36),dft_out.mid(1,36));
+  //syms=concat(dft_out.right(36),dft_out.mid(1,36));
+  syms.set_size(72);
+  for (uint8 t=0;t<36;t++) {
+    syms(t+36)=dft_out(t+1);
+    syms(t)=dft_out(92+t);
+  }
   // Compensate for the fact that the DFT was located improperly and also
   // for the bulk phase offset due to frequency errors.
   uint8 n_samp_elapsed;
@@ -124,8 +141,20 @@ void get_fd(
   } else {
     n_samp_elapsed=(sym_num==0)?128+10:128+9;
   }
+  //syms=exp(J*bulk_phase_offset)*elem_mult(syms,exp((-J*2*pi*tracked_cell.fifo.front().late/128)*cn));
+  complex <double> coeff;
+  double phase;
+  const double k=2*pi*tracked_cell.fifo.front().late/128;
   bulk_phase_offset=WRAP(bulk_phase_offset+2*pi*n_samp_elapsed*(1/(FS_LTE/16))*-frequency_offset,-pi,pi);
-  syms=exp(J*bulk_phase_offset)*elem_mult(syms,exp((-J*2*pi*tracked_cell.fifo.front().late/128)*cn));
+  const complex <double> bpo_coeff=complex<double>(cos(bulk_phase_offset),sin(bulk_phase_offset));
+  for (uint8 t=1;t<=36;t++) {
+    phase=-k*t;
+    coeff.real()=cos(phase);
+    coeff.imag()=sin(phase);
+    syms(35+t)*=bpo_coeff*coeff;
+    coeff.imag()=-coeff.imag();
+    syms(36-t)*=bpo_coeff*coeff;
+  }
   // POP the fifo
   tracked_cell.fifo.pop();
   // At this point, we have the frequency domain data for this slot and
@@ -292,7 +321,7 @@ void do_fd_ac(
   vec ac_fd_np=(rs_curr_np*rs_curr_np/(rs_curr_sp*rs_curr_sp)+2*rs_curr_np/rs_curr_sp)/itpp_ext::matlab_range(12.0,-1.0,1.0);
   {
     boost::mutex::scoped_lock lock(tracked_cell.mutex);
-    tracked_cell.ac_fd=elem_div(tracked_cell.ac_fd*(1/.001)+elem_mult(ac_fd,to_cvec(1.0/ac_fd_np)),to_cvec(1/.001+1.0/ac_fd_np));
+    tracked_cell.ac_fd=elem_div(tracked_cell.ac_fd*(1/.00001)+elem_mult(ac_fd,to_cvec(1.0/ac_fd_np)),to_cvec(1/.00001+1.0/ac_fd_np));
   }
 }
 
@@ -442,8 +471,7 @@ int8 do_mib_decode(
   const uint8 & data_slot_num,
   const uint8 & data_sym_num,
   deque <mib_fifo_pdu_t> & mib_fifo,
-  bool & mib_fifo_synchronized,
-  double & mib_fifo_decode_failures
+  bool & mib_fifo_synchronized
 ) {
   // Assemble symbols for MIB decoding.
   if ((data_slot_num==1)&&(data_sym_num<=3)) {
@@ -556,22 +584,33 @@ int8 do_mib_decode(
     // Did we find it?
     if (crc_est==c_est(24,-1)) {
       // YES!
-      cout << "Cell ID " << tracked_cell.n_id_cell << " MIB SUCCESS!" << endl;
+      //cout << "Cell ID " << tracked_cell.n_id_cell << " MIB SUCCESS!" << endl;
       mib_fifo_synchronized=1;
-      mib_fifo_decode_failures=0;
+      {
+        boost::mutex::scoped_lock lock(tracked_cell.mutex);
+        tracked_cell.mib_decode_failures=0;
+      }
       for (uint8 t=0;t<16;t++) {
         mib_fifo.pop_front();
       }
     } else {
       // No :(
-      cout << "Cell ID " << tracked_cell.n_id_cell << " MIB failure!" << endl;
+      //cout << "Cell ID " << tracked_cell.n_id_cell << " MIB failure!" << endl;
       if (mib_fifo_synchronized) {
-        mib_fifo_decode_failures++;
+        {
+          boost::mutex::scoped_lock lock(tracked_cell.mutex);
+          tracked_cell.mib_decode_failures++;
+        }
+        //mib_fifo_decode_failures++;
         for (uint8 t=0;t<16;t++) {
           mib_fifo.pop_front();
         }
       } else {
-        mib_fifo_decode_failures+=0.25;
+        {
+          boost::mutex::scoped_lock lock(tracked_cell.mutex);
+          tracked_cell.mib_decode_failures+=0.25;
+        }
+        //mib_fifo_decode_failures+=0.25;
         for (uint8 t=0;t<4;t++) {
           mib_fifo.pop_front();
         }
@@ -580,8 +619,8 @@ int8 do_mib_decode(
 
     // 10ms of time increases mib_fifo_decode_failures by 0.25.
     // After several seconds of MIB decoding failures, drop the cell.
-    if (mib_fifo_decode_failures>=100) {
-      cout << "Dropped a cell!" << endl;
+    if (tracked_cell.mib_decode_failures>=100) {
+      //cout << "Dropped a cell!" << endl;
       boost::mutex::scoped_lock lock(tracked_cell.mutex);
       tracked_cell.kill_me=true;
       return -1;
@@ -612,9 +651,10 @@ void tracker_thread(
   vector <uint8> ce_interp_fifo_initialized(tracked_cell.n_ports,0);
   deque <mib_fifo_pdu_t> mib_fifo;
   bool mib_fifo_synchronized=false;
-  double mib_fifo_decode_failures=0;
+  //double mib_fifo_decode_failures=0;
   // Now that everything has been initialized, indicate to the producer
   // thread that we are ready for data.
+  // Data flow starts at the beginning of the next frame.
   {
     boost::mutex::scoped_lock lock(tracked_cell.mutex);
     tracked_cell.tracker_thread_ready=true;
@@ -750,15 +790,26 @@ void tracker_thread(
         sp(t)=ce_interp_fifo[t].front().sp;
         np(t)=ce_interp_fifo[t].front().np;
       }
+      tracked_cell.crs_sp=sp;
+      tracked_cell.crs_np=np;
+      if (isnan(tracked_cell.crs_sp_av(0))) {
+        tracked_cell.crs_sp_av=sp;
+        tracked_cell.crs_np_av=np;
+      } else {
+        for (uint8 t=0;t<tracked_cell.n_ports;t++) {
+          tracked_cell.crs_sp_av=0.99999*tracked_cell.crs_sp_av+.00001*sp;
+          tracked_cell.crs_np_av=0.99999*tracked_cell.crs_np_av+.00001*np;
+        }
+      }
 
       // Measure signal power and noise power on PSS/SSS
       //do_pss_sss_sigpwer();
 
       // Perform MIB decoding
-      if (do_mib_decode(tracked_cell,syms,ce,sp,np,data_slot_num,data_sym_num,mib_fifo,mib_fifo_synchronized,mib_fifo_decode_failures)==-1) {
+      if (do_mib_decode(tracked_cell,syms,ce,sp,np,data_slot_num,data_sym_num,mib_fifo,mib_fifo_synchronized)==-1) {
         // We have failed to detect an MIB for a long time. Exit this
         // thread.
-        cout << "Tracker thread exiting..." << endl;
+        //cout << "Tracker thread exiting..." << endl;
         return;
       }
 

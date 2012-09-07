@@ -34,8 +34,42 @@ double sigpower(const myType v) {
 #define dft(A) (fft(A)/sqrt(length(A)))
 
 // Shift a vector in frequency
-itpp::cvec fshift(const itpp::cvec & v,const double f,const double fs);
-itpp::cvec fshift(const itpp::cvec & v,const double f);
+//itpp::cvec fshift(const itpp::cvec & v,const double f,const double fs);
+//itpp::cvec fshift(const itpp::cvec & v,const double f);
+// Shift vector seq up by f Hz assuming that seq was sampled at fs Hz.
+inline itpp::cvec fshift(const itpp::cvec &seq,const double f,const double fs) {
+  //std::complex <double> k=std::complex<double>(0,pi*f/(fs/2));
+  double k=itpp::pi*f/(fs/2);
+  const uint32 len=length(seq);
+  itpp::cvec r(len);
+  std::complex<double>coeff;
+  for (uint32 t=0;t<len;t++) {
+    coeff.real()=cos(k*t);
+    coeff.imag()=sin(k*t);
+    //r(t)=seq(t)*exp(k*((double)t));
+    r(t)=seq(t)*coeff;
+  }
+  return r;
+}
+// Shift vector seq up by f Hz assuming that seq was sampled at 2 Hz.
+inline itpp::cvec fshift(const itpp::cvec &seq,const double f) {
+  return fshift(seq,f,2);
+}
+inline void fshift_inplace(itpp::cvec &seq,const double f,const double fs) {
+  //std::complex <double> k=std::complex<double>(0,pi*f/(fs/2));
+  double k=itpp::pi*f/(fs/2);
+  const uint32 len=length(seq);
+  std::complex<double>coeff;
+  for (uint32 t=0;t<len;t++) {
+    coeff.real()=cos(k*t);
+    coeff.imag()=sin(k*t);
+    //r(t)=seq(t)*exp(k*((double)t));
+    seq(t)*=coeff;
+  }
+}
+inline void fshift_inplace(itpp::cvec &seq,const double f) {
+  fshift_inplace(seq,f,2);
+}
 
 // Shift a vector in time
 template <class vectype>
