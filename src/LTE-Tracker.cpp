@@ -28,6 +28,7 @@
 #include <sstream>
 #include <signal.h>
 #include <queue>
+#include <sys/stat.h>
 #include "rtl-sdr.h"
 #include "common.h"
 #include "macros.h"
@@ -508,8 +509,9 @@ void read_datafile(
     cout << "read itpp format" << endl;
     return;
   } else {
-    cvec sig_tx_pre;
-    itpp_ext::rtl_sdr_to_cvec(filename,sig_tx_pre);
+    //cvec sig_tx_pre;
+    itpp_ext::rtl_sdr_to_cvec(filename,sig_tx);
+    /*
     sig_tx.set_size(length(sig_tx_pre)*2-10);
     for (int32 t=0;t<length(sig_tx);t+=2) {
       // FIXME: Do proper interpolation
@@ -517,6 +519,7 @@ void read_datafile(
       sig_tx(t+1)=(sig_tx_pre(t>>1)+sig_tx_pre((t>>1)+1))/2;
     }
     // Drop several seconds while AGC converges.
+    */
     sig_tx=sig_tx(FS_LTE/16*4,-1);
   }
   if (length(sig_tx)==0) {
@@ -917,10 +920,53 @@ int main(
   // Launch the display thread
   boost::thread display_thr(display_thread,boost::ref(sampbuf_sync),boost::ref(global_thread_data),boost::ref(tracked_cell_list));
 
-  // Start the async read process. This should never return.
-  rtlsdr_read_async(dev,rtlsdr_callback,(void *)&sampbuf_sync,0,0);
+  if (use_recorded_data) {
+    if (!rtl_sdr_format) {
+      cerr << "Error: only rtl_sdr format supported currently." << endl;
+      exit(-1);
+    }
+    // Get filesize
 
-  // Successful exit.
+    struct stat filestatus;
+    stat(filename.c_str(),&filestatus);
+    uint32 file_length=filestatus.st_size;
+    //cout << "file length: " << file_length << " bytes\n";
+    if (floor(file_length/2.0)!=file_length/2.0) {
+      cout << "Warning: file contains an odd number of samples" << endl;
+    }
+
+    // Open file
+    FILE *file;
+    file=fopen(filename.c_str(),"rb");
+    if (!file) {
+      cerr << "Error: could not open input file" << endl;
+      exit(-1);
+    }
+
+    // Read entire file, all at once!
+    uint8 * buffer=(uint8 *)malloc(file_length*sizeof(uint8));
+    uint32 n_read=fread(buffer,1,file_length,file);
+    if (n_read!=file_length) {
+      cerr << "Error: error while reading file" << endl;
+      exit(-1);
+    }
+    {
+      boost::mutex::scoped_lock lock(sampbuf_sync.mutex);
+      for (uint32 t=0;t<file_length;t++) {
+        sampbuf_sync.fifo.push_back(buffer[t]);
+      }
+      sampbuf_sync.condition.notify_one();
+    }
+    free(buffer);
+    //sleep(2<<30);
+    sleep(5*60);
+    exit(-1);
+  } else {
+    // Start the async read process. This should never return.
+    rtlsdr_read_async(dev,rtlsdr_callback,(void *)&sampbuf_sync,0,0);
+  }
+
+  // Successful exit. (Should never get here!)
   exit (0);
 }
 

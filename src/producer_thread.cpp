@@ -43,6 +43,18 @@
 using namespace itpp;
 using namespace std;
 
+// Primarily, this is local storage for each cell that is being tracked.
+typedef struct {
+  uint32 serial_num;
+  uint8 slot_num;
+  uint8 sym_num;
+  uint32 target_cap_start_time;
+  bool filling;
+  double late;
+  uint16 buffer_offset;
+  cvec buffer;
+} cell_local_t;
+
 // Process that takes samples and distributes them to the appropriate
 // process.
 void producer_thread(
@@ -53,12 +65,18 @@ void producer_thread(
   double & fc
 ) {
   // Main loop which distributes data to the appropriate subthread.
+  // Local storage for each cell.
+  cell_local_t cell_local[504];
+  for (uint16 t=0;t<504;t++) {
+    cell_local[t].serial_num=0;
+  }
+
   //Real_Timer tt;
   double sample_time=-1;
   bool searcher_capbuf_filling=false;
   uint32 searcher_capbuf_idx=0;
   uint32 n_samps_read=0;
-  unsigned long long int sample_number=0;
+  //unsigned long long int sample_number=0;
   // Elevate privileges of the producer thread.
   //int retval=nice(-10);
   //if (retval==-1) {
@@ -82,18 +100,6 @@ void producer_thread(
       boost::mutex::scoped_lock lock(global_thread_data.frequency_offset_mutex);
       frequency_offset=global_thread_data.frequency_offset;
       k_factor=(fc-frequency_offset)/fc;
-      if (mod(sample_number++,19200*100)==0) {
-        //tt.toc_print();
-        //cout << sample_number << endl;
-        // Status message displayed every second.
-        //cout << "System frequency offset is currently: " << frequency_offset << endl;
-        boost::mutex::scoped_lock lock(tracked_cell_list.mutex);
-        list <tracked_cell_t *>::iterator it=tracked_cell_list.tracked_cells.begin();
-        while (it!=tracked_cell_list.tracked_cells.end()) {
-          //cout << "Cell ID " << (*(*it)).n_id_cell << " TO: " << setprecision(10) << (*(*it)).frame_timing << endl;
-          ++it;
-        }
-      }
     }
 
     // Get the next sample
@@ -144,7 +150,21 @@ void producer_thread(
       list <tracked_cell_t *>::iterator it=tracked_cell_list.tracked_cells.begin();
       while (it!=tracked_cell_list.tracked_cells.end()) {
         tracked_cell_t & tracked_cell=(*(*it));
-        boost::mutex::scoped_lock lock2(tracked_cell.mutex);
+        double frame_timing=tracked_cell.frame_timing();
+
+        cell_local_t & cl=cell_local[tracked_cell.n_id_cell];
+
+        // Initialize local storage if necessary
+        if (tracked_cell.serial_num!=cl.serial_num) {
+          cl.serial_num=tracked_cell.serial_num;
+          cl.slot_num=0;
+          cl.sym_num=0;
+          cl.target_cap_start_time=(tracked_cell.cp_type==cp_type_t::NORMAL)?10:32;
+          cl.filling=false;
+          cl.buffer_offset=0;
+          if (cl.serial_num==1)
+            cl.buffer.set_size(128);
+        }
 
         // Delete the tracker if lock has been lost.
         if (tracked_cell.kill_me) {
@@ -155,8 +175,8 @@ void producer_thread(
         }
 
         // See if we should start filling the buffer.
-        if (tracked_cell.tracker_thread_ready&&!tracked_cell.filling) {
-          double tdiff=WRAP(sample_time-(tracked_cell.frame_timing+tracked_cell.target_cap_start_time),-19200.0/2,19200.0/2);
+        if (tracked_cell.tracker_thread_ready&&!cl.filling) {
+          double tdiff=WRAP(sample_time-(frame_timing+cl.target_cap_start_time),-19200.0/2,19200.0/2);
           if (
             // Ideal start time is 0.5 samples away from current time
             (abs(tdiff)<0.5) ||
@@ -166,43 +186,46 @@ void producer_thread(
             ((tdiff>0)&&(tdiff<2))
           ) {
             // Configure parameters for this capture
-            tracked_cell.filling=true;
-            tracked_cell.late=tdiff;
-            tracked_cell.buffer_offset=0;
+            cl.filling=true;
+            cl.late=tdiff;
+            cl.buffer_offset=0;
           }
         }
 
         // Save this sample if our state indicates we are filling the
         // buffer.
-        if (tracked_cell.filling) {
-          tracked_cell.buffer(tracked_cell.buffer_offset++)=sample;
-          if (tracked_cell.buffer_offset==128) {
+        if (cl.filling) {
+          cl.buffer(cl.buffer_offset++)=sample;
+          if (cl.buffer_offset==128) {
             // Buffer is full!
             // Send PDU
             td_fifo_pdu_t p;
-            p.data=tracked_cell.buffer;
-            p.slot_num=tracked_cell.slot_num;
-            p.sym_num=tracked_cell.sym_num;
-            p.late=tracked_cell.late;
+            p.data=cl.buffer;
+            p.slot_num=cl.slot_num;
+            p.sym_num=cl.sym_num;
+            p.late=cl.late;
             // Record the frequency offset and frame timing as they were
             // during the capture.
             p.frequency_offset=frequency_offset;
-            p.frame_timing=tracked_cell.frame_timing;
-            tracked_cell.fifo.push(p);
-            tracked_cell.fifo_peak_size=MAX(tracked_cell.fifo.size(),tracked_cell.fifo_peak_size);
-            tracked_cell.condition.notify_one();
+            p.frame_timing=frame_timing;
+            {
+              boost::mutex::scoped_lock lock2(tracked_cell.fifo_mutex);
+              tracked_cell.fifo.push(p);
+              tracked_cell.fifo_peak_size=MAX(tracked_cell.fifo.size(),tracked_cell.fifo_peak_size);
+              tracked_cell.fifo_condition.notify_one();
+            }
             //cout << "Sleeping..." << endl;
             //sleep(0.0005/8);
             //cout << "fifo size: " << tracked_cell.fifo.size() << endl;
             // Calculate trigger parameters of next capture
-            tracked_cell.filling=false;
+            cl.filling=false;
             if (tracked_cell.cp_type==cp_type_t::EXTENDED) {
-              tracked_cell.target_cap_start_time+=32+128;
+              cl.target_cap_start_time+=32+128;
             } else {
-              tracked_cell.target_cap_start_time+=(tracked_cell.sym_num==6)?128+10:128+9;
+              cl.target_cap_start_time+=(cl.sym_num==6)?128+10:128+9;
             }
-            tracked_cell.target_cap_start_time=mod(tracked_cell.target_cap_start_time,19200);
-            slot_sym_inc(tracked_cell.n_symb_dl(),tracked_cell.slot_num,tracked_cell.sym_num);
+            cl.target_cap_start_time=mod(cl.target_cap_start_time,19200);
+            slot_sym_inc(tracked_cell.n_symb_dl(),cl.slot_num,cl.sym_num);
           }
         }
         ++it;

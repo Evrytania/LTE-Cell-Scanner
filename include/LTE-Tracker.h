@@ -22,19 +22,19 @@ class tracked_cell_t {
       const uint16 & n_id_cell,
       const int8 & n_ports,
       const cp_type_t::cp_type_t & cp_type,
-      const double & frame_timing
-    ) : n_id_cell(n_id_cell), n_ports(n_ports), cp_type(cp_type), frame_timing(frame_timing) {
+      const double & ft,
+      const uint32 & serial_num
+    ) :
+      n_id_cell(n_id_cell),
+      n_ports(n_ports),
+      cp_type(cp_type),
+      serial_num(serial_num)
+    {
+      frame_timing_private=ft;
       fifo_peak_size=0;
       kill_me=false;
-      sym_num=0;
-      slot_num=0;
-      target_cap_start_time=(cp_type==cp_type_t::NORMAL)?10:32;
-      filling=0;
-      buffer.set_size(128);
-      buffer_offset=0;
       ac_fd.set_size(12);
       ac_fd=std::complex <double> (0,0);
-      bulk_phase_offset=0;
       tracker_thread_ready=false;
       mib_decode_failures=0;
       crs_sp=itpp::vec(4);
@@ -46,43 +46,61 @@ class tracked_cell_t {
       crs_np_av=itpp::vec(4);
       crs_np_av=NAN;
     }
-    uint8 const n_symb_dl() const {
+    inline uint8 const n_symb_dl() const {
       return (cp_type==cp_type_t::NORMAL)?7:((cp_type==cp_type_t::EXTENDED)?6:-1);
     }
-    boost::mutex mutex;
-    boost::condition condition;
-    boost::thread thread;
-    // Indicates that the tracker process is ready to receive data.
-    bool tracker_thread_ready;
-    // These are not allowed to change
+    // Constants that do not change and can be read freely.
     const uint16 n_id_cell;
     const int8 n_ports;
     const cp_type_t::cp_type_t cp_type;
-    // These are constantly changing
-    double frame_timing;
+    const uint32 serial_num;
+
+    // Do we need this?
+    boost::thread thread;
+
+    // Mutex and data structures for the flow of information from the
+    // producer thread to the tracker thread.
+    boost::mutex fifo_mutex;
+    boost::condition fifo_condition;
     std::queue <td_fifo_pdu_t> fifo;
     uint32 fifo_peak_size;
-    bool kill_me;
-    // Calculated values returned by the cell tracker process.
-    // Changing constantly.
-    itpp::cvec ac_fd;
-    // Tracker process uses these as local variables.
-    double bulk_phase_offset;
-    // The producer process (main) will use these members as
-    // local variables...
-    uint8 sym_num;
-    uint8 slot_num;
-    uint32 target_cap_start_time;
-    double late;
-    bool filling;
-    itpp::cvec buffer;
-    uint16 buffer_offset;
+
+    // Indicates that the tracker process is ready to receive data.
+    bool tracker_thread_ready;
+
+    // Mutex and measurement data produced by the tracker thread and read by
+    // the display thread.
+    boost::mutex meas_mutex;
     double mib_decode_failures;
     itpp::vec crs_sp;
     itpp::vec crs_np;
     itpp::vec crs_sp_av;
     itpp::vec crs_np_av;
+    // Frequency domain channel autocorrelation.
+    itpp::cvec ac_fd;
+
+    // Read/write frame_timing (via mutex).
+    // Only one thread (tracker_thread) can update frame_timing. We
+    // only need to ensure that no thread reads a partial value before
+    // the new value is completely written.
+    inline double frame_timing() {
+      boost::mutex::scoped_lock lock(frame_timing_mutex);
+      double r=frame_timing_private;
+      return r;
+    }
+    inline void frame_timing(const double & ft) {
+      boost::mutex::scoped_lock lock(frame_timing_mutex);
+      frame_timing_private=ft;
+    }
+
+    bool kill_me;
+
   private:
+    // Frame timing info is needed by producer, tracker, and display
+    // threads.
+    boost::mutex frame_timing_mutex;
+    double frame_timing_private;
+
 };
 // Structure that is used to record all the tracked cells.
 typedef struct {

@@ -76,12 +76,14 @@ void display_thread(
       while (it!=tracked_cell_list.tracked_cells.end()) {
         tracked_cell_t & tracked_cell=(*(*it));
 
-        boost::mutex::scoped_lock lock(tracked_cell.mutex);
+        // Deadlock possible???
+        boost::mutex::scoped_lock lock1(tracked_cell.fifo_mutex);
+        boost::mutex::scoped_lock lock2(tracked_cell.meas_mutex);
 
         //cout << "Cell ID " << tracked_cell.n_id_cell << " TO: " << setprecision(10) << (*(*it)).frame_timing << " peak input buffer size: " << tracked_cell.fifo.size() << "/" << tracked_cell.fifo_peak_size << endl;
         printw("Cell ID %3i TO: %8.2lf cell buffer status %5i/%5i MIB Failures: %3.0lf\n",
           tracked_cell.n_id_cell,
-          tracked_cell.frame_timing,
+          tracked_cell.frame_timing(),
           tracked_cell.fifo.size(),
           tracked_cell.fifo_peak_size,
           tracked_cell.mib_decode_failures
