@@ -111,6 +111,7 @@ typedef struct {
   std::list <tracked_cell_t *> tracked_cells;
 } tracked_cell_list_t;
 // Global data shared by all threads
+/*
 typedef struct {
   // The frequency offset of the dongle. This value will be updated
   // continuously.
@@ -119,6 +120,32 @@ typedef struct {
   // This value will never change.
   double fc;
 } global_thread_data_t;
+*/
+class global_thread_data_t {
+  public:
+    // Constructor
+    global_thread_data_t(const double & fc) : fc(fc) {
+    }
+    // This value will never change.
+    const double fc;
+    // Read/write frequency offset (via mutex).
+    // Mutex makes sure that no read or write is interrupted when
+    // only part of the data has been read.
+    inline double frequency_offset() {
+      boost::mutex::scoped_lock lock(frequency_offset_mutex);
+      double r=frequency_offset_private;
+      return r;
+    }
+    inline void frequency_offset(const double & f) {
+      boost::mutex::scoped_lock lock(frequency_offset_mutex);
+      frequency_offset_private=f;
+    }
+  private:
+    // The frequency offset of the dongle. This value will be updated
+    // continuously.
+    boost::mutex frequency_offset_mutex;
+    double frequency_offset_private;
+};
 // IPC between main thread and searcher thread covering data capture issues.
 typedef struct {
   boost::mutex mutex;
@@ -146,6 +173,7 @@ inline void slot_sym_inc(
     slot_num=itpp::mod(slot_num+1,20);
 }
 
+// Prototypes for all the threads.
 void producer_thread(
   sampbuf_sync_t & sampbuf_sync,
   capbuf_sync_t & capbuf_sync,

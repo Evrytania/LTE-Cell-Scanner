@@ -57,12 +57,12 @@ void display_thread(
   while (true) {
     clear();
     printw("LTE-Tracker v%i.%i.%i\n\n",MAJOR_VERSION,MINOR_VERSION,PATCH_LEVEL);
-    {
-      boost::mutex::scoped_lock lock(global_thread_data.frequency_offset_mutex);
-      double frequency_offset=global_thread_data.frequency_offset;
-      //cout << "System frequency offset: " << frequency_offset << endl;
-      printw("Global FO: %6.0lf",frequency_offset);
-    }
+    //{
+    //  boost::mutex::scoped_lock lock(global_thread_data.frequency_offset_mutex);
+    double frequency_offset=global_thread_data.frequency_offset();
+    //cout << "System frequency offset: " << frequency_offset << endl;
+    printw("Global FO: %6.0lf",frequency_offset);
+    //}
 
     {
       boost::mutex::scoped_lock lock(sampbuf_sync.mutex);

@@ -43,7 +43,7 @@
 using namespace itpp;
 using namespace std;
 
-// Primarily, this is local storage for each cell that is being tracked.
+// This is local storage for each cell that is being tracked.
 typedef struct {
   uint32 serial_num;
   uint8 slot_num;
@@ -96,11 +96,8 @@ void producer_thread(
     // Each iteration of this loop processes one sample.
     double k_factor;
     double frequency_offset;
-    {
-      boost::mutex::scoped_lock lock(global_thread_data.frequency_offset_mutex);
-      frequency_offset=global_thread_data.frequency_offset;
-      k_factor=(fc-frequency_offset)/fc;
-    }
+    frequency_offset=global_thread_data.frequency_offset();
+    k_factor=(fc-frequency_offset)/fc;
 
     // Get the next sample
     complex <double> sample;

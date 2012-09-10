@@ -221,14 +221,18 @@ void do_foe(
   //residual_f+=1000;
   //cout << residual_f << " f " << db10(residual_f_np) << endl;
   //residual_f=0;
-  {
-    boost::mutex::scoped_lock lock(global_thread_data.frequency_offset_mutex);
-    global_thread_data.frequency_offset=(
-      global_thread_data.frequency_offset*(1/.0001)+
-      (frequency_offset+residual_f)*(1/residual_f_np)
-    )/(1/.0001+1/residual_f_np);
+  //{
+  //  boost::mutex::scoped_lock lock(global_thread_data.frequency_offset_mutex);
+  // Since multiple tracker threads will be executing this code, it's
+  // possible that between the read and the write, a different thread will
+  // perform a write. This isn't a problem because the worst that will happen
+  // is that we will lose one of many (millions?) of updates.
+  global_thread_data.frequency_offset((
+    global_thread_data.frequency_offset()*(1/.0001)+
+    (frequency_offset+residual_f)*(1/residual_f_np)
+  )/(1/.0001+1/residual_f_np));
     //cout << "FO: " << frequency_offset << endl;
-  }
+  //}
 }
 
 void do_toe_v2(
@@ -327,6 +331,29 @@ void do_fd_ac(
   }
 }
 
+void interp72(
+  const ce_filt_fifo_pdu_t & rs,
+  cvec & interp
+) {
+  interp.set_size(72);
+  uint8 l_x=rs.shift;
+  complex <double> l_y=rs.ce_filt(0);
+  uint8 r_x=rs.shift+6;
+  complex <double> r_y=rs.ce_filt(1);
+  uint8 ptr=1;
+  for (uint8 t=0;t<72;t++) {
+    // Advance points if necessary
+    if ((t>r_x)&&(ptr<11)) {
+      l_x=r_x;
+      l_y=r_y;
+      r_x+=6;
+      ptr++;
+      r_y=rs.ce_filt(ptr);
+    }
+    interp(t)=(r_y-l_y)/(r_x-l_x)*(t-l_x)+l_y;
+  }
+}
+
 void interp2d(
   const tracked_cell_t & tracked_cell,
   const ce_filt_fifo_pdu_t & rs_prev,
@@ -336,6 +363,7 @@ void interp2d(
   uint8 & ce_interp_fifo_initialized
 ) {
   // Interpolate in the frequency domain.
+  /*
   vec X=itpp_ext::matlab_range(rs_prev.shift,6.0,71.0);
   cvec Y=rs_prev.ce_filt;
   vec x=itpp_ext::matlab_range(0.0,71.0);
@@ -343,6 +371,11 @@ void interp2d(
   X=itpp_ext::matlab_range(rs_curr.shift,6.0,71.0);
   Y=rs_curr.ce_filt;
   cvec rs_curr_interp=interp1(X,Y,x);
+  */
+  cvec rs_prev_interp;
+  interp72(rs_prev,rs_prev_interp);
+  cvec rs_curr_interp;
+  interp72(rs_curr,rs_curr_interp);
 
   // Interpolate in the time domain and push onto FIFO
   uint8 slot_num=rs_prev.slot_num;
@@ -353,15 +386,15 @@ void interp2d(
     time_diff=0.0005;
   } else {
     if (tracked_cell.cp_type==cp_type_t::EXTENDED) {
-      time_diff=3*(128+32);
+      time_diff=3*(128+32)*(1/(FS_LTE/16));
     } else {
       if (rs_prev.sym_num==0) {
-        time_diff=4*(128+9);
+        time_diff=4*(128+9)*(1/(FS_LTE/16));
       } else {
-        time_diff=2*(128+9)+(128+10);
+        time_diff=(2*(128+9)+(128+10))*(1/(FS_LTE/16));
       }
     }
-    time_diff=time_diff*(1/(FS_LTE/16));
+    //time_diff=time_diff*(1/(FS_LTE/16));
   }
 
   double time_offset=0;
@@ -377,6 +410,8 @@ void interp2d(
     pdu.sp=rs_mid_sp;
     pdu.np=rs_mid_np;
     if (!ce_interp_fifo_initialized) {
+      // Repeat the very first channel estimates so as to provide CE for
+      // slot 0 sym 0.
       ce_interp_fifo_initialized=true;
       uint8 tsy=0;
       uint8 tsl=0;
@@ -405,10 +440,6 @@ void interp2d(
       }
     }
     slot_sym_inc(tracked_cell.n_symb_dl(),slot_num,sym_num);
-    //sym_num=mod(sym_num+1,tracked_cell.n_symb_dl());
-    //if (sym_num==0) {
-    //  slot_num=mod(slot_num+1,20);
-    //}
   }
 }
 

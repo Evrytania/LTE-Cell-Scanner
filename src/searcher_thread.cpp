@@ -58,12 +58,10 @@ void searcher_thread(
     cout << "Searcher process has been launched." << endl;
   }
 
-  /*
   if (nice(10)==-1) {
     cerr << "Error: could not reduce searcher process priority" << endl;
     exit(-1);
   }
-  */
 
   // Keep track of serial numbers to be used when launching a new
   // tracker thread.
@@ -71,7 +69,7 @@ void searcher_thread(
   serial_num=1;
 
   // Shortcut
-  double & fc=global_thread_data.fc;
+  const double & fc=global_thread_data.fc;
 
   // Loop forever.
   while (true) {
@@ -87,11 +85,11 @@ void searcher_thread(
     // Get the current frequency offset
     double k_factor;
     vec f_search_set(1);
-    {
-      boost::mutex::scoped_lock lock(global_thread_data.frequency_offset_mutex);
-      k_factor=(fc-global_thread_data.frequency_offset)/fc;
-      f_search_set(0)=global_thread_data.frequency_offset;
-    }
+    //{
+    //  boost::mutex::scoped_lock lock(global_thread_data.frequency_offset_mutex);
+    f_search_set(0)=global_thread_data.frequency_offset();
+    k_factor=(fc-f_search_set(0))/fc;
+    //}
 
     // Results are stored in this vector.
     list<Cell> detected_cells;
@@ -217,8 +215,8 @@ void searcher_thread(
         tracked_cell_list.tracked_cells.push_back(new_cell);
       }
       CALLGRIND_START_INSTRUMENTATION;
-      cout << "Only one cell is allowed to be detected!!!" << endl;
-      sleep(1000000);
+      //cout << "Only one cell is allowed to be detected!!!" << endl;
+      //sleep(1000000);
 
       ++iterator;
     }

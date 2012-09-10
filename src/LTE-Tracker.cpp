@@ -894,19 +894,19 @@ int main(
   sampbuf_sync_t sampbuf_sync;
   tracked_cell_list_t tracked_cell_list;
   capbuf_sync_t capbuf_sync;
-  global_thread_data_t global_thread_data;
+  global_thread_data_t global_thread_data(fc);
 
   // Calibrate the dongle's oscillator. This is similar to running the
   // program CellSearch with only one center frequency. All information
   // is discarded except for the frequency offset.
-  global_thread_data.frequency_offset=kalibrate(fc,ppm,correction,use_recorded_data,filename,rtl_sdr_format,noise_power);
+  global_thread_data.frequency_offset(kalibrate(fc,ppm,correction,use_recorded_data,filename,rtl_sdr_format,noise_power));
 
   // Start the cell searcher thread.
   // Now that the oscillator has been calibrated, we can perform
   // a 'real' search.
   capbuf_sync.request=false;
   capbuf_sync.capbuf.set_size(19200*8);
-  global_thread_data.fc=fc;
+  //global_thread_data.fc=fc;
   boost::thread searcher_thr(searcher_thread,boost::ref(capbuf_sync),boost::ref(global_thread_data),boost::ref(tracked_cell_list));
 
   // Wrap the USB device to simplify obtaining complex samples one by one.
@@ -950,16 +950,26 @@ int main(
       cerr << "Error: error while reading file" << endl;
       exit(-1);
     }
-    {
-      boost::mutex::scoped_lock lock(sampbuf_sync.mutex);
-      for (uint32 t=0;t<file_length;t++) {
-        sampbuf_sync.fifo.push_back(buffer[t]);
+
+    uint32 offset=0;
+    while (true) {
+      {
+        boost::mutex::scoped_lock lock(sampbuf_sync.mutex);
+        for (uint32 t=offset;t<file_length;t++) {
+          sampbuf_sync.fifo.push_back(buffer[offset++]);
+          if (mod(offset,1920000*2)==0)
+            break;
+        }
+        sampbuf_sync.condition.notify_one();
       }
-      sampbuf_sync.condition.notify_one();
+      sleep(1);
+      if (offset==file_length)
+        break;
     }
     free(buffer);
+
     //sleep(2<<30);
-    sleep(5*60);
+    sleep(500*60);
     exit(-1);
   } else {
     // Start the async read process. This should never return.
