@@ -46,13 +46,10 @@ using namespace std;
 // This is local storage for each cell that is being tracked.
 typedef struct {
   uint32 serial_num;
-  uint8 slot_num;
-  uint8 sym_num;
   uint32 target_cap_start_time;
   bool filling;
-  double late;
   uint16 buffer_offset;
-  cvec buffer;
+  td_fifo_pdu_t pdu;
 } cell_local_t;
 
 // Process that takes samples and distributes them to the appropriate
@@ -75,7 +72,6 @@ void producer_thread(
   double sample_time=-1;
   bool searcher_capbuf_filling=false;
   uint32 searcher_capbuf_idx=0;
-  uint32 n_samps_read=0;
   //unsigned long long int sample_number=0;
   // Elevate privileges of the producer thread.
   //int retval=nice(-10);
@@ -92,51 +88,63 @@ void producer_thread(
   //  exit(-1);
   //}
   //tt.tic();
+#define BLOCK_SIZE 10000
   while (true) {
-    // Each iteration of this loop processes one sample.
-    double k_factor;
-    double frequency_offset;
-    frequency_offset=global_thread_data.frequency_offset();
-    k_factor=(fc-frequency_offset)/fc;
+    // Each iteration of this loop processes one block of data.
+    const double frequency_offset=global_thread_data.frequency_offset();
+    const double k_factor=(fc-frequency_offset)/fc;
+    const double k_factor_inv=1/k_factor;
 
-    // Get the next sample
-    complex <double> sample;
+    // Get the next block
+    //complex <double> sample;
+    cvec samples(BLOCK_SIZE);
+    vec samples_timestamp(BLOCK_SIZE);
+    uint32 n_samples;
     {
       boost::mutex::scoped_lock lock(sampbuf_sync.mutex);
       while (sampbuf_sync.fifo.size()<2) {
         sampbuf_sync.condition.wait(lock);
       }
-      uint8 real=sampbuf_sync.fifo[0];
-      uint8 imag=sampbuf_sync.fifo[1];
-      sample=complex <double>((real-127.0)/128.0,(imag-127.0)/128.0);
-      sampbuf_sync.fifo.pop_front();
-      sampbuf_sync.fifo.pop_front();
-    }
-    n_samps_read++;
-    sample_time+=1.0/k_factor;
-    sample_time=WRAP(sample_time,0.0,19200.0);
-
-    // Should we begin filling the capture buffer?
-    {
-      boost::mutex::scoped_lock lock(capbuf_sync.mutex);
-      if ((capbuf_sync.request)&&(!searcher_capbuf_filling)&&(abs(WRAP(sample_time-0,-19200.0/2,19200.0/2))<0.5)) {
-        //cout << "searcher data cap beginning" << endl;
-        capbuf_sync.request=false;
-        searcher_capbuf_filling=true;
-        searcher_capbuf_idx=0;
-        capbuf_sync.late=WRAP(sample_time-0,-19200.0/2,19200.0/2);
+      n_samples=BLOCK_SIZE;
+      complex <double> sample_temp;
+      for (uint16 t=0;t<BLOCK_SIZE;t++) {
+        if (sampbuf_sync.fifo.size()<2) {
+          n_samples=t;
+          break;
+        }
+        sample_temp.real()=(sampbuf_sync.fifo.front()-127.0)/128.0;
+        sampbuf_sync.fifo.pop_front();
+        sample_temp.imag()=(sampbuf_sync.fifo.front()-127.0)/128.0;
+        sampbuf_sync.fifo.pop_front();
+        samples(t)=sample_temp;
+        sample_time+=k_factor_inv;
+        //sample_time=itpp_ext::matlab_mod(sample_time,19200.0);
+        if (sample_time>19200.0)
+          sample_time-=19200.0;
+        samples_timestamp(t)=sample_time;
       }
     }
 
-    // Populate the capture buffer
-    if (searcher_capbuf_filling) {
-      capbuf_sync.capbuf(searcher_capbuf_idx++)=sample;
-      if (searcher_capbuf_idx==(unsigned)capbuf_sync.capbuf.size()) {
-        // Buffer is full. Signal the searcher thread.
-        searcher_capbuf_filling=false;
-        boost::mutex::scoped_lock lock(capbuf_sync.mutex);
-        capbuf_sync.condition.notify_one();
-        //cout << "searcher data cap finished" << endl;
+    // Handle the searcher capture buffer
+    for (uint32 t=0;t<n_samples;t++) {
+      if ((capbuf_sync.request)&&(abs(WRAP(samples_timestamp(t)-0,-19200.0/2,19200.0/2))<0.5)) {
+        //cout << "searcher data cap beginning" << samples_timestamp(t) << endl;
+        capbuf_sync.request=false;
+        searcher_capbuf_filling=true;
+        searcher_capbuf_idx=0;
+        capbuf_sync.late=WRAP(samples_timestamp(t)-0,-19200.0/2,19200.0/2);
+      }
+
+      // Populate the capture buffer
+      if (searcher_capbuf_filling) {
+        capbuf_sync.capbuf(searcher_capbuf_idx++)=samples(t);
+        if (searcher_capbuf_idx==(unsigned)capbuf_sync.capbuf.size()) {
+          // Buffer is full. Signal the searcher thread.
+          searcher_capbuf_filling=false;
+          boost::mutex::scoped_lock lock(capbuf_sync.mutex);
+          capbuf_sync.condition.notify_one();
+          //cout << "searcher data cap finished" << endl;
+        }
       }
     }
 
@@ -154,13 +162,13 @@ void producer_thread(
         // Initialize local storage if necessary
         if (tracked_cell.serial_num!=cl.serial_num) {
           cl.serial_num=tracked_cell.serial_num;
-          cl.slot_num=0;
-          cl.sym_num=0;
+          cl.pdu.slot_num=0;
+          cl.pdu.sym_num=0;
           cl.target_cap_start_time=(tracked_cell.cp_type==cp_type_t::NORMAL)?10:32;
           cl.filling=false;
           cl.buffer_offset=0;
           if (cl.serial_num==1)
-            cl.buffer.set_size(128);
+            cl.pdu.data.set_size(128);
         }
 
         // Delete the tracker if lock has been lost.
@@ -171,58 +179,53 @@ void producer_thread(
           continue;
         }
 
-        // See if we should start filling the buffer.
-        if (tracked_cell.tracker_thread_ready&&!cl.filling) {
-          double tdiff=WRAP(sample_time-(frame_timing+cl.target_cap_start_time),-19200.0/2,19200.0/2);
-          if (
-            // Ideal start time is 0.5 samples away from current time
-            (abs(tdiff)<0.5) ||
-            // It's possible for the frame timing to change between iterations
-            // of the outer sample loop and because of this, it's possible that
-            // we missed the best start. Start capturing anyways.
-            ((tdiff>0)&&(tdiff<2))
-          ) {
-            // Configure parameters for this capture
-            cl.filling=true;
-            cl.late=tdiff;
-            cl.buffer_offset=0;
+        // Loop for each sample in the buffer.
+        for (uint32 t=0;t<n_samples;t++) {
+          // See if we should start filling the buffer.
+          if (tracked_cell.tracker_thread_ready&&!cl.filling) {
+            double tdiff=WRAP(samples_timestamp(t)-(frame_timing+cl.target_cap_start_time),-19200.0/2,19200.0/2);
+            if (
+              // Ideal start time is 0.5 samples away from current time
+              (abs(tdiff)<0.5) ||
+              // It's possible for the frame timing to change between iterations
+              // of the outer loop and because of this, it's possible that
+              // we missed the best start. Start capturing anyways.
+              ((tdiff>0)&&(tdiff<3))
+            ) {
+              // Configure parameters for this capture
+              cl.filling=true;
+              cl.pdu.late=tdiff;
+              cl.buffer_offset=0;
+              // Record the frequency offset and frame timing as they were
+              // at the beginning of the capture.
+              cl.pdu.frequency_offset=frequency_offset;
+              cl.pdu.frame_timing=frame_timing;
+            }
           }
-        }
 
-        // Save this sample if our state indicates we are filling the
-        // buffer.
-        if (cl.filling) {
-          cl.buffer(cl.buffer_offset++)=sample;
-          if (cl.buffer_offset==128) {
-            // Buffer is full!
-            // Send PDU
-            td_fifo_pdu_t p;
-            p.data=cl.buffer;
-            p.slot_num=cl.slot_num;
-            p.sym_num=cl.sym_num;
-            p.late=cl.late;
-            // Record the frequency offset and frame timing as they were
-            // during the capture.
-            p.frequency_offset=frequency_offset;
-            p.frame_timing=frame_timing;
-            {
-              boost::mutex::scoped_lock lock2(tracked_cell.fifo_mutex);
-              tracked_cell.fifo.push(p);
-              tracked_cell.fifo_peak_size=MAX(tracked_cell.fifo.size(),tracked_cell.fifo_peak_size);
-              tracked_cell.fifo_condition.notify_one();
+          // Save this sample if our state indicates we are filling the
+          // buffer.
+          if (cl.filling) {
+            cl.pdu.data(cl.buffer_offset++)=samples(t);
+            if (cl.buffer_offset==128) {
+              // Buffer is full! Send PDU
+              {
+                boost::mutex::scoped_lock lock2(tracked_cell.fifo_mutex);
+                tracked_cell.fifo.push(cl.pdu);
+                tracked_cell.fifo_peak_size=MAX(tracked_cell.fifo.size(),tracked_cell.fifo_peak_size);
+                tracked_cell.fifo_condition.notify_one();
+              }
+              //cout << "fifo size: " << tracked_cell.fifo.size() << endl;
+              // Calculate trigger parameters of next capture
+              cl.filling=false;
+              if (tracked_cell.cp_type==cp_type_t::EXTENDED) {
+                cl.target_cap_start_time+=32+128;
+              } else {
+                cl.target_cap_start_time+=(cl.pdu.sym_num==6)?128+10:128+9;
+              }
+              cl.target_cap_start_time=mod(cl.target_cap_start_time,19200);
+              slot_sym_inc(tracked_cell.n_symb_dl(),cl.pdu.slot_num,cl.pdu.sym_num);
             }
-            //cout << "Sleeping..." << endl;
-            //sleep(0.0005/8);
-            //cout << "fifo size: " << tracked_cell.fifo.size() << endl;
-            // Calculate trigger parameters of next capture
-            cl.filling=false;
-            if (tracked_cell.cp_type==cp_type_t::EXTENDED) {
-              cl.target_cap_start_time+=32+128;
-            } else {
-              cl.target_cap_start_time+=(cl.sym_num==6)?128+10:128+9;
-            }
-            cl.target_cap_start_time=mod(cl.target_cap_start_time,19200);
-            slot_sym_inc(tracked_cell.n_symb_dl(),cl.slot_num,cl.sym_num);
           }
         }
         ++it;

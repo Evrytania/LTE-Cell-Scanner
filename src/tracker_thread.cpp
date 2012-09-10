@@ -221,8 +221,6 @@ void do_foe(
   //residual_f+=1000;
   //cout << residual_f << " f " << db10(residual_f_np) << endl;
   //residual_f=0;
-  //{
-  //  boost::mutex::scoped_lock lock(global_thread_data.frequency_offset_mutex);
   // Since multiple tracker threads will be executing this code, it's
   // possible that between the read and the write, a different thread will
   // perform a write. This isn't a problem because the worst that will happen
@@ -231,8 +229,6 @@ void do_foe(
     global_thread_data.frequency_offset()*(1/.0001)+
     (frequency_offset+residual_f)*(1/residual_f_np)
   )/(1/.0001+1/residual_f_np));
-    //cout << "FO: " << frequency_offset << endl;
-  //}
 }
 
 void do_toe_v2(
