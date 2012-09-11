@@ -25,6 +25,8 @@ class tracked_cell_t {
       const double & ft,
       const uint32 & serial_num
     ) :
+      n_id_1(floor(n_id_cell/3.0)),
+      n_id_2(n_id_cell-3*floor(n_id_cell/3.0)),
       n_id_cell(n_id_cell),
       n_ports(n_ports),
       cp_type(cp_type),
@@ -45,12 +47,20 @@ class tracked_cell_t {
       crs_sp_av=NAN;
       crs_np_av=itpp::vec(4);
       crs_np_av=NAN;
+      sync_sp=NAN;
+      sync_np=NAN;
+      sync_np_blank=NAN;
+      sync_sp_av=NAN;
+      sync_np_av=NAN;
+      sync_np_blank_av=NAN;
       launched=false;
     }
     inline uint8 const n_symb_dl() const {
       return (cp_type==cp_type_t::NORMAL)?7:((cp_type==cp_type_t::EXTENDED)?6:-1);
     }
     // Constants that do not change and can be read freely.
+    const uint8 n_id_1;
+    const uint8 n_id_2;
     const uint16 n_id_cell;
     const int8 n_ports;
     const cp_type_t::cp_type_t cp_type;
@@ -79,6 +89,12 @@ class tracked_cell_t {
     itpp::vec crs_np;
     itpp::vec crs_sp_av;
     itpp::vec crs_np_av;
+    double sync_sp;
+    double sync_np;
+    double sync_np_blank;
+    double sync_sp_av;
+    double sync_np_av;
+    double sync_np_blank_av;
     // Frequency domain channel autocorrelation.
     itpp::cvec ac_fd;
 

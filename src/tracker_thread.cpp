@@ -666,6 +666,65 @@ int8 do_mib_decode(
   return 0;
 }
 
+// Measure signal and noise power using the SSS and PSS. More accurate
+// than using the CRS.
+void do_pss_sss_sigpower(
+  tracked_cell_t & tracked_cell,
+  const cvec & syms,
+  const uint8 & slot_num,
+  const uint8 & sym_num,
+  cvec & sss_sym
+) {
+  // Only examine PSS and SSS symbols
+  if (((slot_num!=0)&&(slot_num!=10))||((sym_num!=tracked_cell.n_symb_dl()-2)&&(sym_num!=tracked_cell.n_symb_dl()-1))) {
+    return;
+  }
+
+  // Store the SSS symbol for when the PSS symbol arrives.
+  if (sym_num==tracked_cell.n_symb_dl()-2) {
+    sss_sym=syms;
+    return;
+  }
+
+  const cvec & pss_sym=syms;
+
+  // Measure noise power on 'unoccupied' subcarriers.
+  const double np_blank=(sigpower(sss_sym(0,4))+sigpower(sss_sym(67,71))+sigpower(pss_sym(0,4))+sigpower(pss_sym(67,71)))/4;
+
+  // Rotate back.
+  cvec ce_sss_raw=elem_mult(sss_sym(5,66),to_cvec(ROM_TABLES.sss_fd(tracked_cell.n_id_1,tracked_cell.n_id_2,(slot_num==0)?0:1)));
+  cvec ce_pss_raw=elem_mult(pss_sym(5,66),conj(ROM_TABLES.pss_fd[tracked_cell.n_id_2]));
+
+  // Smoothening
+  cvec ce_smooth(62);
+  for (uint8 t=0;t<62;t++) {
+    uint8 lt=MAX(0,t-6);
+    uint8 rt=MIN(t+6,61);
+    ce_smooth(t)=(sum(ce_sss_raw(lt,rt))+sum(ce_pss_raw(lt,rt)))/(2*(rt-lt+1));
+  }
+
+  // Measure SP and NP
+  double sp=sigpower(ce_smooth);
+  double np=(sigpower(ce_smooth-ce_sss_raw)+sigpower(ce_smooth-ce_pss_raw))/2;
+
+  // Store results
+  {
+    boost::mutex::scoped_lock lock(tracked_cell.meas_mutex);
+    tracked_cell.sync_sp=sp;
+    tracked_cell.sync_np=np;
+    tracked_cell.sync_np_blank=np_blank;
+    if (isnan(tracked_cell.sync_sp_av)) {
+      tracked_cell.sync_sp_av=sp;
+      tracked_cell.sync_np_av=np;
+      tracked_cell.sync_np_blank_av=np_blank;
+    } else {
+      tracked_cell.sync_sp_av=0.999*tracked_cell.sync_sp_av+.001*sp;
+      tracked_cell.sync_np_av=0.999*tracked_cell.sync_np_av+.001*np;
+      tracked_cell.sync_np_blank_av=0.999*tracked_cell.sync_np_blank_av+.001*np_blank;
+    }
+  }
+}
+
 // Process that tracks a cell that has been found by the searcher.
 void tracker_thread(
   tracked_cell_t & tracked_cell,
@@ -690,6 +749,7 @@ void tracker_thread(
   vector <uint8> ce_interp_fifo_initialized(tracked_cell.n_ports,0);
   deque <mib_fifo_pdu_t> mib_fifo;
   bool mib_fifo_synchronized=false;
+  cvec sss_sym;
   //double mib_fifo_decode_failures=0;
   // Now that everything has been initialized, indicate to the producer
   // thread that we are ready for data.
@@ -821,6 +881,7 @@ void tracker_thread(
     // every data sample.
     while ((!data_fifo.empty())&&ce_ready(ce_interp_fifo)) {
       // Synchronization check.
+#ifndef NDEBUG
       for (uint8 t=0;t<tracked_cell.n_ports;t++) {
         if (
           (data_fifo.front().slot_num!=ce_interp_fifo[t].front().slot_num)||
@@ -830,8 +891,10 @@ void tracker_thread(
           exit(-1);
         }
       }
+#endif
 
-      // Shortcuts
+      // For this OFDM symbol, extract the symbols, the channel estimates,
+      // signal power, etc.
       cvec & syms=data_fifo.front().syms;
       cmat ce(tracked_cell.n_ports,72);
       vec sp(tracked_cell.n_ports);
@@ -843,20 +906,25 @@ void tracker_thread(
         sp(t)=ce_interp_fifo[t].front().sp;
         np(t)=ce_interp_fifo[t].front().np;
       }
-      tracked_cell.crs_sp=sp;
-      tracked_cell.crs_np=np;
-      if (isnan(tracked_cell.crs_sp_av(0))) {
-        tracked_cell.crs_sp_av=sp;
-        tracked_cell.crs_np_av=np;
-      } else {
-        for (uint8 t=0;t<tracked_cell.n_ports;t++) {
-          tracked_cell.crs_sp_av=0.99999*tracked_cell.crs_sp_av+.00001*sp;
-          tracked_cell.crs_np_av=0.99999*tracked_cell.crs_np_av+.00001*np;
+
+      // Store signal power measurements.
+      {
+        boost::mutex::scoped_lock lock(tracked_cell.meas_mutex);
+        tracked_cell.crs_sp=sp;
+        tracked_cell.crs_np=np;
+        if (isnan(tracked_cell.crs_sp_av(0))) {
+          tracked_cell.crs_sp_av=sp;
+          tracked_cell.crs_np_av=np;
+        } else {
+          for (uint8 t=0;t<tracked_cell.n_ports;t++) {
+            tracked_cell.crs_sp_av=0.99999*tracked_cell.crs_sp_av+.00001*sp;
+            tracked_cell.crs_np_av=0.99999*tracked_cell.crs_np_av+.00001*np;
+          }
         }
       }
 
-      // Measure signal power and noise power on PSS/SSS
-      //do_pss_sss_sigpwer();
+      // Measure signal power and noise power on PSS/SSS (more accurate)
+      do_pss_sss_sigpower(tracked_cell,syms,data_slot_num,data_sym_num,sss_sym);
 
       // Perform MIB decoding
       if (do_mib_decode(tracked_cell,syms,ce,sp,np,data_slot_num,data_sym_num,scr,mib_fifo,mib_fifo_synchronized)==-1) {
