@@ -147,8 +147,8 @@ bvec lte_pn(
 }
 
 // Instantiate the static members
-vector <cvec> PSS_fd::table(3);
-vector <cvec> PSS_td::table(3);
+//vector <cvec> PSS_fd::table(3);
+//vector <cvec> PSS_td::table(3);
 
 // PSS
 // Return the PSS in the frequency domain.
@@ -162,6 +162,7 @@ cvec pss_fd_calc(const uint8 & t) {
 
 // Initialize table
 PSS_fd::PSS_fd(void) {
+  table.resize(3);
   for (uint8 t=0;t<3;t++) {
     table[t]=pss_fd_calc(t);
   }
@@ -177,6 +178,7 @@ PSS_td::PSS_td(void) {
   cvec fd;
   cvec td;
   cvec idft_in;
+  table.resize(3);
   for (uint8 t=0;t<3;t++) {
     fd=pss_fd_calc(t);
     idft_in=concat(zeros_c(1),fd(31,61),zeros_c(65),fd(0,30));
@@ -191,7 +193,7 @@ const cvec & PSS_td::operator[](const uint8 & idx) const {
 }
 
 // Instantiate the static members
-vector < vector < vector <ivec> > > SSS_fd::table;
+//vector < vector < vector <ivec> > > SSS_fd::table;
 
 // Calculate the SSS in the frequency domain.
 ivec sss_fd_calc(
@@ -549,7 +551,7 @@ bvec lte_conv_decode(
 }
 
 // Instantiate static member
-Array <cvec> Mod_map::table(3);
+//Array <cvec> Mod_map::table(3);
 
 // Constructor
 // This was implemented as a class so that the (slow) initialization only
@@ -561,6 +563,7 @@ Mod_map::Mod_map(void) {
   ivec map_qam16_imag("1 3 1 3 -1 -3 -1 -3 1 3 1 3 -1 -3 -1 -3");
   ivec map_qam64_real("3 3 1 1 3 3 1 1 5 5 7 7 5 5 7 7 3 3 1 1 3 3 1 1 5 5 7 7 5 5 7 7 -3 -3 -1 -1 -3 -3 -1 -1 -5 -5 -7 -7 -5 -5 -7 -7 -3 -3 -1 -1 -3 -3 -1 -1 -5 -5 -7 -7 -5 -5 -7 -7");
   ivec map_qam64_imag("3 1 3 1 5 7 5 7 3 1 3 1 5 7 5 7 -3 -1 -3 -1 -5 -7 -5 -7 -3 -1 -3 -1 -5 -7 -5 -7 3 1 3 1 5 7 5 7 3 1 3 1 5 7 5 7 -3 -1 -3 -1 -5 -7 -5 -7 -3 -1 -3 -1 -5 -7 -5 -7");
+  table.set_size(3);
   table(0)=to_cvec(map_qam_real,map_qam_imag)/sqrt(2);
   table(1)=to_cvec(map_qam16_real,map_qam16_imag)/sqrt(10);
   table(2)=to_cvec(map_qam64_real,map_qam64_imag)/sqrt(42);
