@@ -28,6 +28,8 @@
 #include <sstream>
 #include <signal.h>
 #include <queue>
+#include <sys/syscall.h>
+#include <sys/types.h>
 #include "rtl-sdr.h"
 #include "common.h"
 #include "macros.h"
@@ -61,6 +63,8 @@ void producer_thread(
   tracked_cell_list_t & tracked_cell_list,
   double & fc
 ) {
+  global_thread_data.producer_thread_id=syscall(SYS_gettid);
+
   // Main loop which distributes data to the appropriate subthread.
   // Local storage for each cell.
   cell_local_t cell_local[504];
@@ -155,6 +159,11 @@ void producer_thread(
       list <tracked_cell_t *>::iterator it=tracked_cell_list.tracked_cells.begin();
       while (it!=tracked_cell_list.tracked_cells.end()) {
         tracked_cell_t & tracked_cell=(*(*it));
+        // See if this thread has been launched yet. If not, launch it.
+        if (!tracked_cell.launched) {
+          tracked_cell.thread=boost::thread(tracker_thread,boost::ref(tracked_cell),boost::ref(global_thread_data));
+          tracked_cell.launched=true;
+        }
         double frame_timing=tracked_cell.frame_timing();
 
         cell_local_t & cl=cell_local[tracked_cell.n_id_cell];

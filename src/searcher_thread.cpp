@@ -29,6 +29,8 @@
 #include <signal.h>
 #include <queue>
 #include <valgrind/callgrind.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
 #include "rtl-sdr.h"
 #include "common.h"
 #include "macros.h"
@@ -58,7 +60,9 @@ void searcher_thread(
     cout << "Searcher process has been launched." << endl;
   }
 
-  if (nice(10)==-1) {
+  global_thread_data.searcher_thread_id=syscall(SYS_gettid);
+
+  if (nice(20)==-1) {
     cerr << "Error: could not reduce searcher process priority" << endl;
     exit(-1);
   }
@@ -72,7 +76,11 @@ void searcher_thread(
   const double & fc=global_thread_data.fc;
 
   // Loop forever.
+  Real_Timer tt;
   while (true) {
+    // Used to measure searcher cycle time.
+    tt.tic();
+
     // Request data.
     {
       boost::mutex::scoped_lock lock(capbuf_sync.mutex);
@@ -209,17 +217,25 @@ void searcher_thread(
       //tracked_cell_t * new_cell = new tracked_cell_t((*iterator).n_id_cell(),(*iterator).n_ports,(*iterator).cp_type,(*iterator).frame_start/k_factor+capbuf_sync.late+global_1);
       tracked_cell_t * new_cell = new tracked_cell_t((*iterator).n_id_cell(),(*iterator).n_ports,(*iterator).cp_type,(*iterator).frame_start/k_factor+capbuf_sync.late,serial_num((*iterator).n_id_cell()));
       serial_num((*iterator).n_id_cell())++;
-      (*new_cell).thread=boost::thread(tracker_thread,boost::ref(*new_cell),boost::ref(global_thread_data));
+      // Cannot launch thread here. If thread was launched here, it would
+      // have the same (low) priority as the searcher thread.
+      //(*new_cell).thread=boost::thread(tracker_thread,boost::ref(*new_cell),boost::ref(global_thread_data));
       {
         boost::mutex::scoped_lock lock(tracked_cell_list.mutex);
         tracked_cell_list.tracked_cells.push_back(new_cell);
       }
       CALLGRIND_START_INSTRUMENTATION;
-      //cout << "Only one cell is allowed to be detected!!!" << endl;
-      //sleep(1000000);
+#define MAX_DETECTED 500000
+      static uint32 n_found=0;
+      n_found++;
+      if (n_found==MAX_DETECTED) {
+        cout << "Searcher thread has stopped!" << endl;
+        sleep(1000000);
+      }
 
       ++iterator;
     }
+    global_thread_data.searcher_cycle_time(tt.toc());
   }
   // Will never reach here...
 }

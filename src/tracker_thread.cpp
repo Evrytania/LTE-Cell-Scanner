@@ -700,6 +700,19 @@ void tracker_thread(
   //}
   // Each iteration of this loop processes one OFDM symbol.
   while (true) {
+    // If there is more than 1.5s worth of data in the fifo, dump
+    // data to allow the tracker threads to catch up.
+    {
+      boost::mutex::scoped_lock lock(tracked_cell.fifo_mutex);
+      uint16 n_ofdm_1s=(tracked_cell.cp_type==cp_type_t::NORMAL)?(7*2*1000):(6*2*1000);
+      while (tracked_cell.fifo.size()>n_ofdm_1s*1.5) {
+        for (uint32 t=0;t<n_ofdm_1s;t++) {
+          tracked_cell.fifo.pop();
+        }
+        global_thread_data.cell_seconds_dropped_inc();
+      }
+    }
+
     // Get the next frequency domain sample from the fifo.
     cvec syms;
     double frequency_offset;

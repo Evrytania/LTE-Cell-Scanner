@@ -29,6 +29,8 @@
 #include <signal.h>
 #include <queue>
 #include <sys/stat.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
 #include "rtl-sdr.h"
 #include "common.h"
 #include "macros.h"
@@ -895,6 +897,7 @@ int main(
   tracked_cell_list_t tracked_cell_list;
   capbuf_sync_t capbuf_sync;
   global_thread_data_t global_thread_data(fc);
+  global_thread_data.main_thread_id=syscall(SYS_gettid);
 
   // Calibrate the dongle's oscillator. This is similar to running the
   // program CellSearch with only one center frequency. All information

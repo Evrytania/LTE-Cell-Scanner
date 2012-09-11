@@ -29,6 +29,8 @@
 #include <signal.h>
 #include <queue>
 #include <curses.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
 #include "rtl-sdr.h"
 #include "common.h"
 #include "macros.h"
@@ -51,6 +53,8 @@ void display_thread(
   global_thread_data_t & global_thread_data,
   tracked_cell_list_t & tracked_cell_list
 ) {
+  global_thread_data.display_thread_id=syscall(SYS_gettid);
+
   initscr();
   // What does this do?
   (void)echo();
@@ -67,8 +71,15 @@ void display_thread(
     {
       boost::mutex::scoped_lock lock(sampbuf_sync.mutex);
       //cout << "Raw sample buffer size: " << sampbuf_sync.fifo.size() << "/" << sampbuf_sync.fifo_peak_size << endl;
-      printw(" Raw buffer status: %6li/%6li\n\n",sampbuf_sync.fifo.size(),sampbuf_sync.fifo_peak_size);
+      printw(" Raw buffer status: %6li/%6li\n",sampbuf_sync.fifo.size(),sampbuf_sync.fifo_peak_size);
     }
+    printw("Searcher cycle time: %.1lf s\n\n",global_thread_data.searcher_cycle_time());
+    printw("Searcher thread ID: %5i\n",global_thread_data.searcher_thread_id);
+    printw("Producer thread ID: %5i\n",global_thread_data.producer_thread_id);
+    printw("Main     thread ID: %5i\n",global_thread_data.main_thread_id);
+    printw("Display  thread ID: %5i\n\n",global_thread_data.display_thread_id);
+
+    printw("Cell seconds dropped: %i\n\n",global_thread_data.cell_seconds_dropped());
 
     {
       boost::mutex::scoped_lock lock(tracked_cell_list.mutex);

@@ -45,6 +45,7 @@ class tracked_cell_t {
       crs_sp_av=NAN;
       crs_np_av=itpp::vec(4);
       crs_np_av=NAN;
+      launched=false;
     }
     inline uint8 const n_symb_dl() const {
       return (cp_type==cp_type_t::NORMAL)?7:((cp_type==cp_type_t::EXTENDED)?6:-1);
@@ -67,6 +68,8 @@ class tracked_cell_t {
 
     // Indicates that the tracker process is ready to receive data.
     bool tracker_thread_ready;
+    // Indicates that the thread has been launched
+    bool launched;
 
     // Mutex and measurement data produced by the tracker thread and read by
     // the display thread.
@@ -100,7 +103,6 @@ class tracked_cell_t {
     // threads.
     boost::mutex frame_timing_mutex;
     double frame_timing_private;
-
 };
 // Structure that is used to record all the tracked cells.
 typedef struct {
@@ -111,20 +113,12 @@ typedef struct {
   std::list <tracked_cell_t *> tracked_cells;
 } tracked_cell_list_t;
 // Global data shared by all threads
-/*
-typedef struct {
-  // The frequency offset of the dongle. This value will be updated
-  // continuously.
-  boost::mutex frequency_offset_mutex;
-  double frequency_offset;
-  // This value will never change.
-  double fc;
-} global_thread_data_t;
-*/
 class global_thread_data_t {
   public:
     // Constructor
     global_thread_data_t(const double & fc) : fc(fc) {
+      searcher_cycle_time_private=0;
+      cell_seconds_dropped_private=0;
     }
     // This value will never change.
     const double fc;
@@ -140,11 +134,40 @@ class global_thread_data_t {
       boost::mutex::scoped_lock lock(frequency_offset_mutex);
       frequency_offset_private=f;
     }
+    // Read/write searcher cycle time (via mutex).
+    // Mutex makes sure that no read or write is interrupted when
+    // only part of the data has been read.
+    inline double searcher_cycle_time() {
+      boost::mutex::scoped_lock lock(searcher_cycle_time_mutex);
+      double r=searcher_cycle_time_private;
+      return r;
+    }
+    inline void searcher_cycle_time(const double & t) {
+      boost::mutex::scoped_lock lock(searcher_cycle_time_mutex);
+      searcher_cycle_time_private=t;
+    }
+    inline uint32 cell_seconds_dropped() {
+      boost::mutex::scoped_lock lock(cell_seconds_dropped_mutex);
+      double r=cell_seconds_dropped_private;
+      return r;
+    }
+    inline void cell_seconds_dropped_inc() {
+      boost::mutex::scoped_lock lock(cell_seconds_dropped_mutex);
+      cell_seconds_dropped_private+=1;
+    }
+    uint32 searcher_thread_id;
+    uint32 producer_thread_id;
+    uint32 main_thread_id;
+    uint32 display_thread_id;
   private:
     // The frequency offset of the dongle. This value will be updated
     // continuously.
     boost::mutex frequency_offset_mutex;
     double frequency_offset_private;
+    boost::mutex searcher_cycle_time_mutex;
+    double searcher_cycle_time_private;
+    boost::mutex cell_seconds_dropped_mutex;
+    uint32 cell_seconds_dropped_private;
 };
 // IPC between main thread and searcher thread covering data capture issues.
 typedef struct {
