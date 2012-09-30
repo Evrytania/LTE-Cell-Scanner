@@ -483,6 +483,9 @@ void config_usb(
 #define BLOCK_SIZE (16*16384)
   uint8 * buffer=(uint8 *)malloc(BLOCK_SIZE*sizeof(uint8));
   while (true) {
+    // sync mode is unreliable in that it may drop samples. However, in
+    // this case we can still use it because it will gurantee a minimum
+    // number of samples have been discarded.
     if (rtlsdr_read_sync(dev,buffer,BLOCK_SIZE,&n_read_current)<0) {
       cerr << "Error: synchronous read failed" << endl;
       exit(-1);
@@ -846,7 +849,7 @@ static void rtlsdr_callback(
   //cout << "Callback with " << len << " samples" << endl;
 
   if (len==0) {
-    cerr << "Received 'zero' samples from USB..." << endl;
+    cerr << "Error: received no samples from USB device..." << endl;
     exit(-1);
   }
 

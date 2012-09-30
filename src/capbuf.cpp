@@ -30,6 +30,32 @@ using namespace std;
 // Number of complex samples to capture.
 #define CAPLENGTH 153600
 
+static void capbuf_rtlsdr_callback(
+  unsigned char * buf,
+  uint32_t len,
+  void * ctx
+) {
+  vector <char> & capbuf_raw = *((vector <char> *)ctx);
+  //cout << capbuf_raw.size() << endl;
+
+  if (len==0) {
+    cerr << "Error: received no samples from USB device..." << endl;
+    exit(-1);
+  }
+
+  for (uint32 t=0;t<len;t++) {
+    //cout << capbuf_raw.size() << endl;
+    if (capbuf_raw.size()<CAPLENGTH*2) {
+      capbuf_raw.push_back(buf[t]);
+    }
+    if (capbuf_raw.size()==CAPLENGTH*2) {
+      rtlsdr_cancel_async(dev);
+      break;
+    }
+  }
+  //cout << capbuf_raw.size() << endl;
+}
+
 // This function produces a vector of captured data. The data can either
 // come from live data received by the RTLSDR, or from a file containing
 // previously captured data.
@@ -72,8 +98,6 @@ void capture_data(
     if (verbosity>=2) {
       cout << "Capturing live data" << endl;
     }
-#define BLOCK_SIZE 16*16384
-    uint8 * buffer=(uint8 *)malloc(BLOCK_SIZE*sizeof(uint8));
 
     // Center frequency
     if (rtlsdr_set_center_freq(dev,itpp::round(fc*correction))<0) {
@@ -87,44 +111,25 @@ void capture_data(
       exit(-1);
     }
 
-    // Read and store the data
-    uint32 n_read=0;
-    int n_read_current=0;
-    uint32 n_saved=0;
+    // Read and store the data.
+    // This will block until the call to rtlsdr_cancel_async().
+    vector <char> capbuf_raw;
+    capbuf_raw.reserve(CAPLENGTH*2);
+    rtlsdr_read_async(dev,capbuf_rtlsdr_callback,(void *)&capbuf_raw,0,0);
+    if (capbuf_raw.size()!=CAPLENGTH*2) {
+      cerr << "Error: unable to read sufficient data from USB device" << endl;
+      exit(-1);
+    }
+
+    // Convert to complex
     capbuf.set_size(CAPLENGTH);
 #ifndef NDEBUG
     capbuf=NAN;
 #endif
-    while (true) {
-      // Read some data
-      if (rtlsdr_read_sync(dev,buffer,BLOCK_SIZE,&n_read_current)<0) {
-        cerr << "Error: synchronous read failed" << endl;
-        exit(-1);
-      }
-      if (n_read_current<BLOCK_SIZE) {
-        cerr << "Error: short read; samples lost" << endl;
-        exit(-1);
-      }
-
-      for (uint32 t=0;t<BLOCK_SIZE;t+=2) {
-        n_read+=2;
-        // Ignore first 10ms... Hopefully PLL will lock by then...
-        if (n_read<19200) {
-          continue;
-        }
-        capbuf(n_saved++)=complex<double>((buffer[t]-127.0)/128.0,(buffer[t+1]-127.0)/128.0);
-        if ((signed)n_saved==length(capbuf)) {
-          goto cbuf_full;
-        }
-      }
+    for (uint32 t=0;t<CAPLENGTH;t++) {
+      capbuf(t)=complex<double>((capbuf_raw[(t<<1)]-127.0)/128.0,(capbuf_raw[(t<<1)+1]-127.0)/128.0);
     }
 
-    cbuf_full:
-    free(buffer);
-    if ((signed)n_saved!=length(capbuf)) {
-      cerr << "Error: unable to fill capture buffer..." << endl;
-      exit(-1);
-    }
   }
 
   // Save the capture data, if requested.

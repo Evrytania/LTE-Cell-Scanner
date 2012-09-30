@@ -41,6 +41,7 @@ uint8 verbosity=1;
 // Declared as global so the sig handler can have access to it.
 rtlsdr_dev_t * dev=NULL;
 
+/*
 static void sighandler(
   int signum
 ) {
@@ -50,6 +51,7 @@ static void sighandler(
   }
   exit(-1);
 }
+*/
 
 // Simple usage screen.
 void print_usage() {
@@ -441,6 +443,7 @@ int main(
 ) {
   // This is so that CTRL-C properly closes the rtl-sdr device before exiting
   // the program.
+  /*
   struct sigaction sigact;
   sigact.sa_handler=sighandler;
   sigemptyset(&sigact.sa_mask);
@@ -449,6 +452,7 @@ int main(
   sigaction(SIGTERM,&sigact,NULL);
   sigaction(SIGQUIT,&sigact,NULL);
   sigaction(SIGPIPE,&sigact,NULL);
+  */
 
   // Command line parameters are stored here.
   double freq_start;
