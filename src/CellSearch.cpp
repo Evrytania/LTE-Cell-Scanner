@@ -387,7 +387,7 @@ void config_usb(
   }
 
   // Sampling frequency
-  if (rtlsdr_set_sample_rate(dev,itpp::round(960000*correction))<0) {
+  if (rtlsdr_set_sample_rate(dev,itpp::round(1920000*correction))<0) {
     cerr << "Error: unable to set sampling rate" << endl;
     exit(-1);
   }
