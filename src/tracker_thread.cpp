@@ -63,14 +63,18 @@ typedef struct {
   double shift;
   uint8 slot_num;
   uint8 sym_num;
+  double tp;
   double sp;
+  double sp_raw;
   double np;
   cvec ce_filt;
 } ce_filt_fifo_pdu_t;
 typedef struct {
   uint8 slot_num;
   uint8 sym_num;
+  double tp;
   double sp;
+  double sp_raw;
   double np;
   cvec ce_interp;
 } ce_interp_fifo_pdu_t;
@@ -200,6 +204,9 @@ void do_foe(
   const double & rs_curr_np,
   const cvec & ce_filt
 ) {
+  //if (rs_prev.frame_timing!=rs_next.frame_timing)
+  //  return;
+
   cvec foe=elem_mult(conj(rs_prev.ce),rs_next.ce);
   // Calculate the noise on each FOE estimate.
   vec foe_np=rs_curr_np*rs_curr_np+2*rs_curr_np*sqr(ce_filt);
@@ -216,7 +223,7 @@ void do_foe(
   // Update system frequency offset.
   double frequency_offset=rs_prev.frequency_offset;
   //double k_factor=(global_thread_data.fc-frequency_offset)/global_thread_data.fc;
-  double residual_f=arg(foe_comb)/(2*pi)/0.0005;
+  double residual_f=arg(foe_comb)/(2*pi)/(0.0005+WRAP(rs_next.frame_timing-rs_prev.frame_timing,-19200.0/2,19200.0/2)*(1/(FS_LTE/16)));
   double residual_f_np=MAX(foe_comb_np/2,.001);
   //residual_f+=1000;
   //cout << residual_f << " f " << db10(residual_f_np) << endl;
@@ -226,9 +233,9 @@ void do_foe(
   // perform a write. This isn't a problem because the worst that will happen
   // is that we will lose one of many (millions?) of updates.
   global_thread_data.frequency_offset((
-    global_thread_data.frequency_offset()*(1/.0001)+
+    global_thread_data.frequency_offset()*(1/.000001)+
     (frequency_offset+residual_f)*(1/residual_f_np)
-  )/(1/.0001+1/residual_f_np));
+  )/(1/.000001+1/residual_f_np));
 }
 
 void do_toe_v2(
@@ -303,7 +310,8 @@ void do_toe(
   //cout << "TO: " << setprecision(15) << tracked_cell.frame_timing << endl;
 }
 
-void do_fd_ac(
+// Update the frequency domain autocorrelation function.
+void do_ac_fd(
   tracked_cell_t & tracked_cell,
   const ce_raw_fifo_pdu_t & rs_curr,
   const double & rs_curr_sp,
@@ -324,6 +332,36 @@ void do_fd_ac(
   {
     boost::mutex::scoped_lock lock(tracked_cell.meas_mutex);
     tracked_cell.ac_fd=elem_div(tracked_cell.ac_fd*(1/.00001)+elem_mult(ac_fd,to_cvec(1.0/ac_fd_np)),to_cvec(1/.00001+1.0/ac_fd_np));
+  }
+}
+
+// Estimate the time domain autocorrelation function.
+void do_ac_td(
+  tracked_cell_t & tracked_cell,
+  const ce_raw_fifo_pdu_t & rs_curr,
+  const double & rs_curr_sp,
+  deque <cvec> & ce_history
+) {
+  // Fill historical fifo
+  ce_history.push_back(rs_curr.ce);
+  if (ce_history.size()>72) {
+    ce_history.pop_front();
+  }
+
+  // Calculate autocorrelation if fifo is full.
+  if (ce_history.size()==72) {
+    cvec this_xc(72);
+#ifndef NDEBUG
+    this_xc=NAN;
+#endif
+    for (uint8 t=0;t<72;t++) {
+      this_xc(t)=elem_mult_sum(conj(ce_history[71]),ce_history[71-t])/12;
+    }
+    this_xc=this_xc/rs_curr_sp;
+
+    // Update average
+    boost::mutex::scoped_lock lock(tracked_cell.meas_mutex);
+    tracked_cell.ac_td=(tracked_cell.ac_td*(1/.00001)+this_xc*1/1)/(1/.00001+1);
   }
 }
 
@@ -359,15 +397,6 @@ void interp2d(
   uint8 & ce_interp_fifo_initialized
 ) {
   // Interpolate in the frequency domain.
-  /*
-  vec X=itpp_ext::matlab_range(rs_prev.shift,6.0,71.0);
-  cvec Y=rs_prev.ce_filt;
-  vec x=itpp_ext::matlab_range(0.0,71.0);
-  cvec rs_prev_interp=interp1(X,Y,x);
-  X=itpp_ext::matlab_range(rs_curr.shift,6.0,71.0);
-  Y=rs_curr.ce_filt;
-  cvec rs_curr_interp=interp1(X,Y,x);
-  */
   cvec rs_prev_interp;
   interp72(rs_prev,rs_prev_interp);
   cvec rs_curr_interp;
@@ -397,13 +426,17 @@ void interp2d(
   while ((slot_num!=rs_curr.slot_num)||(sym_num!=rs_curr.sym_num)) {
     // Interpolate in the time domain.
     cvec rs_mid=rs_prev_interp+(rs_curr_interp-rs_prev_interp)*(time_offset/time_diff);
+    double rs_mid_tp=rs_prev.tp+(rs_curr.tp-rs_prev.tp)*(time_offset/time_diff);
     double rs_mid_sp=rs_prev.sp+(rs_curr.sp-rs_prev.sp)*(time_offset/time_diff);
+    double rs_mid_sp_raw=rs_prev.sp_raw+(rs_curr.sp_raw-rs_prev.sp_raw)*(time_offset/time_diff);
     double rs_mid_np=rs_prev.np+(rs_curr.np-rs_prev.np)*(time_offset/time_diff);
 
     // Push onto the interpolated CE fifo.
     ce_interp_fifo_pdu_t pdu;
     pdu.ce_interp=rs_mid;
+    pdu.tp=rs_mid_tp;
     pdu.sp=rs_mid_sp;
+    pdu.sp_raw=rs_mid_sp_raw;
     pdu.np=rs_mid_np;
     if (!ce_interp_fifo_initialized) {
       // Repeat the very first channel estimates so as to provide CE for
@@ -615,11 +648,6 @@ int8 do_mib_decode(
     }
     // Did we find it?
     if (crc_est==c_est(24,-1)) {
-      // YES!
-      //cout << "Cell ID " << tracked_cell.n_id_cell << " MIB SUCCESS!" << endl;
-      //mib_successes++;
-      //if (mib_successes>=1000)
-      //  exit(0);
       mib_fifo_synchronized=1;
       {
         boost::mutex::scoped_lock lock(tracked_cell.meas_mutex);
@@ -629,14 +657,11 @@ int8 do_mib_decode(
         mib_fifo.pop_front();
       }
     } else {
-      // No :(
-      //cout << "Cell ID " << tracked_cell.n_id_cell << " MIB failure!" << endl;
       if (mib_fifo_synchronized) {
         {
           boost::mutex::scoped_lock lock(tracked_cell.meas_mutex);
           tracked_cell.mib_decode_failures++;
         }
-        //mib_fifo_decode_failures++;
         for (uint8 t=0;t<16;t++) {
           mib_fifo.pop_front();
         }
@@ -645,7 +670,6 @@ int8 do_mib_decode(
           boost::mutex::scoped_lock lock(tracked_cell.meas_mutex);
           tracked_cell.mib_decode_failures+=0.25;
         }
-        //mib_fifo_decode_failures+=0.25;
         for (uint8 t=0;t<4;t++) {
           mib_fifo.pop_front();
         }
@@ -654,7 +678,7 @@ int8 do_mib_decode(
 
     // 10ms of time increases mib_fifo_decode_failures by 0.25.
     // After several seconds of MIB decoding failures, drop the cell.
-    if (tracked_cell.mib_decode_failures>=100) {
+    if (tracked_cell.mib_decode_failures>=CELL_DROP_THRESHOLD) {
       //cout << "Dropped a cell!" << endl;
       //boost::mutex::scoped_lock lock(tracked_cell.mutex);
       tracked_cell.kill_me=true;
@@ -668,7 +692,8 @@ int8 do_mib_decode(
 
 // Measure signal and noise power using the SSS and PSS. More accurate
 // than using the CRS.
-void do_pss_sss_sigpower(
+// Also perform channel estimation and store results.
+void do_pss_sss_sigpower_ce(
   tracked_cell_t & tracked_cell,
   const cvec & syms,
   const uint8 & slot_num,
@@ -695,29 +720,40 @@ void do_pss_sss_sigpower(
   cvec ce_sss_raw=elem_mult(sss_sym(5,66),to_cvec(ROM_TABLES.sss_fd(tracked_cell.n_id_1,tracked_cell.n_id_2,(slot_num==0)?0:1)));
   cvec ce_pss_raw=elem_mult(pss_sym(5,66),conj(ROM_TABLES.pss_fd[tracked_cell.n_id_2]));
 
-  // Smoothening
+  // Smoothing
   cvec ce_smooth(62);
   for (uint8 t=0;t<62;t++) {
     uint8 lt=MAX(0,t-6);
     uint8 rt=MIN(t+6,61);
     ce_smooth(t)=(sum(ce_sss_raw(lt,rt))+sum(ce_pss_raw(lt,rt)))/(2*(rt-lt+1));
+    //ce_smooth(t)=(sum(ce_sss_raw(lt,rt)))/(1*(rt-lt+1));
   }
 
   // Measure SP and NP
-  double sp=sigpower(ce_smooth);
-  double np=(sigpower(ce_smooth-ce_sss_raw)+sigpower(ce_smooth-ce_pss_raw))/2;
+  // Note correction for estimation bias.
+  double np=(sigpower(ce_smooth-ce_sss_raw)*13/12+sigpower(ce_smooth-ce_pss_raw)*13/12)/2;
+  //double np=(sigpower(concat(ce_smooth-ce_sss_raw,ce_smooth-ce_pss_raw))*13/12)/1;
+  //double np=(sigpower(ce_smooth-ce_sss_raw)*13/12)/1;
+  double tp=sigpower(ce_smooth);
+  // Note that this value can be negative! The expected value of this
+  // measurement, however, is positive.
+  double sp=tp-np/13;
 
   // Store results
   {
     boost::mutex::scoped_lock lock(tracked_cell.meas_mutex);
+    tracked_cell.sync_tp=tp;
     tracked_cell.sync_sp=sp;
     tracked_cell.sync_np=np;
     tracked_cell.sync_np_blank=np_blank;
+    tracked_cell.sync_ce=concat(zeros_c(5),ce_smooth,zeros_c(5));
     if (isnan(tracked_cell.sync_sp_av)) {
+      tracked_cell.sync_tp_av=tp;
       tracked_cell.sync_sp_av=sp;
       tracked_cell.sync_np_av=np;
       tracked_cell.sync_np_blank_av=np_blank;
     } else {
+      tracked_cell.sync_tp_av=0.999*tracked_cell.sync_tp_av+.001*tp;
       tracked_cell.sync_sp_av=0.999*tracked_cell.sync_sp_av+.001*sp;
       tracked_cell.sync_np_av=0.999*tracked_cell.sync_np_av+.001*np;
       tracked_cell.sync_np_blank_av=0.999*tracked_cell.sync_np_blank_av+.001*np_blank;
@@ -751,13 +787,13 @@ void tracker_thread(
   bool mib_fifo_synchronized=false;
   cvec sss_sym;
   //double mib_fifo_decode_failures=0;
+  // Store the channel estimates so that the time domain channel
+  // autocorrelation function can be estimated.
+  vector <deque <cvec> > ce_history(tracked_cell.n_ports);
   // Now that everything has been initialized, indicate to the producer
   // thread that we are ready for data.
   // Data flow starts at the beginning of the next frame.
-  //{
-  //  boost::mutex::scoped_lock lock(tracked_cell.mutex);
   tracked_cell.tracker_thread_ready=true;
-  //}
   // Each iteration of this loop processes one OFDM symbol.
   while (true) {
     // If there is more than 1.5s worth of data in the fifo, dump
@@ -781,7 +817,9 @@ void tracker_thread(
     get_fd(tracked_cell,global_thread_data.fc,slot_num,sym_num,bulk_phase_offset,syms,frequency_offset,frame_timing);
 
     // Save this information into the data fifo for further processing
-    // once the channel estimates are ready for this ofdm symbol.
+    // once channel estimates are ready. Channel estimates for this OFDM
+    // symbol may not be ready until several more OFDM symbols have been
+    // received.
     data_fifo_pdu_t dfp;
     dfp.slot_num=slot_num;
     dfp.sym_num=sym_num;
@@ -826,8 +864,14 @@ void tracker_thread(
 
       // Perform primitive filtering by averaging nearby samples.
       const cvec rs_curr_filt=filter_ce(rs_prev,rs_curr,rs_next);
-      const double rs_curr_sp=sigpower(rs_curr_filt);
-      const double rs_curr_np=sigpower(rs_curr.ce-rs_curr_filt);
+      // Note correction for the estimation bias.
+      const double rs_curr_np=sigpower(rs_curr.ce-rs_curr_filt)*7/6;
+      //const double rs_curr_np=sigpower(rs_curr.ce-rs_curr_filt)*(1.0/(pow(2.0/7.0,2.0)*2.0+pow(3.0/7.0,2.0)*2.0/3.0));
+      // Note that this value can be negative!
+      //const double rs_curr_sp=MAX(sigpower(rs_curr_filt)-rs_curr_np/7,0);
+      const double rs_curr_tp=sigpower(rs_curr_filt);
+      const double rs_curr_sp_raw=rs_curr_tp-rs_curr_np/7;
+      const double rs_curr_sp=MAX(.00001,rs_curr_sp_raw);
       //cout << "SP RSC " << db10(sigpower(rs_curr.ce)) << endl;
       //cout << "SP/NP " << db10(rs_curr_sp) << " / " << db10(rs_curr_np) << endl;
       // Store filtered channel estimates.
@@ -835,12 +879,11 @@ void tracker_thread(
       pdu.shift=rs_curr.shift;
       pdu.slot_num=rs_curr.slot_num;
       pdu.sym_num=rs_curr.sym_num;
+      pdu.tp=rs_curr_tp;
       pdu.sp=rs_curr_sp;
+      pdu.sp_raw=rs_curr_sp_raw;
       pdu.np=rs_curr_np;
-      //cout << "Cell " << tracked_cell.n_id_cell << " port" << port_num << " CRS SNR " << db10(rs_curr_sp/rs_curr_np) << " dB" << endl;
       pdu.ce_filt=rs_curr_filt;
-      //pdu.frequency_offset=rs_curr.frequency_offset;
-      //pdu.frame_timing=rs_curr.frame_timing;
       ce_filt_fifo[port_num].push_back(pdu);
 
       // FOE
@@ -851,10 +894,10 @@ void tracker_thread(
       do_toe_v2(tracked_cell,rs_prev,rs_curr,rs_curr_sp,rs_curr_np);
 
       // Estimate frequency domain autocorrelations.
-      do_fd_ac(tracked_cell,rs_curr,rs_curr_sp,rs_curr_np);
+      do_ac_fd(tracked_cell,rs_curr,rs_curr_sp,rs_curr_np);
 
-      // Estimate the time domain autocorrelations.
-      //do_td_ac();
+      // Estimate the time domain autocorrelation function.
+      do_ac_td(tracked_cell,rs_curr,rs_curr_sp,ce_history[port_num]);
 
       // Finished working with the raw channel estimates.
       ce_raw_fifo[port_num].pop_front();
@@ -880,8 +923,8 @@ void tracker_thread(
     // Process data if channel estimates are available for each antenna and for
     // every data sample.
     while ((!data_fifo.empty())&&ce_ready(ce_interp_fifo)) {
-      // Synchronization check.
 #ifndef NDEBUG
+      // Synchronization check.
       for (uint8 t=0;t<tracked_cell.n_ports;t++) {
         if (
           (data_fifo.front().slot_num!=ce_interp_fifo[t].front().slot_num)||
@@ -897,34 +940,54 @@ void tracker_thread(
       // signal power, etc.
       cvec & syms=data_fifo.front().syms;
       cmat ce(tracked_cell.n_ports,72);
+      vec tp(tracked_cell.n_ports);
       vec sp(tracked_cell.n_ports);
+      vec sp_raw(tracked_cell.n_ports);
       vec np(tracked_cell.n_ports);
       uint8 data_slot_num=data_fifo.front().slot_num;
       uint8 data_sym_num=data_fifo.front().sym_num;
       for (uint8 t=0;t<tracked_cell.n_ports;t++) {
         ce.set_row(t,ce_interp_fifo[t].front().ce_interp);
+        tp(t)=ce_interp_fifo[t].front().tp;
         sp(t)=ce_interp_fifo[t].front().sp;
+        sp_raw(t)=ce_interp_fifo[t].front().sp_raw;
         np(t)=ce_interp_fifo[t].front().np;
+      }
+
+      // Store channel estimates
+      {
+        boost::mutex::scoped_lock lock(tracked_cell.meas_mutex);
+        tracked_cell.ce=ce;
       }
 
       // Store signal power measurements.
       {
         boost::mutex::scoped_lock lock(tracked_cell.meas_mutex);
-        tracked_cell.crs_sp=sp;
+        tracked_cell.crs_sp_raw=sp_raw;
         tracked_cell.crs_np=np;
-        if (isnan(tracked_cell.crs_sp_av(0))) {
-          tracked_cell.crs_sp_av=sp;
+        if (isnan(tracked_cell.crs_sp_raw_av(0))) {
+          tracked_cell.crs_tp_av=tp;
+          tracked_cell.crs_sp_raw_av=sp_raw;
           tracked_cell.crs_np_av=np;
         } else {
-          for (uint8 t=0;t<tracked_cell.n_ports;t++) {
-            tracked_cell.crs_sp_av=0.99999*tracked_cell.crs_sp_av+.00001*sp;
+          if (0) {
+            tracked_cell.crs_tp_av=0.99999*tracked_cell.crs_tp_av+.00001*tp;
+            tracked_cell.crs_sp_raw_av=0.99999*tracked_cell.crs_sp_raw_av+.00001*sp_raw;
             tracked_cell.crs_np_av=0.99999*tracked_cell.crs_np_av+.00001*np;
+          } else {
+            // This code only averages the measurements for PSS and SSS ofdm
+            // symbols.
+            if (((data_slot_num==0)||(data_slot_num==10))&&((data_sym_num==5)||(data_sym_num==6))) {
+              tracked_cell.crs_tp_av=0.999*tracked_cell.crs_tp_av+.001*tp;
+              tracked_cell.crs_sp_raw_av=0.999*tracked_cell.crs_sp_raw_av+.001*sp_raw;
+              tracked_cell.crs_np_av=0.999*tracked_cell.crs_np_av+.001*np;
+            }
           }
         }
       }
 
       // Measure signal power and noise power on PSS/SSS (more accurate)
-      do_pss_sss_sigpower(tracked_cell,syms,data_slot_num,data_sym_num,sss_sym);
+      do_pss_sss_sigpower_ce(tracked_cell,syms,data_slot_num,data_sym_num,sss_sym);
 
       // Perform MIB decoding
       if (do_mib_decode(tracked_cell,syms,ce,sp,np,data_slot_num,data_sym_num,scr,mib_fifo,mib_fifo_synchronized)==-1) {
@@ -941,12 +1004,8 @@ void tracker_thread(
       }
     }
 
-    // Increase the local counter
+    // Increase the local counter.
     slot_sym_inc(tracked_cell.n_symb_dl(),slot_num,sym_num);
-    //sym_num=mod(sym_num+1,tracked_cell.n_symb_dl());
-    //if (sym_num==0) {
-    //  slot_num=mod(slot_num+1,20);
-    //}
   }
 }
 

@@ -32,5 +32,7 @@ extern Rom_tables ROM_TABLES;
 #define FS_LTE 30720000.0
 #define N_RB_MAXDL 110
 
+#define CELL_DROP_THRESHOLD 400.0
+
 #endif
 

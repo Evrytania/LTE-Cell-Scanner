@@ -36,6 +36,34 @@ int main(
   const int argc,
   char * const argv[]
 ) {
+  mat F(62,62);
+  F=(double)0;
+  for (uint8 t=0;t<62;t++) {
+    uint8 lt=MAX(0,t-6);
+    uint8 rt=MIN(61,t+6);
+    uint8 n_av=rt-lt+1;
+    cout << t;
+    for (uint8 k=lt;k<=rt;k++) {
+      F(t,k)=1.0/n_av;
+      cout << k;
+    }
+    cout << endl;
+  }
+  mat FmI=F-eye(62);
+  cout << F(1,1) << endl;
+  cout << FmI(1,1) << endl;
+  mat FF=FmI*FmI;
+  double factor=0;
+  for (uint8 t=0;t<62;t++) {
+    factor+=FF(t,t);
+  }
+  factor=factor/62;
+  cout << factor << endl;
+  cout << 12.0/13.0 << endl;
+  cout << (factor/(12.0/13.0)) << endl;
+  cout << db10(factor/(12.0/13.0)) << endl;
+  return 0;
+
   cvec seq_e=blnoise(100);
   cvec seq_e_int=interpft(seq_e,1000);
   cvec seq_e_int_dec=seq_e_int(itpp_ext::matlab_range(0,10,length(seq_e_int)-1));

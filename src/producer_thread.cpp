@@ -109,6 +109,13 @@ void producer_thread(
       while (sampbuf_sync.fifo.size()<2) {
         sampbuf_sync.condition.wait(lock);
       }
+      // Dump data if there is too much in the fifo
+      while (sampbuf_sync.fifo.size()>2*1.92e6*1.5) {
+        for (uint32 t=0;t<(unsigned)round_i(1.92e6*k_factor);t++) {
+          sampbuf_sync.fifo.pop_front();
+        }
+        global_thread_data.raw_seconds_dropped_inc();
+      }
       n_samples=BLOCK_SIZE;
       complex <double> sample_temp;
       for (uint16 t=0;t<BLOCK_SIZE;t++) {

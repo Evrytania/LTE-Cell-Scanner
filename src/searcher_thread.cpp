@@ -225,7 +225,7 @@ void searcher_thread(
         tracked_cell_list.tracked_cells.push_back(new_cell);
       }
       CALLGRIND_START_INSTRUMENTATION;
-#define MAX_DETECTED 500000
+#define MAX_DETECTED 1e6
       static uint32 n_found=0;
       n_found++;
       if (n_found==MAX_DETECTED) {

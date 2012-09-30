@@ -37,19 +37,25 @@ class tracked_cell_t {
       kill_me=false;
       ac_fd.set_size(12);
       ac_fd=std::complex <double> (0,0);
+      ac_td.set_size(72);
+      ac_td=std::complex <double> (0,0);
       tracker_thread_ready=false;
       mib_decode_failures=0;
-      crs_sp=itpp::vec(4);
-      crs_sp=NAN;
+      crs_tp=itpp::vec(4);
+      crs_sp_raw=itpp::vec(4);
+      crs_sp_raw=NAN;
       crs_np=itpp::vec(4);
       crs_np=NAN;
-      crs_sp_av=itpp::vec(4);
-      crs_sp_av=NAN;
+      crs_tp_av=itpp::vec(4);
+      crs_sp_raw_av=itpp::vec(4);
+      crs_sp_raw_av=NAN;
       crs_np_av=itpp::vec(4);
       crs_np_av=NAN;
+      sync_tp=NAN;
       sync_sp=NAN;
       sync_np=NAN;
       sync_np_blank=NAN;
+      sync_tp_av=NAN;
       sync_sp_av=NAN;
       sync_np_av=NAN;
       sync_np_blank_av=NAN;
@@ -85,18 +91,26 @@ class tracked_cell_t {
     // the display thread.
     boost::mutex meas_mutex;
     double mib_decode_failures;
-    itpp::vec crs_sp;
+    itpp::vec crs_tp;
+    itpp::vec crs_sp_raw;
     itpp::vec crs_np;
-    itpp::vec crs_sp_av;
+    itpp::vec crs_tp_av;
+    itpp::vec crs_sp_raw_av;
     itpp::vec crs_np_av;
+    itpp::cmat ce;
+    double sync_tp;
     double sync_sp;
     double sync_np;
     double sync_np_blank;
+    itpp::cvec sync_ce;
+    double sync_tp_av;
     double sync_sp_av;
     double sync_np_av;
     double sync_np_blank_av;
     // Frequency domain channel autocorrelation.
     itpp::cvec ac_fd;
+    // Time domain channel autocorrelation.
+    itpp::cvec ac_td;
 
     // Read/write frame_timing (via mutex).
     // Only one thread (tracker_thread) can update frame_timing. We
@@ -171,6 +185,15 @@ class global_thread_data_t {
       boost::mutex::scoped_lock lock(cell_seconds_dropped_mutex);
       cell_seconds_dropped_private+=1;
     }
+    inline uint32 raw_seconds_dropped() {
+      boost::mutex::scoped_lock lock(raw_seconds_dropped_mutex);
+      double r=raw_seconds_dropped_private;
+      return r;
+    }
+    inline void raw_seconds_dropped_inc() {
+      boost::mutex::scoped_lock lock(raw_seconds_dropped_mutex);
+      raw_seconds_dropped_private+=1;
+    }
     uint32 searcher_thread_id;
     uint32 producer_thread_id;
     uint32 main_thread_id;
@@ -184,6 +207,8 @@ class global_thread_data_t {
     double searcher_cycle_time_private;
     boost::mutex cell_seconds_dropped_mutex;
     uint32 cell_seconds_dropped_private;
+    boost::mutex raw_seconds_dropped_mutex;
+    uint32 raw_seconds_dropped_private;
 };
 // IPC between main thread and searcher thread covering data capture issues.
 typedef struct {

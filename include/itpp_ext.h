@@ -90,6 +90,9 @@ itpp::Vec <T> diff(const itpp::Vec <T> & v) {
 bool and_reduce(
   const itpp::bvec & v
 );
+bool and_reduce(
+  const itpp::ivec & v
+);
 
 // Return the last element of a vector
 template <class T>

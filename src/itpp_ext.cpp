@@ -158,6 +158,17 @@ bool and_reduce(
   }
   return retval;
 }
+bool and_reduce(
+  const itpp::ivec & v
+) {
+  bool retval=true;
+  int32 t=0;
+  while (t<length(v)) {
+    if ((retval=retval&&v(t++))==0) break;
+  }
+  return retval;
+}
+
 
 // Read data captured by the rtl_sdr program into a cvec.
 void rtl_sdr_to_cvec(
