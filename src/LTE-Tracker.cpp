@@ -26,11 +26,11 @@
 #include <boost/thread/condition.hpp>
 #include <list>
 #include <sstream>
-#include <signal.h>
 #include <queue>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
+#include <curses.h>
 #include "rtl-sdr.h"
 #include "common.h"
 #include "macros.h"
@@ -48,6 +48,7 @@ using namespace std;
 
 uint8 verbosity=1;
 // Declared as global so the sig handler can have access to it.
+// FIXME: sig handler deleted, no longer necessary to keep as global...
 rtlsdr_dev_t * dev=NULL;
 
 // Global variables that can be set by the command line. Used for debugging.
@@ -60,18 +61,6 @@ double global_6=0;
 double global_7=0;
 double global_8=0;
 double global_9=0;
-
-/*
-static void sighandler(
-  int signum
-) {
-  cerr << "Error: caught signal, exiting!" << endl;
-  if (dev!=NULL) {
-    rtlsdr_close(dev);
-  }
-  exit(-1);
-}
-*/
 
 // Simple usage screen.
 void print_usage() {
@@ -97,9 +86,11 @@ void print_usage() {
   // Hidden options. Only useful for debugging.
   //cout << "  Capture buffer options:" << endl;
   //cout << "    -l --load filename" << endl;
-  //cout << "      read data from file repeatedly instead of using live data" << endl;
+  //cout << "      read data from file instead of using live data" << endl;
   //cout << "    -r --repeat" << endl;
   //cout << "      cyclically repeat the data read from the file forever" << endl;
+  //cout << "    -d --drop n" << endl;
+  //cout << "      drop the first 'n' seconds of the datafile to allow for AGC convergence" << endl;
   //cout << "    -s --rtl_sdr" << endl;
   //cout << "      data file was created by the rtl_sdr program. Defaults to an itpp file." << endl;
   //cout << "    -n --noise-power value" << endl;
@@ -132,6 +123,7 @@ void parse_commandline(
   bool & use_recorded_data,
   string & filename,
   bool & repeat,
+  double & drop_secs,
   bool & rtl_sdr_format,
   double & noise_power
 ) {
@@ -142,8 +134,9 @@ void parse_commandline(
   device_index=-1;
   use_recorded_data=false;
   repeat=false;
+  drop_secs=0;
   rtl_sdr_format=false;
-  noise_power=NAN;
+  noise_power=0;
 
   while (1) {
     static struct option long_options[] = {
@@ -156,6 +149,7 @@ void parse_commandline(
       {"device-index", required_argument, 0, 'i'},
       {"load",         required_argument, 0, 'l'},
       {"repeat",       no_argument,       0, 'r'},
+      {"drop",         required_argument, 0, 'd'},
       {"rtl_sdr",      no_argument,       0, 's'},
       {"noise-power",  required_argument, 0, 'n'},
       {"g1",           required_argument, 0, '1'},
@@ -171,7 +165,7 @@ void parse_commandline(
     };
     /* getopt_long stores the option index here. */
     int option_index = 0;
-    int c = getopt_long (argc, argv, "hvbf:p:c:i:l:rsn:123456789",
+    int c = getopt_long (argc, argv, "hvbf:p:c:i:l:rd:sn:123456789",
                      long_options, &option_index);
 
     /* Detect the end of the options. */
@@ -234,6 +228,13 @@ void parse_commandline(
         break;
       case 'r':
         repeat=true;
+        break;
+      case 'd':
+        drop_secs=strtod(optarg,&endp);
+        if ((optarg==endp)||(*endp!='\0')) {
+          cerr << "Error: could not parse drop value" << endl;
+          exit(-1);
+        }
         break;
       case 's':
         rtl_sdr_format=true;
@@ -349,6 +350,10 @@ void parse_commandline(
   // Warn if correction factor is greater than 1000 ppm.
   if (abs(correction-1)>1000e-6) {
     cout << "Warning: crystal correction factor appears to be unreasonable" << endl;
+  }
+  // Drop and repeat will probably not be used at the same time.
+  if ((drop_secs!=0)&&(repeat)) {
+    cout << "Warning: --drop and --repeat were both requested" << endl;
   }
 
   if (verbosity>=1) {
@@ -504,167 +509,24 @@ void config_usb(
 void read_datafile(
   const string & filename,
   const bool & rtl_sdr_format,
+  const double & drop_secs,
   cvec & sig_tx
 ) {
   if (!rtl_sdr_format) {
-    cout << "Trying itpp format..." << endl;
     it_ifile itf(filename);
     itf.seek("sig_tx");
     itf>>sig_tx;
-    cout << "read itpp format" << endl;
-    return;
   } else {
-    //cvec sig_tx_pre;
     itpp_ext::rtl_sdr_to_cvec(filename,sig_tx);
-    /*
-    sig_tx.set_size(length(sig_tx_pre)*2-10);
-    for (int32 t=0;t<length(sig_tx);t+=2) {
-      // FIXME: Do proper interpolation
-      sig_tx(t)=sig_tx_pre(t>>1);
-      sig_tx(t+1)=(sig_tx_pre(t>>1)+sig_tx_pre((t>>1)+1))/2;
-    }
     // Drop several seconds while AGC converges.
-    */
-    sig_tx=sig_tx(FS_LTE/16*4,-1);
+    //sig_tx=sig_tx(FS_LTE/16*4,-1);
   }
+  sig_tx=sig_tx(round_i(FS_LTE/16*drop_secs),-1);
   if (length(sig_tx)==0) {
-    cerr << "Error: no data in file!" << endl;
+    cerr << "Error: not enough data in file!" << endl;
     exit(-1);
   }
 }
-
-// Wrapper around the USB device that returns samples one at a time.
-class rtl_wrap {
-  public:
-    // Constructor
-    rtl_wrap(rtlsdr_dev_t * dev,const bool & use_recorded_data,const string & filename,const bool & repeat,const bool & rtl_sdr_format,const double & noise_power);
-    // Destructor
-    ~rtl_wrap();
-    complex <double> get_samp();
-    //void reset();
-  private:
-    complex <double> get_samp_pre();
-    bool use_recorded_data;
-    cvec sig_tx;
-    uint8 * buffer;
-    uint32 offset;
-    double noise_power_sqrt;
-    bool repeat;
-    bool rtl_sdr_format;
-    bool phase_even;
-    complex <double> samp_d1;
-    complex <double> samp_d2;
-    //FILE * file;
-};
-rtl_wrap::rtl_wrap(
-  rtlsdr_dev_t * dev,
-  const bool & urd,
-  const string & filename,
-  const bool & rpt,
-  const bool & rsdf,
-  const double & noise_power
-) {
-  buffer=(uint8 *)malloc(BLOCK_SIZE*sizeof(uint8));
-  use_recorded_data=urd;
-  repeat=rpt;
-  rtl_sdr_format=rsdf;
-  phase_even=true;
-  samp_d1=complex <double> (0,0);
-  samp_d2=complex <double> (0,0);
-  //cout << "Opening log file" << endl;
-  //file=fopen("tracker_log.dat","wb");
-  //if (!file) {
-  //  cerr << "Error: could not open ddata capture log file" << endl;
-  //  exit(-1);
-  //}
-  //cout << "Log file opened!" << endl;
-  if (isfinite(noise_power)) {
-    noise_power_sqrt=sqrt(noise_power);
-  } else {
-    noise_power_sqrt=NAN;
-  }
-  if (use_recorded_data) {
-    // Note that the entire file is read into memory and stored as a complex
-    // double!
-    read_datafile(filename,rtl_sdr_format,sig_tx);
-    //it_ifile itf(filename);
-    //itf.seek("sig_tx");
-    //itf>>sig_tx;
-    offset=0;
-  } else {
-    if (rtlsdr_reset_buffer(dev)<0) {
-      cerr << "Error: unable to reset RTLSDR buffer" << endl;
-      exit(-1);
-    }
-    offset=BLOCK_SIZE;
-  }
-}
-rtl_wrap::~rtl_wrap() {
-  free(buffer);
-}
-complex <double> rtl_wrap::get_samp_pre() {
-  if (offset==BLOCK_SIZE) {
-    offset=0;
-    int n_read;
-    if (rtlsdr_read_sync(dev,buffer,BLOCK_SIZE,&n_read)<0) {
-      cerr << "Error: synchronous read failed" << endl;
-      exit(-1);
-    }
-    //if (fwrite(buffer, 1, n_read, file)!=(size_t)n_read) {
-    //  cerr<<"Error: Short write, samples lost, exiting!" << endl;
-    //  exit(-1);
-    //}
-    if (n_read<BLOCK_SIZE) {
-      cerr << "Error: short read; samples lost" << endl;
-      exit(-1);
-    }
-  }
-  complex <double>samp=complex<double>((buffer[offset]-127.0)/128.0,(buffer[offset+1]-127.0)/128.0);
-  offset+=2;
-  return samp;
-}
-complex <double> rtl_wrap::get_samp() {
-  static long long cnt=0;
-
-  complex <double> samp;
-  if (use_recorded_data) {
-    //samp=sig_tx(offset);
-    samp=1*sig_tx(offset)+(0.0*J)*exp(J*((double)(cnt++))*2*pi/10000000)*sig_tx(mod(offset-5000,length(sig_tx)));;
-    offset=mod(offset+1,length(sig_tx));
-    if ((offset==0)&&(!repeat)) {
-      // Not that if N complex samples are read from the file and repeat is
-      // false, N-1 samples will be produced by this class before program
-      // execution terminates.
-      cerr << "Error: no more sample data in file!" << endl;
-      exit(-1);
-    }
-  } else {
-    // This code is wrong! FIXME
-    if (phase_even==true) {
-      samp_d2=samp_d1;
-      samp_d1=get_samp_pre();
-      samp=samp_d1;
-    } else {
-      samp=(samp_d1+samp_d2)/2;
-    }
-    phase_even=!phase_even;
-    return samp;
-  }
-  if (isfinite(noise_power_sqrt)) {
-    return samp+blnoise(1).get(0)*noise_power_sqrt;
-  } else {
-    return samp;
-  }
-}
-/*
-complex <double> rtl_wrap::get_samp() {
-}
-*/
-/*
-void rtl_wrap::reset() {
-  offset=0;
-}
-*/
 
 // Perform an initial cell search solely for the purpose of calibrating
 // the oscillator.
@@ -677,7 +539,9 @@ double kalibrate(
   const bool & use_recorded_data,
   const string & filename,
   const bool & rtl_sdr_format,
-  const double & noise_power
+  const double & noise_power,
+  const double & drop_secs,
+  const bool & repeat
 ) {
   if (verbosity>=1) {
     cout << "Calibrating local oscillator." << endl;
@@ -696,13 +560,14 @@ double kalibrate(
     if (use_recorded_data) {
       capbuf.set_size(153600);
       cvec cbload;
-      read_datafile(filename,rtl_sdr_format,cbload);
-      //it_ifile itf(filename);
-      //itf.seek("sig_tx");
-      //itf>>cbload;
+      read_datafile(filename,rtl_sdr_format,drop_secs,cbload);
       if (length(cbload)>=length(capbuf)) {
         capbuf=cbload(1,length(capbuf));
       } else {
+        if (!repeat) {
+          cerr << "Error: not enough data in file!" << endl;
+          exit(-1);
+        }
         for (int32 t=0;t<length(capbuf);t++) {
           capbuf(t)=cbload(mod(t,length(cbload)));
         }
@@ -711,7 +576,7 @@ double kalibrate(
       capture_data(fc,correction,false,false,".",capbuf);
     }
     //cout << "Capbuf power: " << db10(sigpower(capbuf)) << " dB" << endl;
-    if (isfinite(noise_power))
+    if (noise_power)
       capbuf+=blnoise(length(capbuf))*sqrt(noise_power);
 
     // Correlate
@@ -866,17 +731,6 @@ int main(
   const int argc,
   char * const argv[]
 ) {
-  // This is so that CTRL-C properly closes the rtl-sdr device before exiting
-  // the program.
-  //struct sigaction sigact;
-  //sigact.sa_handler=sighandler;
-  //sigemptyset(&sigact.sa_mask);
-  //sigact.sa_flags=0;
-  //sigaction(SIGINT,&sigact,NULL);
-  //sigaction(SIGTERM,&sigact,NULL);
-  //sigaction(SIGQUIT,&sigact,NULL);
-  //sigaction(SIGPIPE,&sigact,NULL);
-
   // Command line parameters are stored here.
   double fc;
   double ppm;
@@ -885,11 +739,11 @@ int main(
   bool use_recorded_data;
   string filename;
   bool repeat;
+  double drop_secs;
   bool rtl_sdr_format;
   double noise_power;
-
   // Get search parameters from the user
-  parse_commandline(argc,argv,fc,ppm,correction,device_index,use_recorded_data,filename,repeat,rtl_sdr_format,noise_power);
+  parse_commandline(argc,argv,fc,ppm,correction,device_index,use_recorded_data,filename,repeat,drop_secs,rtl_sdr_format,noise_power);
 
   // Open the USB device.
   if (!use_recorded_data)
@@ -905,7 +759,7 @@ int main(
   // Calibrate the dongle's oscillator. This is similar to running the
   // program CellSearch with only one center frequency. All information
   // is discarded except for the frequency offset.
-  global_thread_data.frequency_offset(kalibrate(fc,ppm,correction,use_recorded_data,filename,rtl_sdr_format,noise_power));
+  global_thread_data.frequency_offset(kalibrate(fc,ppm,correction,use_recorded_data,filename,rtl_sdr_format,noise_power,drop_secs,repeat));
 
   // Start the cell searcher thread.
   // Now that the oscillator has been calibrated, we can perform
@@ -915,9 +769,6 @@ int main(
   //global_thread_data.fc=fc;
   boost::thread searcher_thr(searcher_thread,boost::ref(capbuf_sync),boost::ref(global_thread_data),boost::ref(tracked_cell_list));
 
-  // Wrap the USB device to simplify obtaining complex samples one by one.
-  rtl_wrap sample_source(dev,use_recorded_data,filename,repeat,rtl_sdr_format,noise_power);
-
   // Start the producer thread.
   boost::thread producer_thr(producer_thread,boost::ref(sampbuf_sync),boost::ref(capbuf_sync),boost::ref(global_thread_data),boost::ref(tracked_cell_list),boost::ref(fc));
 
@@ -926,57 +777,44 @@ int main(
   // Launch the display thread
   boost::thread display_thr(display_thread,boost::ref(sampbuf_sync),boost::ref(global_thread_data),boost::ref(tracked_cell_list));
 
+  // The remainder of this thread simply copies data received from the USB
+  // device (or a file!) to the producer thread. This can be considered
+  // the pre_producer thread.
   if (use_recorded_data) {
-    if (!rtl_sdr_format) {
-      cerr << "Error: only rtl_sdr format supported currently." << endl;
-      exit(-1);
-    }
-    // Get filesize
-
-    struct stat filestatus;
-    stat(filename.c_str(),&filestatus);
-    uint32 file_length=filestatus.st_size;
-    //cout << "file length: " << file_length << " bytes\n";
-    if (floor(file_length/2.0)!=file_length/2.0) {
-      cout << "Warning: file contains an odd number of samples" << endl;
-    }
-
-    // Open file
-    FILE *file;
-    file=fopen(filename.c_str(),"rb");
-    if (!file) {
-      cerr << "Error: could not open input file" << endl;
-      exit(-1);
-    }
-
-    // Read entire file, all at once!
-    uint8 * buffer=(uint8 *)malloc(file_length*sizeof(uint8));
-    uint32 n_read=fread(buffer,1,file_length,file);
-    if (n_read!=file_length) {
-      cerr << "Error: error while reading file" << endl;
-      exit(-1);
-    }
+    cvec file_data;
+    read_datafile(filename,rtl_sdr_format,drop_secs,file_data);
+    //cout << db10(sigpower(file_data)) << endl;
 
     uint32 offset=0;
     while (true) {
       {
         boost::mutex::scoped_lock lock(sampbuf_sync.mutex);
-        for (uint32 t=offset;t<file_length;t++) {
-          sampbuf_sync.fifo.push_back(buffer[offset++]);
-          if (mod(offset,1920000*2)==0)
-            break;
+        for (uint32 t=0;t<192000;t++) {
+          complex <double> samp=file_data[offset]+randn_c()*sqrt(noise_power);
+          uint8 samp_real=RAIL(round_i(real(samp)*128.0+127.0),0,255);
+          uint8 samp_imag=RAIL(round_i(imag(samp)*128.0+127.0),0,255);
+          sampbuf_sync.fifo.push_back(samp_real);
+          sampbuf_sync.fifo.push_back(samp_imag);
+          offset++;
+          if (offset==(unsigned)file_data.length()) {
+            if (!repeat) {
+              break;
+            }
+            offset=0;
+          }
         }
         sampbuf_sync.condition.notify_one();
       }
-      sleep(1);
-      if (offset==file_length)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+      if (!repeat&&(offset==(unsigned)file_data.length())) {
         break;
+      }
     }
-    free(buffer);
 
-    //sleep(2<<30);
-    sleep(500*60);
-    exit(-1);
+    // Wait a few seconds before exiting.
+    boost::this_thread::sleep(boost::posix_time::seconds(10));
+    ABORT(-1);
+
   } else {
     // Start the async read process. This should never return.
     rtlsdr_read_async(dev,rtlsdr_callback,(void *)&sampbuf_sync,0,0);

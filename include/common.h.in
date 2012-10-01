@@ -133,5 +133,7 @@ std::ostream & operator<< (
   const Cell & c
 );
 
+#define ABORT(A) endwin(); exit(A)
+
 #endif
 

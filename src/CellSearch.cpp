@@ -22,7 +22,6 @@
 #include <boost/math/special_functions/gamma.hpp>
 #include <list>
 #include <sstream>
-#include <signal.h>
 #include "rtl-sdr.h"
 #include "common.h"
 #include "macros.h"
@@ -40,18 +39,6 @@ using namespace std;
 uint8 verbosity=1;
 // Declared as global so the sig handler can have access to it.
 rtlsdr_dev_t * dev=NULL;
-
-/*
-static void sighandler(
-  int signum
-) {
-  cerr << "Error: caught signal, exiting!" << endl;
-  if (dev!=NULL) {
-    rtlsdr_close(dev);
-  }
-  exit(-1);
-}
-*/
 
 // Simple usage screen.
 void print_usage() {
@@ -441,19 +428,6 @@ int main(
   const int argc,
   char * const argv[]
 ) {
-  // This is so that CTRL-C properly closes the rtl-sdr device before exiting
-  // the program.
-  /*
-  struct sigaction sigact;
-  sigact.sa_handler=sighandler;
-  sigemptyset(&sigact.sa_mask);
-  sigact.sa_flags=0;
-  sigaction(SIGINT,&sigact,NULL);
-  sigaction(SIGTERM,&sigact,NULL);
-  sigaction(SIGQUIT,&sigact,NULL);
-  sigaction(SIGPIPE,&sigact,NULL);
-  */
-
   // Command line parameters are stored here.
   double freq_start;
   double freq_end;
