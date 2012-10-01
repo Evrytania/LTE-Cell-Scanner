@@ -28,6 +28,7 @@
 #include <sstream>
 #include <signal.h>
 #include <queue>
+#include <curses.h>
 #include "rtl-sdr.h"
 #include "common.h"
 #include "macros.h"
@@ -110,7 +111,7 @@ void get_fd(
     if ((tracked_cell.fifo.front().slot_num!=slot_num)||(tracked_cell.fifo.front().sym_num!=sym_num)) {
       // We should never get here...
       cerr << "Error: cell tracker synchronization error! Check code!" << endl;
-      exit(-1);
+      ABORT(-1);
     }
 #endif
     // Copy locally
@@ -558,7 +559,7 @@ int8 do_mib_decode(
     pbch_extract_rt(tracked_cell,mib_fifo,pbch_sym,pbch_ce,np_pre);
     //cout << abs(pbch_sym) << endl;
     //cout << arg(pbch_sym) << endl;
-    //exit(-1);
+    //ABORT(-1);
     //cout << pbch_sym << endl;
     //cout << "pbch_sym: " << pbch_sym << endl;
     //cout << "pbch_ce: " << pbch_ce << endl;
@@ -578,7 +579,7 @@ int8 do_mib_decode(
       //cout << abs(gain) << endl;
       //cout << np_pre.get_row(0) << endl;
       //cout << (np_pre.get_row(0)<0) << endl;
-      //exit(-1);
+      //ABORT(-1);
     } else {
       syms_mib.set_size(length(pbch_sym));
       np_mib.set_size(length(pbch_sym));
@@ -620,7 +621,7 @@ int8 do_mib_decode(
     //cout << abs(syms_mib) << endl;
     //cout << arg(syms_mib) << endl;
     //cout << db10(np_mib) << endl;
-    //exit(-1);
+    //ABORT(-1);
     //cout << "syms_mib: " << syms_mib << endl;
 
     // Extract the bits from the complex modulated symbols.
@@ -931,7 +932,7 @@ void tracker_thread(
           (data_fifo.front().sym_num!=ce_interp_fifo[t].front().sym_num)
         ) {
           cerr << "Error: synchronization error! Check code!" << endl;
-          exit(-1);
+          ABORT(-1);
         }
       }
 #endif

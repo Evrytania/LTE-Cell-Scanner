@@ -19,6 +19,7 @@
 #include <iomanip>
 #include <sstream>
 #include <queue>
+#include <curses.h>
 #include "rtl-sdr.h"
 #include "common.h"
 #include "capbuf.h"
@@ -40,7 +41,7 @@ static void capbuf_rtlsdr_callback(
 
   if (len==0) {
     cerr << "Error: received no samples from USB device..." << endl;
-    exit(-1);
+    ABORT(-1);
   }
 
   for (uint32 t=0;t<len;t++) {
@@ -102,13 +103,13 @@ void capture_data(
     // Center frequency
     if (rtlsdr_set_center_freq(dev,itpp::round(fc*correction))<0) {
       cerr << "Error: unable to set center frequency" << endl;
-      exit(-1);
+      ABORT(-1);
     }
 
     // Reset the buffer
     if (rtlsdr_reset_buffer(dev)<0) {
       cerr << "Error: unable to reset RTLSDR buffer" << endl;
-      exit(-1);
+      ABORT(-1);
     }
 
     // Read and store the data.
@@ -118,7 +119,7 @@ void capture_data(
     rtlsdr_read_async(dev,capbuf_rtlsdr_callback,(void *)&capbuf_raw,0,0);
     if (capbuf_raw.size()!=CAPLENGTH*2) {
       cerr << "Error: unable to read sufficient data from USB device" << endl;
-      exit(-1);
+      ABORT(-1);
     }
 
     // Convert to complex

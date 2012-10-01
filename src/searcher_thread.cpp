@@ -31,6 +31,7 @@
 #include <valgrind/callgrind.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
+#include <curses.h>
 #include "rtl-sdr.h"
 #include "common.h"
 #include "macros.h"
@@ -64,7 +65,7 @@ void searcher_thread(
 
   if (nice(20)==-1) {
     cerr << "Error: could not reduce searcher process priority" << endl;
-    exit(-1);
+    ABORT(-1);
   }
 
   // Keep track of serial numbers to be used when launching a new

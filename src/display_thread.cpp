@@ -292,12 +292,12 @@ void display_thread(
   if (LINES<20) {
     endwin();
     cerr << "Error: not enough rows on terminal display" << endl;
-    exit(-1);
+    ABORT(-1);
   }
   if (COLS<80) {
     endwin();
     cerr << "Error: not enough columns on terminal display" << endl;
-    exit(-1);
+    ABORT(-1);
   }
   // Do not echo input chars to screen.
   noecho();
@@ -639,7 +639,7 @@ void display_thread(
     switch (ch) {
       case 'q':
         endwin();
-        exit(-1);
+        ABORT(-1);
         break;
       case 'r':
         auto_refresh=!auto_refresh;

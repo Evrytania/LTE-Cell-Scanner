@@ -19,6 +19,7 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <stdlib.h>
+#include <curses.h>
 #include "rtl-sdr.h"
 #include "common.h"
 #include "macros.h"
@@ -190,7 +191,7 @@ void rtl_sdr_to_cvec(
   file=fopen(filename.c_str(),"rb");
   if (!file) {
     cerr << "Error: could not open input file" << endl;
-    exit(-1);
+    ABORT(-1);
   }
 
   // Read entire file, all at once!
@@ -198,7 +199,7 @@ void rtl_sdr_to_cvec(
   uint32 n_read=fread(buffer,1,n_samp*2,file);
   if (n_read!=2*n_samp) {
     cerr << "Error: error while reading file" << endl;
-    exit(-1);
+    ABORT(-1);
   }
 
   // Convert to cvec

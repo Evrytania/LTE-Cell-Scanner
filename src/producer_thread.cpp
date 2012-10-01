@@ -81,7 +81,7 @@ void producer_thread(
   //int retval=nice(-10);
   //if (retval==-1) {
   //  cerr << "Error: could not set elevated privileges" << endl;
-  //  exit(-1);
+  //  ABORT(-1);
   //}
   //int policy=SCHED_RR;
   //struct sched_param param;
@@ -89,7 +89,7 @@ void producer_thread(
   ////pthread_getschedparam(pthread_self(), &policy, &param);
   //if (pthread_setschedparam(pthread_self(),policy,&param)) {
   //  cerr << "Error: could not elevate main thread priority" << endl;
-  //  exit(-1);
+  //  ABORT(-1);
   //}
   //tt.tic();
 #define BLOCK_SIZE 10000

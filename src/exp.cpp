@@ -20,6 +20,7 @@
 #include <iostream>
 #include <itpp/itbase.h>
 #include <boost/math/special_functions/gamma.hpp>
+#include <curses.h>
 #include "rtl-sdr.h"
 #include "common.h"
 #include "lte_lib.h"
@@ -73,7 +74,7 @@ int main(
   cvec seq_o_int=interpft(seq_o,1010);
   cvec seq_o_int_dec=seq_o_int(itpp_ext::matlab_range(0,10,length(seq_o_int)-1));
   cout << db10(sigpower(seq_e-seq_e_int_dec)) << endl;
-  exit(-1);
+  ABORT(-1);
 
   const uint16 n_id_cell=271;
   const uint8 n_id_1=floor(n_id_cell/3);

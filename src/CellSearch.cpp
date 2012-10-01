@@ -22,6 +22,7 @@
 #include <boost/math/special_functions/gamma.hpp>
 #include <list>
 #include <sstream>
+#include <curses.h>
 #include "rtl-sdr.h"
 #include "common.h"
 #include "macros.h"
@@ -144,11 +145,11 @@ void parse_commandline(
         // Code should only get here if a long option was given a non-null
         // flag value.
         cout << "Check code!" << endl;
-        exit(-1);
+        ABORT(-1);
         break;
       case 'h':
         print_usage();
-        exit(-1);
+        ABORT(-1);
         break;
       case 'v':
         verbosity=2;
@@ -160,28 +161,28 @@ void parse_commandline(
         freq_start=strtod(optarg,&endp);
         if ((optarg==endp)||(*endp!='\0')) {
           cerr << "Error: could not parse start frequency" << endl;
-          exit(-1);
+          ABORT(-1);
         }
         break;
       case 'e':
         freq_end=strtod(optarg,&endp);
         if ((optarg==endp)||(*endp!='\0')) {
           cerr << "Error: could not parse end frequency" << endl;
-          exit(-1);
+          ABORT(-1);
         }
         break;
       case 'p':
         ppm=strtod(optarg,&endp);
         if ((optarg==endp)||(*endp!='\0')) {
           cerr << "Error: could not parse ppm value" << endl;
-          exit(-1);
+          ABORT(-1);
         }
         break;
       case 'c':
         correction=strtod(optarg,&endp);
         if ((optarg==endp)||(*endp!='\0')) {
           cerr << "Error: could not parse correction factor" << endl;
-          exit(-1);
+          ABORT(-1);
         }
         break;
       case 'r':
@@ -197,37 +198,37 @@ void parse_commandline(
         device_index=strtol(optarg,&endp,10);
         if ((optarg==endp)||(*endp!='\0')) {
           cerr << "Error: could not parse device index" << endl;
-          exit(-1);
+          ABORT(-1);
         }
         if (device_index<0) {
           cerr << "Error: device index cannot be negative" << endl;
-          exit(-1);
+          ABORT(-1);
         }
         break;
       case '?':
         /* getopt_long already printed an error message. */
-        exit(-1);
+        ABORT(-1);
       default:
-        exit(-1);
+        ABORT(-1);
     }
   }
 
   // Error if extra arguments are found on the command line
   if (optind < argc) {
     cerr << "Error: unknown/extra arguments specified on command line" << endl;
-    exit(-1);
+    ABORT(-1);
   }
 
   // Second order command line checking. Ensure that command line options
   // are consistent.
   if (freq_start==-1) {
     cerr << "Error: must specify a start frequency. (Try --help)" << endl;
-    exit(-1);
+    ABORT(-1);
   }
   // Start and end frequencies should be on a 100kHz raster.
   if (freq_start<1e6) {
     cerr << "Error: start frequency must be greater than 1MHz" << endl;
-    exit(-1);
+    ABORT(-1);
   }
   if (freq_start/100e3!=itpp::round(freq_start/100e3)) {
     freq_start=itpp::round(freq_start/100e3)*100e3;
@@ -238,7 +239,7 @@ void parse_commandline(
   }
   if (freq_end<freq_start) {
     cerr << "Error: end frequency must be >= start frequency" << endl;
-    exit(-1);
+    ABORT(-1);
   }
   if (freq_end/100e3!=itpp::round(freq_end/100e3)) {
     freq_end=itpp::round(freq_end/100e3)*100e3;
@@ -247,7 +248,7 @@ void parse_commandline(
   // PPM values should be positive an most likely less than 200 ppm.
   if (ppm<0) {
     cerr << "Error: ppm value must be positive" << endl;
-    exit(-1);
+    ABORT(-1);
   }
   if (ppm>200) {
     cout << "Warning: ppm value appears to be set unreasonably high" << endl;
@@ -259,7 +260,7 @@ void parse_commandline(
   // Should never both read and write captured data from a file
   if (save_cap&&use_recorded_data) {
     cerr << "Error: cannot read and write captured data at the same time!" << endl;
-    exit(-1);
+    ABORT(-1);
   }
 
   if (verbosity>=1) {
@@ -351,7 +352,7 @@ void config_usb(
   int8 n_rtlsdr=rtlsdr_get_device_count();
   if (n_rtlsdr==0) {
     cerr << "Error: no RTL-SDR USB devices found..." << endl;
-    exit(-1);
+    ABORT(-1);
   }
 
   // Choose which device to use
@@ -366,37 +367,37 @@ void config_usb(
       rtlsdr_get_device_usb_strings(t,vendor,product,serial);
       cerr << "Device index " << t << ": [Vendor: " << vendor << "] [Product: " << product << "] [Serial#: " << serial << "]" << endl;
     }
-    exit(-1);
+    ABORT(-1);
   }
 
   // Open device
   if (rtlsdr_open(&dev,device_index)<0) {
     cerr << "Error: unable to open RTLSDR device" << endl;
-    exit(-1);
+    ABORT(-1);
   }
 
   // Sampling frequency
   if (rtlsdr_set_sample_rate(dev,itpp::round(1920000*correction))<0) {
     cerr << "Error: unable to set sampling rate" << endl;
-    exit(-1);
+    ABORT(-1);
   }
 
   // Center frequency
   if (rtlsdr_set_center_freq(dev,itpp::round(fc*correction))<0) {
     cerr << "Error: unable to set center frequency" << endl;
-    exit(-1);
+    ABORT(-1);
   }
 
   // Turn on AGC
   if (rtlsdr_set_tuner_gain_mode(dev,0)<0) {
     cerr << "Error: unable to enter AGC mode" << endl;
-    exit(-1);
+    ABORT(-1);
   }
 
   // Reset the buffer
   if (rtlsdr_reset_buffer(dev)<0) {
     cerr << "Error: unable to reset RTLSDR buffer" << endl;
-    exit(-1);
+    ABORT(-1);
   }
 
   // Discard about 1.5s worth of data to give the AGC time to converge
@@ -410,11 +411,11 @@ void config_usb(
   while (true) {
     if (rtlsdr_read_sync(dev,buffer,BLOCK_SIZE,&n_read_current)<0) {
       cerr << "Error: synchronous read failed" << endl;
-      exit(-1);
+      ABORT(-1);
     }
     if (n_read_current<BLOCK_SIZE) {
       cerr << "Error: short read; samples lost" << endl;
-      exit(-1);
+      ABORT(-1);
     }
     n_read+=n_read_current;
     if (n_read>2880000*2)
@@ -601,6 +602,6 @@ int main(
   }
 
   // Successful exit.
-  exit (0);
+  return 0;
 }
 

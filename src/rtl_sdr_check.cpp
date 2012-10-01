@@ -21,6 +21,7 @@
 #include <iostream>
 #include <itpp/itbase.h>
 #include <boost/math/special_functions/gamma.hpp>
+#include <curses.h>
 #include "rtl-sdr.h"
 #include "common.h"
 #include "lte_lib.h"
@@ -126,11 +127,11 @@ void parse_commandline(
         // Code should only get here if a long option was given a non-null
         // flag value.
         cout << "Check code!" << endl;
-        exit(-1);
+        ABORT(-1);
         break;
       case 'h':
         print_usage();
-        exit(-1);
+        ABORT(-1);
         break;
       case 'd':
         filename=optarg;
@@ -141,7 +142,7 @@ void parse_commandline(
         fc_set=true;
         if ((optarg==endp)||(*endp!='\0')) {
           cerr << "Error: could not parse center frequency" << endl;
-          exit(-1);
+          ABORT(-1);
         }
         break;
       case 'o':
@@ -149,7 +150,7 @@ void parse_commandline(
         f_off_set=true;
         if ((optarg==endp)||(*endp!='\0')) {
           cerr << "Error: could not parse frequency offset" << endl;
-          exit(-1);
+          ABORT(-1);
         }
         break;
       case 's':
@@ -157,7 +158,7 @@ void parse_commandline(
         fs_set=true;
         if ((optarg==endp)||(*endp!='\0')) {
           cerr << "Error: could not parse sampling frequency" << endl;
-          exit(-1);
+          ABORT(-1);
         }
         break;
       case 'i':
@@ -165,96 +166,96 @@ void parse_commandline(
         n_id_cell_set=true;
         if ((optarg==endp)||(*endp!='\0')) {
           cerr << "Error: could not parse device index" << endl;
-          exit(-1);
+          ABORT(-1);
         }
         break;
       case '1':
         global_1=strtod(optarg,&endp);
         if ((optarg==endp)||(*endp!='\0')) {
           cerr << "Error: could not global variable 1" << endl;
-          exit(-1);
+          ABORT(-1);
         }
         break;
       case '2':
         global_2=strtod(optarg,&endp);
         if ((optarg==endp)||(*endp!='\0')) {
           cerr << "Error: could not global variable 2" << endl;
-          exit(-1);
+          ABORT(-1);
         }
         break;
       case '3':
         global_3=strtod(optarg,&endp);
         if ((optarg==endp)||(*endp!='\0')) {
           cerr << "Error: could not global variable 3" << endl;
-          exit(-1);
+          ABORT(-1);
         }
         break;
       case '4':
         global_4=strtod(optarg,&endp);
         if ((optarg==endp)||(*endp!='\0')) {
           cerr << "Error: could not global variable 4" << endl;
-          exit(-1);
+          ABORT(-1);
         }
         break;
       case '5':
         global_5=strtod(optarg,&endp);
         if ((optarg==endp)||(*endp!='\0')) {
           cerr << "Error: could not global variable 5" << endl;
-          exit(-1);
+          ABORT(-1);
         }
         break;
       case '6':
         global_6=strtod(optarg,&endp);
         if ((optarg==endp)||(*endp!='\0')) {
           cerr << "Error: could not global variable 6" << endl;
-          exit(-1);
+          ABORT(-1);
         }
         break;
       case '7':
         global_7=strtod(optarg,&endp);
         if ((optarg==endp)||(*endp!='\0')) {
           cerr << "Error: could not global variable 7" << endl;
-          exit(-1);
+          ABORT(-1);
         }
         break;
       case '8':
         global_8=strtod(optarg,&endp);
         if ((optarg==endp)||(*endp!='\0')) {
           cerr << "Error: could not global variable 8" << endl;
-          exit(-1);
+          ABORT(-1);
         }
         break;
       case '9':
         global_9=strtod(optarg,&endp);
         if ((optarg==endp)||(*endp!='\0')) {
           cerr << "Error: could not global variable 9" << endl;
-          exit(-1);
+          ABORT(-1);
         }
         break;
       case '?':
         /* getopt_long already printed an error message. */
-        exit(-1);
+        ABORT(-1);
       default:
-        exit(-1);
+        ABORT(-1);
     }
   }
 
   // Error if extra arguments are found on the command line
   if (optind<argc) {
     cerr << "Error: unknown/extra arguments specified on command line" << endl;
-    exit(-1);
+    ABORT(-1);
   }
 
   // Second order command line checking. Ensure that command line options
   // are consistent.
   if (!filename_set||!fc_set||!fs_set||!n_id_cell_set||!f_off_set) {
     cerr << "Error: required parameter missing (try --help)" << endl;
-    exit(-1);
+    ABORT(-1);
   }
   // Frequencies should be on a 100kHz raster.
   if (fc<1e6) {
     cerr << "Error: frequency must be greater than 1MHz" << endl;
-    exit(-1);
+    ABORT(-1);
   }
   if (fc/100e3!=itpp::round(fc/100e3)) {
     fc=itpp::round(fc/100e3)*100e3;
@@ -263,7 +264,7 @@ void parse_commandline(
   // Sampling frequency should be 'reasonable'
   if ((fs<0)||(fs>3e6)) {
     cerr << "Error: sampling frequency must be between 0 and 3MHz" << endl;
-    exit(-1);
+    ABORT(-1);
   }
   // Frequency offset should be 'reasonable'
   if (abs(f_off)>200e3) {
@@ -301,7 +302,7 @@ int main(
   // Drop first 4 seconds to allow AGC to converge.
   if (length(cap_data)<fs*4) {
     cerr << "Error: not enough captured data" << endl;
-    exit(-1);
+    ABORT(-1);
   }
   cap_data=cap_data(fs*4,-1);
   //cout << "Decimated capture data by 2!!!" << endl;
@@ -310,7 +311,7 @@ int main(
   //n_samp=MIN(3e6,n_samp);
   if (length(cap_data)<1e6) {
     cerr << "Error: not enough captured data" << endl;
-    exit(-1);
+    ABORT(-1);
   }
   cout << "Will examine " << n_samp << " samples from capture file" << endl;
 
