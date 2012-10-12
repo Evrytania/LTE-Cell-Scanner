@@ -83,6 +83,9 @@ void print_usage() {
   cout << "      crystal remaining PPM error" << endl;
   cout << "    -c --correction c" << endl;
   cout << "      crystal correction factor" << endl;
+  // Hidden option...
+  //cout << "    -x --expert" << endl;
+  //cout << "      enable expert mode display" << endl;
   // Hidden options. Only useful for debugging.
   //cout << "  Capture buffer options:" << endl;
   //cout << "    -l --load filename" << endl;
@@ -120,6 +123,7 @@ void parse_commandline(
   double & ppm,
   double & correction,
   int & device_index,
+  bool & expert_mode,
   bool & use_recorded_data,
   string & filename,
   bool & repeat,
@@ -132,6 +136,7 @@ void parse_commandline(
   ppm=100;
   correction=1;
   device_index=-1;
+  expert_mode=false;
   use_recorded_data=false;
   repeat=false;
   drop_secs=0;
@@ -147,6 +152,7 @@ void parse_commandline(
       {"ppm",          required_argument, 0, 'p'},
       {"correction",   required_argument, 0, 'c'},
       {"device-index", required_argument, 0, 'i'},
+      {"expert",       no_argument,       0, 'x'},
       {"load",         required_argument, 0, 'l'},
       {"repeat",       no_argument,       0, 'r'},
       {"drop",         required_argument, 0, 'd'},
@@ -165,7 +171,7 @@ void parse_commandline(
     };
     /* getopt_long stores the option index here. */
     int option_index = 0;
-    int c = getopt_long (argc, argv, "hvbf:p:c:i:l:rd:sn:123456789",
+    int c = getopt_long (argc, argv, "hvbf:p:c:i:xl:rd:sn:123456789",
                      long_options, &option_index);
 
     /* Detect the end of the options. */
@@ -221,6 +227,9 @@ void parse_commandline(
           cerr << "Error: device index cannot be negative" << endl;
           ABORT(-1);
         }
+        break;
+      case 'x':
+        expert_mode=true;
         break;
       case 'l':
         use_recorded_data=true;
@@ -736,6 +745,7 @@ int main(
   double ppm;
   double correction;
   int32 device_index;
+  bool expert_mode;
   bool use_recorded_data;
   string filename;
   bool repeat;
@@ -743,7 +753,7 @@ int main(
   bool rtl_sdr_format;
   double noise_power;
   // Get search parameters from the user
-  parse_commandline(argc,argv,fc,ppm,correction,device_index,use_recorded_data,filename,repeat,drop_secs,rtl_sdr_format,noise_power);
+  parse_commandline(argc,argv,fc,ppm,correction,device_index,expert_mode,use_recorded_data,filename,repeat,drop_secs,rtl_sdr_format,noise_power);
 
   // Open the USB device.
   if (!use_recorded_data)
@@ -775,7 +785,7 @@ int main(
   sampbuf_sync.fifo_peak_size=0;
 
   // Launch the display thread
-  boost::thread display_thr(display_thread,boost::ref(sampbuf_sync),boost::ref(global_thread_data),boost::ref(tracked_cell_list));
+  boost::thread display_thr(display_thread,boost::ref(sampbuf_sync),boost::ref(global_thread_data),boost::ref(tracked_cell_list),boost::ref(expert_mode));
 
   // The remainder of this thread simply copies data received from the USB
   // device (or a file!) to the producer thread. This can be considered

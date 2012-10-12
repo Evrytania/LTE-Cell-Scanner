@@ -260,7 +260,8 @@ void searcher_thread(
 void display_thread(
   sampbuf_sync_t & sampbuf_sync,
   global_thread_data_t & global_thread_data,
-  tracked_cell_list_t & tracked_cell_list
+  tracked_cell_list_t & tracked_cell_list,
+  bool & expert_mode
 );
 
 #endif

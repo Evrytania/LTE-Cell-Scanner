@@ -28,7 +28,7 @@
 #include <sstream>
 #include <signal.h>
 #include <queue>
-#include <valgrind/callgrind.h>
+//#include <valgrind/callgrind.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <curses.h>
@@ -225,7 +225,7 @@ void searcher_thread(
         boost::mutex::scoped_lock lock(tracked_cell_list.mutex);
         tracked_cell_list.tracked_cells.push_back(new_cell);
       }
-      CALLGRIND_START_INSTRUMENTATION;
+      //CALLGRIND_START_INSTRUMENTATION;
 #define MAX_DETECTED 1e6
       static uint32 n_found=0;
       n_found++;

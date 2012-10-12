@@ -189,9 +189,9 @@ void producer_thread(
 
         // Delete the tracker if lock has been lost.
         if (tracked_cell.kill_me) {
-          // TODO: Fix memory leak here!
-          //delete (*it);
+          tracked_cell_t * temp=(*it);
           it=tracked_cell_list.tracked_cells.erase(it);
+          delete temp;
           continue;
         }
 
