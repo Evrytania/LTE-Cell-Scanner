@@ -27,6 +27,7 @@ void capture_data(
   const bool & save_cap,
   const bool & use_recorded_data,
   const std::string & str,
+  rtlsdr_dev_t * & dev,
   // Output
   itpp::cvec & capbuf
 );

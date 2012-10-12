@@ -38,8 +38,6 @@ using namespace itpp;
 using namespace std;
 
 uint8 verbosity=1;
-// Declared as global so the sig handler can have access to it.
-rtlsdr_dev_t * dev=NULL;
 
 // Simple usage screen.
 void print_usage() {
@@ -345,7 +343,8 @@ string freq_formatter(
 void config_usb(
   const double & correction,
   const int32 & device_index_cmdline,
-  const double & fc
+  const double & fc,
+  rtlsdr_dev_t *& dev
 ) {
   int32 device_index=device_index_cmdline;
 
@@ -443,8 +442,9 @@ int main(
   parse_commandline(argc,argv,freq_start,freq_end,ppm,correction,save_cap,use_recorded_data,data_dir,device_index);
 
   // Open the USB device (if necessary).
+  rtlsdr_dev_t * dev=NULL;
   if (!use_recorded_data)
-    config_usb(correction,device_index,freq_start);
+    config_usb(correction,device_index,freq_start,dev);
 
   // Generate a list of center frequencies that should be searched and also
   // a list of frequency offsets that should be searched for each center
@@ -466,7 +466,7 @@ int main(
 
     // Fill capture buffer
     cvec capbuf;
-    capture_data(fc,correction,save_cap,use_recorded_data,data_dir,capbuf);
+    capture_data(fc,correction,save_cap,use_recorded_data,data_dir,dev,capbuf);
 
     // Correlate
 #define DS_COMB_ARM 2

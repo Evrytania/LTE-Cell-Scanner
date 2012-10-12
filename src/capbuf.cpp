@@ -31,13 +31,19 @@ using namespace std;
 // Number of complex samples to capture.
 #define CAPLENGTH 153600
 
+typedef struct {
+  vector <char> * buf;
+  rtlsdr_dev_t * dev;
+} callback_package_t;
 static void capbuf_rtlsdr_callback(
   unsigned char * buf,
   uint32_t len,
   void * ctx
 ) {
-  vector <char> & capbuf_raw = *((vector <char> *)ctx);
-  //cout << capbuf_raw.size() << endl;
+  //vector <char> & capbuf_raw = *((vector <char> *)ctx);
+  callback_package_t * cp=(callback_package_t *)ctx;
+  vector <char> & capbuf_raw=(*((*cp).buf));
+  rtlsdr_dev_t * dev=(*cp).dev;
 
   if (len==0) {
     cerr << "Error: received no samples from USB device..." << endl;
@@ -69,6 +75,7 @@ void capture_data(
   const bool & save_cap,
   const bool & use_recorded_data,
   const string & data_dir,
+  rtlsdr_dev_t * & dev,
   // Output
   cvec & capbuf
 ) {
@@ -116,7 +123,10 @@ void capture_data(
     // This will block until the call to rtlsdr_cancel_async().
     vector <char> capbuf_raw;
     capbuf_raw.reserve(CAPLENGTH*2);
-    rtlsdr_read_async(dev,capbuf_rtlsdr_callback,(void *)&capbuf_raw,0,0);
+    callback_package_t cp;
+    cp.buf=&capbuf_raw;
+    cp.dev=dev;
+    rtlsdr_read_async(dev,capbuf_rtlsdr_callback,(void *)&cp,0,0);
     if (capbuf_raw.size()!=CAPLENGTH*2) {
       cerr << "Error: unable to read sufficient data from USB device" << endl;
       ABORT(-1);

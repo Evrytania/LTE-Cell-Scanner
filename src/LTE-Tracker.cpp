@@ -47,9 +47,6 @@ using namespace itpp;
 using namespace std;
 
 uint8 verbosity=1;
-// Declared as global so the sig handler can have access to it.
-// FIXME: sig handler deleted, no longer necessary to keep as global...
-rtlsdr_dev_t * dev=NULL;
 
 // Global variables that can be set by the command line. Used for debugging.
 double global_1=0;
@@ -433,7 +430,8 @@ string freq_formatter(
 void config_usb(
   const double & correction,
   const int32 & device_index_cmdline,
-  const double & fc
+  const double & fc,
+  rtlsdr_dev_t * & dev
 ) {
   int32 device_index=device_index_cmdline;
 
@@ -550,7 +548,8 @@ double kalibrate(
   const bool & rtl_sdr_format,
   const double & noise_power,
   const double & drop_secs,
-  const bool & repeat
+  const bool & repeat,
+  rtlsdr_dev_t * & dev
 ) {
   if (verbosity>=1) {
     cout << "Calibrating local oscillator." << endl;
@@ -582,7 +581,7 @@ double kalibrate(
         }
       }
     } else {
-      capture_data(fc,correction,false,false,".",capbuf);
+      capture_data(fc,correction,false,false,".",dev,capbuf);
     }
     //cout << "Capbuf power: " << db10(sigpower(capbuf)) << " dB" << endl;
     if (noise_power)
@@ -756,8 +755,9 @@ int main(
   parse_commandline(argc,argv,fc,ppm,correction,device_index,expert_mode,use_recorded_data,filename,repeat,drop_secs,rtl_sdr_format,noise_power);
 
   // Open the USB device.
+  rtlsdr_dev_t * dev=NULL;
   if (!use_recorded_data)
-    config_usb(correction,device_index,fc);
+    config_usb(correction,device_index,fc,dev);
 
   // Data shared between threads
   sampbuf_sync_t sampbuf_sync;
@@ -769,7 +769,7 @@ int main(
   // Calibrate the dongle's oscillator. This is similar to running the
   // program CellSearch with only one center frequency. All information
   // is discarded except for the frequency offset.
-  global_thread_data.frequency_offset(kalibrate(fc,ppm,correction,use_recorded_data,filename,rtl_sdr_format,noise_power,drop_secs,repeat));
+  global_thread_data.frequency_offset(kalibrate(fc,ppm,correction,use_recorded_data,filename,rtl_sdr_format,noise_power,drop_secs,repeat,dev));
 
   // Start the cell searcher thread.
   // Now that the oscillator has been calibrated, we can perform
