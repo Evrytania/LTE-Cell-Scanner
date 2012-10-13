@@ -72,7 +72,7 @@ void print_usage() {
   cout << "      reduce status messages from program" << endl;
   cout << "    -i --device-index N" << endl;
   cout << "      specify which attached RTLSDR dongle to use" << endl;
-  cout << "  Frequency search options:" << endl;
+  cout << "  Frequency options:" << endl;
   cout << "    -f --freq fc" << endl;
   cout << "      frequency where cells are located" << endl;
   cout << "  Dongle LO correction options:" << endl;
