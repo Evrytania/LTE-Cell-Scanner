@@ -34,7 +34,8 @@ int8 const Cell::n_symb_dl() const {
 }
 // Default constructor initializes structure to impossible values.
 Cell::Cell() :
-  fc(NAN),
+  fc_requested(NAN),
+  fc_programmed(NAN),
   pss_pow(NAN),
   ind(-1),
   freq(NAN),
@@ -59,11 +60,12 @@ ostream & operator<< (
   ostream & os,
   const Cell & c
 ) {
-  if (isnan(c.fc)&&isnan(c.pss_pow)&&(c.ind==-1)&&isnan(c.freq)&&(c.n_id_2==-1)) {
+  if (isnan(c.fc_requested)&&isnan(c.fc_programmed)&&isnan(c.pss_pow)&&(c.ind==-1)&&isnan(c.freq)&&(c.n_id_2==-1)) {
     os << "<EMPTY>";
     return os;
   }
-  os << "fc = " << c.fc/1e6 << " MHz" << endl;
+  os << "fc_requested = " << c.fc_requested/1e6 << " MHz" << endl;
+  os << "fc_programmed = " << c.fc_programmed/1e6 << " MHz" << endl;
   os << "pss_pow = " << db10(c.pss_pow) << " dB" << endl;
   os << "ind = " << c.ind << endl;
   os << "freq = " << c.freq << endl;

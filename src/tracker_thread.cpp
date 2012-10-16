@@ -90,7 +90,9 @@ typedef struct {
 // domain, and extract the 72 desired subcarriers.
 void get_fd(
   tracked_cell_t & tracked_cell,
-  const double & fc,
+  const double & fc_requested,
+  const double & fc_programmed,
+  const double & fs_programmed,
   const uint8 & slot_num,
   const uint8 & sym_num,
   //const ivec & cn,
@@ -124,10 +126,11 @@ void get_fd(
   // Also perform FOC to remove ICI
   frequency_offset=pdu.frequency_offset;
   frame_timing=pdu.frame_timing;
-  double k_factor=(fc-frequency_offset)/fc;
+  double k_factor=(fc_requested-frequency_offset)/fc_programmed;
+
   // Directly manipulate data on the fifo to minimize vector copies.
   // Remove ICI
-  fshift_inplace(pdu.data,-frequency_offset,FS_LTE/16*k_factor);
+  fshift_inplace(pdu.data,-frequency_offset,fs_programmed*k_factor);
   // Remove the 2 sample delay
   cvec dft_in(128);
   //dft_in=concat(dft_in(2,-1),dft_in(0,1));
@@ -223,8 +226,8 @@ void do_foe(
 
   // Update system frequency offset.
   double frequency_offset=rs_prev.frequency_offset;
-  //double k_factor=(global_thread_data.fc-frequency_offset)/global_thread_data.fc;
-  double residual_f=arg(foe_comb)/(2*pi)/(0.0005+WRAP(rs_next.frame_timing-rs_prev.frame_timing,-19200.0/2,19200.0/2)*(1/(FS_LTE/16)));
+  double k_factor=(global_thread_data.fc_requested-frequency_offset)/global_thread_data.fc_programmed;
+  double residual_f=arg(foe_comb)/(2*pi)/(0.0005+WRAP(rs_next.frame_timing-rs_prev.frame_timing,-19200.0/2,19200.0/2)*(1/(global_thread_data.fs_programmed*k_factor)));
   double residual_f_np=MAX(foe_comb_np/2,.001);
   //residual_f+=1000;
   //cout << residual_f << " f " << db10(residual_f_np) << endl;
@@ -815,7 +818,7 @@ void tracker_thread(
     double frequency_offset;
     double frame_timing;
     //get_fd(tracked_cell,global_thread_data.fc,slot_num,sym_num,cn,bulk_phase_offset,syms,frequency_offset,frame_timing);
-    get_fd(tracked_cell,global_thread_data.fc,slot_num,sym_num,bulk_phase_offset,syms,frequency_offset,frame_timing);
+    get_fd(tracked_cell,global_thread_data.fc_requested,global_thread_data.fc_programmed,global_thread_data.fs_programmed,slot_num,sym_num,bulk_phase_offset,syms,frequency_offset,frame_timing);
 
     // Save this information into the data fifo for further processing
     // once channel estimates are ready. Channel estimates for this OFDM

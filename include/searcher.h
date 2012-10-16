@@ -24,7 +24,9 @@ void xcorr_pss(
   const itpp::cvec & capbuf,
   const itpp::vec & f_search_set,
   const uint8 & ds_comb_arm,
-  const double & fc,
+  const double & fc_requested,
+  const double & fc_programmed,
+  const double & fs_programmed,
   // Outputs
   itpp::mat & xc_incoherent_collapsed_pow,
   itpp::imat & xc_incoherent_collapsed_frq,
@@ -45,7 +47,8 @@ void peak_search(
   const itpp::imat & xc_incoherent_collapsed_frq,
   const itpp::vec & Z_th1,
   const itpp::vec & f_search_set,
-  const double & fc,
+  const double & fc_requested,
+  const double & fc_programmed,
   const vf3d & xc_incoherent_single,
   const uint8 & ds_comb_arm,
   // Outputs
@@ -58,7 +61,9 @@ Cell sss_detect(
   const Cell & cell,
   const itpp::cvec & capbuf,
   const double & thresh2_n_sigma,
-  const double & fc,
+  const double & fc_requested,
+  const double & fc_programmed,
+  const double & fs_programmed,
   // Only used for testing
   itpp::vec & sss_h1_np_est,
   itpp::vec & sss_h2_np_est,
@@ -74,7 +79,9 @@ Cell sss_detect(
 Cell pss_sss_foe(
   const Cell & cell_in,
   const itpp::cvec & capbuf,
-  const double & fc
+  const double & fc_requested,
+  const double & fc_programmed,
+  const double & fs_programmed
 );
 
 // Extract the time and frequency grid.
@@ -82,7 +89,9 @@ void extract_tfg(
   // Inputs
   const Cell & cell,
   const itpp::cvec & capbuf_raw,
-  const double & fc,
+  const double & fc_requested,
+  const double & fc_programmed,
+  const double & fs_programmed,
   // Outputs
   itpp::cmat & tfg,
   itpp::vec & tfg_timestamp
@@ -94,7 +103,8 @@ Cell tfoec(
   const Cell & cell,
   const itpp::cmat & tfg,
   const itpp::vec & tfg_timestamp,
-  const double & fc,
+  const double & fc_requested,
+  const double & fc_programmed,
   const RS_DL & rs_dl,
   // Outputs
   itpp::cmat & tfg_comp,

@@ -297,7 +297,7 @@ void dedup(
         // in frequency?
         if (
           ((*it_n).n_id_cell()==(*it_f).n_id_cell()) &&
-          (abs(((*it_n).fc+(*it_n).freq_superfine)-((*it_f).fc+(*it_f).freq_superfine))<1e6)
+          (abs(((*it_n).fc_requested+(*it_n).freq_superfine)-((*it_f).fc_requested+(*it_f).freq_superfine))<1e6)
         ) {
           match=true;
           // Keep either the new cell or the old cell, but not both.
@@ -344,7 +344,8 @@ void config_usb(
   const double & correction,
   const int32 & device_index_cmdline,
   const double & fc,
-  rtlsdr_dev_t *& dev
+  rtlsdr_dev_t *& dev,
+  double & fs_programmed
 ) {
   int32 device_index=device_index_cmdline;
 
@@ -380,6 +381,9 @@ void config_usb(
     cerr << "Error: unable to set sampling rate" << endl;
     ABORT(-1);
   }
+
+  // Calculate the actual fs that was programmed
+  fs_programmed=(double)rtlsdr_get_sample_rate(dev);
 
   // Center frequency
   if (rtlsdr_set_center_freq(dev,itpp::round(fc*correction))<0) {
@@ -443,8 +447,9 @@ int main(
 
   // Open the USB device (if necessary).
   rtlsdr_dev_t * dev=NULL;
+  double fs_programmed;
   if (!use_recorded_data)
-    config_usb(correction,device_index,freq_start,dev);
+    config_usb(correction,device_index,freq_start,dev,fs_programmed);
 
   // Generate a list of center frequencies that should be searched and also
   // a list of frequency offsets that should be searched for each center
@@ -458,15 +463,16 @@ int main(
   vector < list<Cell> > detected_cells(n_fc);
   // Loop for each center frequency.
   for (uint16 fci=0;fci<n_fc;fci++) {
-    double fc=fc_search_set(fci);
+    double fc_requested=fc_search_set(fci);
 
     if (verbosity>=1) {
-      cout << "Examining center frequency " << fc/1e6 << " MHz ..." << endl;
+      cout << "Examining center frequency " << fc_requested/1e6 << " MHz ..." << endl;
     }
 
     // Fill capture buffer
     cvec capbuf;
-    capture_data(fc,correction,save_cap,use_recorded_data,data_dir,dev,capbuf);
+    double fc_programmed;
+    capture_data(fc_requested,correction,save_cap,use_recorded_data,data_dir,dev,capbuf,fc_programmed);
 
     // Correlate
 #define DS_COMB_ARM 2
@@ -482,7 +488,7 @@ int main(
     if (verbosity>=2) {
       cout << "  Calculating PSS correlations" << endl;
     }
-    xcorr_pss(capbuf,f_search_set,DS_COMB_ARM,fc,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,xc,sp,n_comb_xc,n_comb_sp);
+    xcorr_pss(capbuf,f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,xc,sp,n_comb_xc,n_comb_sp);
 
     // Calculate the threshold vector
     const uint8 thresh1_n_nines=12;
@@ -495,7 +501,7 @@ int main(
       cout << "  Searching for and examining correlation peaks..." << endl;
     }
     list <Cell> peak_search_cells;
-    peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,f_search_set,fc,xc_incoherent_single,DS_COMB_ARM,peak_search_cells);
+    peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,f_search_set,fc_requested,fc_programmed,xc_incoherent_single,DS_COMB_ARM,peak_search_cells);
     detected_cells[fci]=peak_search_cells;
 
     // Loop and check each peak
@@ -514,7 +520,7 @@ int main(
       mat log_lik_nrm;
       mat log_lik_ext;
 #define THRESH2_N_SIGMA 3
-      (*iterator)=sss_detect((*iterator),capbuf,THRESH2_N_SIGMA,fc,sss_h1_np_est_meas,sss_h2_np_est_meas,sss_h1_nrm_est_meas,sss_h2_nrm_est_meas,sss_h1_ext_est_meas,sss_h2_ext_est_meas,log_lik_nrm,log_lik_ext);
+      (*iterator)=sss_detect((*iterator),capbuf,THRESH2_N_SIGMA,fc_requested,fc_programmed,fs_programmed,sss_h1_np_est_meas,sss_h2_np_est_meas,sss_h1_nrm_est_meas,sss_h2_nrm_est_meas,sss_h1_ext_est_meas,sss_h2_ext_est_meas,log_lik_nrm,log_lik_ext);
       if ((*iterator).n_id_1==-1) {
         // No SSS detected.
         iterator=detected_cells[fci].erase(iterator);
@@ -522,12 +528,12 @@ int main(
       }
 
       // Fine FOE
-      (*iterator)=pss_sss_foe((*iterator),capbuf,fc);
+      (*iterator)=pss_sss_foe((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed);
 
       // Extract time and frequency grid
       cmat tfg;
       vec tfg_timestamp;
-      extract_tfg((*iterator),capbuf,fc,tfg,tfg_timestamp);
+      extract_tfg((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,tfg,tfg_timestamp);
 
       // Create object containing all RS
       RS_DL rs_dl((*iterator).n_id_cell(),6,(*iterator).cp_type);
@@ -535,7 +541,7 @@ int main(
       // Compensate for time and frequency offsets
       cmat tfg_comp;
       vec tfg_comp_timestamp;
-      (*iterator)=tfoec((*iterator),tfg,tfg_timestamp,fc,rs_dl,tfg_comp,tfg_comp_timestamp);
+      (*iterator)=tfoec((*iterator),tfg,tfg_timestamp,fc_requested,fc_programmed,rs_dl,tfg_comp,tfg_comp_timestamp);
 
       // Finally, attempt to decode the MIB
       (*iterator)=decode_mib((*iterator),tfg_comp,rs_dl);
@@ -573,7 +579,7 @@ int main(
       stringstream ss;
       ss << setw(3) << (*it).n_id_cell();
       ss << setw(2) << (*it).n_ports;
-      ss << " " << setw(6) << setprecision(4) << (*it).fc/1e6 << "M";
+      ss << " " << setw(6) << setprecision(4) << (*it).fc_requested/1e6 << "M";
       ss << " " << freq_formatter((*it).freq_superfine);
       ss << " " << setw(5) << setprecision(3) << db10((*it).pss_pow);
       ss << " " << (((*it).cp_type==cp_type_t::NORMAL)?"N":(((*it).cp_type==cp_type_t::UNKNOWN)?"U":"E"));
@@ -588,9 +594,9 @@ int main(
       }
       // Calculate the correction factor.
       // This is where we know the carrier is located
-      const double true_location=(*it).fc;
+      const double true_location=(*it).fc_requested;
       // We can calculate the RTLSDR's actualy frequency
-      const double crystal_freq_actual=(*it).fc-(*it).freq_superfine;
+      const double crystal_freq_actual=(*it).fc_requested-(*it).freq_superfine;
       // Calculate correction factors
       const double correction_residual=true_location/crystal_freq_actual;
       const double correction_new=correction*correction_residual;

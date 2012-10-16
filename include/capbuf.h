@@ -22,14 +22,15 @@
 // from the dongle.
 void capture_data(
   // Inputs
-  const double & fc,
+  const double & fc_requested,
   const double & correction,
   const bool & save_cap,
   const bool & use_recorded_data,
   const std::string & str,
   rtlsdr_dev_t * & dev,
   // Output
-  itpp::cvec & capbuf
+  itpp::cvec & capbuf,
+  double & fc_programmed
 );
 
 #endif

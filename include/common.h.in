@@ -98,7 +98,8 @@ namespace modulation_t {
 // Class to contain all the information detected about a cell.
 class Cell {
   public:
-    double fc;
+    double fc_requested;
+    double fc_programmed;
     double pss_pow;
     int32 ind;
     double freq;

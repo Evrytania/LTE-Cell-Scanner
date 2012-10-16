@@ -431,7 +431,8 @@ void config_usb(
   const double & correction,
   const int32 & device_index_cmdline,
   const double & fc,
-  rtlsdr_dev_t * & dev
+  rtlsdr_dev_t * & dev,
+  double & fs_programmed
 ) {
   int32 device_index=device_index_cmdline;
 
@@ -462,11 +463,21 @@ void config_usb(
     ABORT(-1);
   }
 
-  // Sampling frequency
-  if (rtlsdr_set_sample_rate(dev,itpp::round(1920000*correction))<0) {
+  // Set sampling frequency.
+  uint32 fs_requested=itpp::round(1920000.0*correction);
+  if (rtlsdr_set_sample_rate(dev,fs_requested)<0) {
     cerr << "Error: unable to set sampling rate" << endl;
     ABORT(-1);
   }
+
+  // Calculate the actual fs that was programmed
+  //uint32 xtal=dev->rtl_xtal;
+  //uint32 divider=itpp::round((xtal*pow(2.0,22.0))/fs_requested);
+  //divider&=~3;
+  //fs_programmed=(xtal*pow(2.0,22.0))/divider;
+  // Using the API will have a maximum frequency error of 1Hz... Should
+  // be enough, right???
+  fs_programmed=(double)rtlsdr_get_sample_rate(dev);
 
   // Center frequency
   if (rtlsdr_set_center_freq(dev,itpp::round(fc*correction))<0) {
@@ -495,9 +506,10 @@ void config_usb(
 #define BLOCK_SIZE (16*16384)
   uint8 * buffer=(uint8 *)malloc(BLOCK_SIZE*sizeof(uint8));
   while (true) {
-    // sync mode is unreliable in that it may drop samples. However, in
-    // this case we can still use it because it will gurantee a minimum
-    // number of samples have been discarded.
+    // sync mode is unreliable in that it may drop samples. However, in this
+    // case we can still use it because we dont' care about the data and sync
+    // mode will still gurantee a minimum number of samples have been
+    // discarded.
     if (rtlsdr_read_sync(dev,buffer,BLOCK_SIZE,&n_read_current)<0) {
       cerr << "Error: synchronous read failed" << endl;
       ABORT(-1);
@@ -513,6 +525,7 @@ void config_usb(
   free(buffer);
 }
 
+// Read a file either in rtlsdr format or itp format.
 void read_datafile(
   const string & filename,
   const bool & rtl_sdr_format,
@@ -540,7 +553,8 @@ void read_datafile(
 // This code can probably be rolled into the searcher so as to eliminate
 // some duplicated code.
 double kalibrate(
-  const double & fc,
+  const double & fc_requested,
+  const double & fs_programmed,
   const double & ppm,
   const double & correction,
   const bool & use_recorded_data,
@@ -549,7 +563,8 @@ double kalibrate(
   const double & noise_power,
   const double & drop_secs,
   const bool & repeat,
-  rtlsdr_dev_t * & dev
+  rtlsdr_dev_t * & dev,
+  double & fc_programmed
 ) {
   if (verbosity>=1) {
     cout << "Calibrating local oscillator." << endl;
@@ -557,7 +572,7 @@ double kalibrate(
 
   // Generate a list of frequency offsets that should be searched for each
   // center frequency.
-  const uint16 n_extra=floor_i((fc*ppm/1e6+2.5e3)/5e3);
+  const uint16 n_extra=floor_i((fc_requested*ppm/1e6+2.5e3)/5e3);
   const vec f_search_set=to_vec(itpp_ext::matlab_range(-n_extra*5000,5000,n_extra*5000));
   // Results are stored in this vector.
   list <Cell> detected_cells;
@@ -580,8 +595,9 @@ double kalibrate(
           capbuf(t)=cbload(mod(t,length(cbload)));
         }
       }
+      fc_programmed=fc_requested;
     } else {
-      capture_data(fc,correction,false,false,".",dev,capbuf);
+      capture_data(fc_requested,correction,false,false,".",dev,capbuf,fc_programmed);
     }
     //cout << "Capbuf power: " << db10(sigpower(capbuf)) << " dB" << endl;
     if (noise_power)
@@ -602,7 +618,7 @@ double kalibrate(
     if (verbosity>=2) {
       cout << "  Calculating PSS correlations" << endl;
     }
-    xcorr_pss(capbuf,f_search_set,DS_COMB_ARM,fc,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,xc,sp,n_comb_xc,n_comb_sp);
+    xcorr_pss(capbuf,f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,xc,sp,n_comb_xc,n_comb_sp);
 
     // Calculate the threshold vector
     const uint8 thresh1_n_nines=12;
@@ -614,7 +630,7 @@ double kalibrate(
     if (verbosity>=2) {
       cout << "  Searching for and examining correlation peaks..." << endl;
     }
-    peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,f_search_set,fc,xc_incoherent_single,DS_COMB_ARM,detected_cells);
+    peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,f_search_set,fc_requested,fc_programmed,xc_incoherent_single,DS_COMB_ARM,detected_cells);
 
     // Loop and check each peak
     list<Cell>::iterator iterator=detected_cells.begin();
@@ -629,7 +645,7 @@ double kalibrate(
       mat log_lik_nrm;
       mat log_lik_ext;
 #define THRESH2_N_SIGMA 3
-      (*iterator)=sss_detect((*iterator),capbuf,THRESH2_N_SIGMA,fc,sss_h1_np_est_meas,sss_h2_np_est_meas,sss_h1_nrm_est_meas,sss_h2_nrm_est_meas,sss_h1_ext_est_meas,sss_h2_ext_est_meas,log_lik_nrm,log_lik_ext);
+      (*iterator)=sss_detect((*iterator),capbuf,THRESH2_N_SIGMA,fc_requested,fc_programmed,fs_programmed,sss_h1_np_est_meas,sss_h2_np_est_meas,sss_h1_nrm_est_meas,sss_h2_nrm_est_meas,sss_h1_ext_est_meas,sss_h2_ext_est_meas,log_lik_nrm,log_lik_ext);
       if ((*iterator).n_id_1==-1) {
         // No SSS detected.
         iterator=detected_cells.erase(iterator);
@@ -637,12 +653,12 @@ double kalibrate(
       }
 
       // Fine FOE
-      (*iterator)=pss_sss_foe((*iterator),capbuf,fc);
+      (*iterator)=pss_sss_foe((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed);
 
       // Extract time and frequency grid
       cmat tfg;
       vec tfg_timestamp;
-      extract_tfg((*iterator),capbuf,fc,tfg,tfg_timestamp);
+      extract_tfg((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,tfg,tfg_timestamp);
 
       // Create object containing all RS
       RS_DL rs_dl((*iterator).n_id_cell(),6,(*iterator).cp_type);
@@ -650,7 +666,7 @@ double kalibrate(
       // Compensate for time and frequency offsets
       cmat tfg_comp;
       vec tfg_comp_timestamp;
-      (*iterator)=tfoec((*iterator),tfg,tfg_timestamp,fc,rs_dl,tfg_comp,tfg_comp_timestamp);
+      (*iterator)=tfoec((*iterator),tfg,tfg_timestamp,fc_requested,fc_programmed,rs_dl,tfg_comp,tfg_comp_timestamp);
 
       // Finally, attempt to decode the MIB
       (*iterator)=decode_mib((*iterator),tfg_comp,rs_dl);
@@ -693,11 +709,11 @@ double kalibrate(
 
   // Calculate the correction factor.
   // This is where we know the carrier is located
-  const double true_location=best.fc;
+  const double true_location=fc_requested;
   // We can calculate the RTLSDR's actual frequency
-  const double crystal_freq_actual=best.fc-best.freq_superfine;
+  const double crystal_freq_actual=fc_programmed-best.freq_superfine;
   // Calculate correction factors
-  const double correction_residual=true_location/crystal_freq_actual;
+  const double correction_residual=(true_location/fc_requested*fc_programmed)/crystal_freq_actual;
   const double correction_new=correction*correction_residual;
 
   if (verbosity>=1) {
@@ -740,7 +756,7 @@ int main(
   char * const argv[]
 ) {
   // Command line parameters are stored here.
-  double fc;
+  double fc_requested;
   double ppm;
   double correction;
   int32 device_index;
@@ -752,35 +768,40 @@ int main(
   bool rtl_sdr_format;
   double noise_power;
   // Get search parameters from the user
-  parse_commandline(argc,argv,fc,ppm,correction,device_index,expert_mode,use_recorded_data,filename,repeat,drop_secs,rtl_sdr_format,noise_power);
+  parse_commandline(argc,argv,fc_requested,ppm,correction,device_index,expert_mode,use_recorded_data,filename,repeat,drop_secs,rtl_sdr_format,noise_power);
 
   // Open the USB device.
   rtlsdr_dev_t * dev=NULL;
-  if (!use_recorded_data)
-    config_usb(correction,device_index,fc,dev);
+  double fs_programmed;
+  if (!use_recorded_data) {
+    config_usb(correction,device_index,fc_requested,dev,fs_programmed);
+  } else {
+    fs_programmed=correction*1.92e6;
+  }
+
+  // Calibrate the dongle's oscillator. This is similar to running the
+  // program CellSearch with only one center frequency. All information
+  // is discarded except for the frequency offset.
+  double fc_programmed;
+  double initial_freq_offset=kalibrate(fc_requested,fs_programmed,ppm,correction,use_recorded_data,filename,rtl_sdr_format,noise_power,drop_secs,repeat,dev,fc_programmed);
 
   // Data shared between threads
   sampbuf_sync_t sampbuf_sync;
   tracked_cell_list_t tracked_cell_list;
   capbuf_sync_t capbuf_sync;
-  global_thread_data_t global_thread_data(fc);
+  global_thread_data_t global_thread_data(fc_requested,fc_programmed,fs_programmed);
   global_thread_data.main_thread_id=syscall(SYS_gettid);
-
-  // Calibrate the dongle's oscillator. This is similar to running the
-  // program CellSearch with only one center frequency. All information
-  // is discarded except for the frequency offset.
-  global_thread_data.frequency_offset(kalibrate(fc,ppm,correction,use_recorded_data,filename,rtl_sdr_format,noise_power,drop_secs,repeat,dev));
+  global_thread_data.frequency_offset(initial_freq_offset);
 
   // Start the cell searcher thread.
   // Now that the oscillator has been calibrated, we can perform
   // a 'real' search.
   capbuf_sync.request=false;
   capbuf_sync.capbuf.set_size(19200*8);
-  //global_thread_data.fc=fc;
   boost::thread searcher_thr(searcher_thread,boost::ref(capbuf_sync),boost::ref(global_thread_data),boost::ref(tracked_cell_list));
 
   // Start the producer thread.
-  boost::thread producer_thr(producer_thread,boost::ref(sampbuf_sync),boost::ref(capbuf_sync),boost::ref(global_thread_data),boost::ref(tracked_cell_list),boost::ref(fc));
+  boost::thread producer_thr(producer_thread,boost::ref(sampbuf_sync),boost::ref(capbuf_sync),boost::ref(global_thread_data),boost::ref(tracked_cell_list),boost::ref(fc_programmed));
 
   sampbuf_sync.fifo_peak_size=0;
 

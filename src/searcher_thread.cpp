@@ -74,7 +74,9 @@ void searcher_thread(
   serial_num=1;
 
   // Shortcut
-  const double & fc=global_thread_data.fc;
+  const double & fc_requested=global_thread_data.fc_requested;
+  const double & fc_programmed=global_thread_data.fc_programmed;
+  const double & fs_programmed=global_thread_data.fs_programmed;
 
   // Loop forever.
   Real_Timer tt;
@@ -92,13 +94,9 @@ void searcher_thread(
     }
 
     // Get the current frequency offset
-    double k_factor;
     vec f_search_set(1);
-    //{
-    //  boost::mutex::scoped_lock lock(global_thread_data.frequency_offset_mutex);
     f_search_set(0)=global_thread_data.frequency_offset();
-    k_factor=(fc-f_search_set(0))/fc;
-    //}
+    double k_factor=(fc_requested-f_search_set(0))/fc_programmed;
 
     // Results are stored in this vector.
     list<Cell> detected_cells;
@@ -119,7 +117,7 @@ void searcher_thread(
     if (verbosity>=2) {
       cout << "  Calculating PSS correlations" << endl;
     }
-    xcorr_pss(capbuf,f_search_set,DS_COMB_ARM,fc,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,xc,sp,n_comb_xc,n_comb_sp);
+    xcorr_pss(capbuf,f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,xc,sp,n_comb_xc,n_comb_sp);
 
     // Calculate the threshold vector
     const uint8 thresh1_n_nines=12;
@@ -131,7 +129,7 @@ void searcher_thread(
     if (verbosity>=2) {
       cout << "  Searching for and examining correlation peaks..." << endl;
     }
-    peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,f_search_set,fc,xc_incoherent_single,DS_COMB_ARM,detected_cells);
+    peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,f_search_set,fc_requested,fc_programmed,xc_incoherent_single,DS_COMB_ARM,detected_cells);
 
     // Loop and check each peak
     list<Cell>::iterator iterator=detected_cells.begin();
@@ -146,7 +144,7 @@ void searcher_thread(
       mat log_lik_nrm;
       mat log_lik_ext;
 #define THRESH2_N_SIGMA 3
-      (*iterator)=sss_detect((*iterator),capbuf,THRESH2_N_SIGMA,fc,sss_h1_np_est_meas,sss_h2_np_est_meas,sss_h1_nrm_est_meas,sss_h2_nrm_est_meas,sss_h1_ext_est_meas,sss_h2_ext_est_meas,log_lik_nrm,log_lik_ext);
+      (*iterator)=sss_detect((*iterator),capbuf,THRESH2_N_SIGMA,fc_requested,fc_programmed,fs_programmed,sss_h1_np_est_meas,sss_h2_np_est_meas,sss_h1_nrm_est_meas,sss_h2_nrm_est_meas,sss_h1_ext_est_meas,sss_h2_ext_est_meas,log_lik_nrm,log_lik_ext);
       if ((*iterator).n_id_1==-1) {
         // No SSS detected.
         iterator=detected_cells.erase(iterator);
@@ -179,12 +177,12 @@ void searcher_thread(
       }
 
       // Fine FOE
-      (*iterator)=pss_sss_foe((*iterator),capbuf,fc);
+      (*iterator)=pss_sss_foe((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed);
 
       // Extract time and frequency grid
       cmat tfg;
       vec tfg_timestamp;
-      extract_tfg((*iterator),capbuf,fc,tfg,tfg_timestamp);
+      extract_tfg((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,tfg,tfg_timestamp);
 
       // Create object containing all RS
       RS_DL rs_dl((*iterator).n_id_cell(),6,(*iterator).cp_type);
@@ -192,7 +190,7 @@ void searcher_thread(
       // Compensate for time and frequency offsets
       cmat tfg_comp;
       vec tfg_comp_timestamp;
-      (*iterator)=tfoec((*iterator),tfg,tfg_timestamp,fc,rs_dl,tfg_comp,tfg_comp_timestamp);
+      (*iterator)=tfoec((*iterator),tfg,tfg_timestamp,fc_requested,fc_programmed,rs_dl,tfg_comp,tfg_comp_timestamp);
 
       // Finally, attempt to decode the MIB
       (*iterator)=decode_mib((*iterator),tfg_comp,rs_dl);
@@ -213,14 +211,11 @@ void searcher_thread(
       */
 
       // Launch a cell tracker process!
-      k_factor=k_factor;
-      //cout << "Timing error is purposely introduced here!!!" << endl;
-      //tracked_cell_t * new_cell = new tracked_cell_t((*iterator).n_id_cell(),(*iterator).n_ports,(*iterator).cp_type,(*iterator).frame_start/k_factor+capbuf_sync.late+global_1);
-      tracked_cell_t * new_cell = new tracked_cell_t((*iterator).n_id_cell(),(*iterator).n_ports,(*iterator).cp_type,(*iterator).frame_start/k_factor+capbuf_sync.late,serial_num((*iterator).n_id_cell()));
+      //tracked_cell_t * new_cell = new tracked_cell_t((*iterator).n_id_cell(),(*iterator).n_ports,(*iterator).cp_type,(*iterator).frame_start/k_factor+capbuf_sync.late,serial_num((*iterator).n_id_cell()));
+      tracked_cell_t * new_cell = new tracked_cell_t((*iterator).n_id_cell(),(*iterator).n_ports,(*iterator).cp_type,(*iterator).frame_start*(FS_LTE/16)/(fs_programmed*k_factor)+capbuf_sync.late,serial_num((*iterator).n_id_cell()));
       serial_num((*iterator).n_id_cell())++;
       // Cannot launch thread here. If thread was launched here, it would
       // have the same (low) priority as the searcher thread.
-      //(*new_cell).thread=boost::thread(tracker_thread,boost::ref(*new_cell),boost::ref(global_thread_data));
       {
         boost::mutex::scoped_lock lock(tracked_cell_list.mutex);
         tracked_cell_list.tracked_cells.push_back(new_cell);

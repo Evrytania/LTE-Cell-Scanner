@@ -146,12 +146,22 @@ typedef struct {
 class global_thread_data_t {
   public:
     // Constructor
-    global_thread_data_t(const double & fc) : fc(fc) {
+    global_thread_data_t(
+      const double & fc_requested,
+      const double & fc_programmed,
+      const double & fs_programmed
+    ) :
+      fc_requested(fc_requested),
+      fc_programmed(fc_programmed),
+      fs_programmed(fs_programmed)
+    {
       searcher_cycle_time_private=0;
       cell_seconds_dropped_private=0;
     }
-    // This value will never change.
-    const double fc;
+    // These values will never change.
+    const double fc_requested;
+    const double fc_programmed;
+    const double fs_programmed;
     // Read/write frequency offset (via mutex).
     // Mutex makes sure that no read or write is interrupted when
     // only part of the data has been read.

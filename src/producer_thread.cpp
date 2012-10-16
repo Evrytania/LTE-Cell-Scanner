@@ -96,8 +96,9 @@ void producer_thread(
   while (true) {
     // Each iteration of this loop processes one block of data.
     const double frequency_offset=global_thread_data.frequency_offset();
-    const double k_factor=(fc-frequency_offset)/fc;
-    const double k_factor_inv=1/k_factor;
+    const double k_factor=(global_thread_data.fc_requested-frequency_offset)/global_thread_data.fc_programmed;
+    //const double k_factor_inv=1/k_factor;
+    const double & fs_programmed=global_thread_data.fs_programmed;
 
     // Get the next block
     //complex <double> sample;
@@ -110,8 +111,8 @@ void producer_thread(
         sampbuf_sync.condition.wait(lock);
       }
       // Dump data if there is too much in the fifo
-      while (sampbuf_sync.fifo.size()>2*1.92e6*1.5) {
-        for (uint32 t=0;t<(unsigned)round_i(1.92e6*k_factor);t++) {
+      while (sampbuf_sync.fifo.size()>2*FS_LTE/16*1.5) {
+        for (uint32 t=0;t<(unsigned)round_i(fs_programmed*k_factor);t++) {
           sampbuf_sync.fifo.pop_front();
         }
         global_thread_data.raw_seconds_dropped_inc();
@@ -128,7 +129,7 @@ void producer_thread(
         sample_temp.imag()=(sampbuf_sync.fifo.front()-127.0)/128.0;
         sampbuf_sync.fifo.pop_front();
         samples(t)=sample_temp;
-        sample_time+=k_factor_inv;
+        sample_time+=(FS_LTE/16)/(fs_programmed*k_factor);
         //sample_time=itpp_ext::matlab_mod(sample_time,19200.0);
         if (sample_time>19200.0)
           sample_time-=19200.0;

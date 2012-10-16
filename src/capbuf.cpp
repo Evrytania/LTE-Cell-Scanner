@@ -70,14 +70,15 @@ static void capbuf_rtlsdr_callback(
 // to a file.
 void capture_data(
   // Inputs
-  const double & fc,
+  const double & fc_requested,
   const double & correction,
   const bool & save_cap,
   const bool & use_recorded_data,
   const string & data_dir,
   rtlsdr_dev_t * & dev,
   // Output
-  cvec & capbuf
+  cvec & capbuf,
+  double & fc_programmed
 ) {
   // Filename used for recording or loading captured data.
   static uint32 capture_number=0;
@@ -96,7 +97,7 @@ void capture_data(
     itf.seek("fc");
     ivec fc_v;
     itf>>fc_v;
-    if (fc!=fc_v(0)) {
+    if (fc_requested!=fc_v(0)) {
       cout << "Warning: while reading capture buffer " << capture_number << ", the read" << endl;
       cout << "center frequency did not match the expected center frequency." << endl;
     }
@@ -108,10 +109,12 @@ void capture_data(
     }
 
     // Center frequency
-    if (rtlsdr_set_center_freq(dev,itpp::round(fc*correction))<0) {
+    if (rtlsdr_set_center_freq(dev,itpp::round(fc_requested*correction))<0) {
       cerr << "Error: unable to set center frequency" << endl;
       ABORT(-1);
     }
+    // Calculate the actual center frequency that was programmed.
+    fc_programmed=(double)rtlsdr_get_center_freq(dev);
 
     // Reset the buffer
     if (rtlsdr_reset_buffer(dev)<0) {
@@ -151,7 +154,7 @@ void capture_data(
     it_file itf(filename.str(),true);
     itf << Name("capbuf") << capbuf;
     ivec fc_v(1);
-    fc_v(0)=fc;
+    fc_v(0)=fc_requested;
     itf << Name("fc") << fc_v;
     itf.close();
   }
