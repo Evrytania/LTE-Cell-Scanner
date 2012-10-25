@@ -471,13 +471,13 @@ void config_usb(
   }
 
   // Calculate the actual fs that was programmed
-  //uint32 xtal=dev->rtl_xtal;
-  //uint32 divider=itpp::round((xtal*pow(2.0,22.0))/fs_requested);
-  //divider&=~3;
-  //fs_programmed=(xtal*pow(2.0,22.0))/divider;
+  uint32 xtal=28800000;
+  uint32 divider=itpp::round((xtal*pow(2.0,22.0))/fs_requested);
+  divider&=~3;
+  fs_programmed=(xtal*pow(2.0,22.0))/divider;
   // Using the API will have a maximum frequency error of 1Hz... Should
   // be enough, right???
-  fs_programmed=(double)rtlsdr_get_sample_rate(dev);
+  //fs_programmed=(double)rtlsdr_get_sample_rate(dev);
 
   // Center frequency
   if (rtlsdr_set_center_freq(dev,itpp::round(fc*correction))<0) {
@@ -790,6 +790,11 @@ int main(
   tracked_cell_list_t tracked_cell_list;
   capbuf_sync_t capbuf_sync;
   global_thread_data_t global_thread_data(fc_requested,fc_programmed,fs_programmed);
+  cout << "fc_requested = " << fc_requested << endl;
+  cout << "fc_programmed = " << fc_programmed << endl;
+  cout << "fc_requested-fc_programmed = " << fc_requested-fc_programmed << endl;
+  cout << "fs_programmed = " << fs_programmed << endl;
+  cout << "fs_programmed-1.92e6 = " << fs_programmed-1.92e6 << endl;
   global_thread_data.main_thread_id=syscall(SYS_gettid);
   global_thread_data.frequency_offset(initial_freq_offset);
 

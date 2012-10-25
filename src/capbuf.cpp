@@ -68,6 +68,7 @@ static void capbuf_rtlsdr_callback(
 // previously captured data.
 // Also, optionally, this function can save each set of captured data
 // to a file.
+double compute_fc_programmed(const double & fosc,const double & intended_flo);
 void capture_data(
   // Inputs
   const double & fc_requested,
@@ -114,7 +115,11 @@ void capture_data(
       ABORT(-1);
     }
     // Calculate the actual center frequency that was programmed.
-    fc_programmed=(double)rtlsdr_get_center_freq(dev);
+    //fc_programmed=(double)rtlsdr_get_center_freq(dev);
+    fc_programmed=compute_fc_programmed(28.8e6,fc_requested);
+    //FIXME!! Only for testing!!!
+    //fc_programmed=fc_requested+(fc_requested-fc_programmed);
+    fc_programmed=fc_programmed+58;
 
     // Reset the buffer
     if (rtlsdr_reset_buffer(dev)<0) {

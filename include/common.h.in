@@ -14,6 +14,8 @@ typedef short int16;
 typedef unsigned short uint16;
 typedef int int32;
 typedef unsigned int uint32;
+typedef long int int64;
+typedef unsigned long int uint64;
 // Prevent int8 and uint8 from printing out as characters instead of integers.
 inline std::ostream & operator<< (
   std::ostream & os,
