@@ -51,6 +51,10 @@
 #define CYAN 6
 #define WHITE 7
 
+// Minimum terminal screensize required to run this program.
+#define LINES_MIN 24
+#define COLS_MIN 80
+
 using namespace itpp;
 using namespace std;
 
@@ -371,14 +375,14 @@ void display_thread(
   initscr();
   start_color();
   use_default_colors();
-  if (LINES<30) {
+  if (LINES<LINES_MIN) {
     endwin();
-    cerr << "Error: not enough rows on terminal display" << endl;
+    cerr << "Error: resize window so it has at least " << LINES_MIN << " rows and " << COLS_MIN << " columns" << endl;
     ABORT(-1);
   }
-  if (COLS<80) {
+  if (COLS<COLS_MIN) {
     endwin();
-    cerr << "Error: not enough columns on terminal display" << endl;
+    cerr << "Error: resize window so it has at least " << LINES_MIN << " rows and " << COLS_MIN << " columns" << endl;
     ABORT(-1);
   }
   // Do not echo input chars to screen.
