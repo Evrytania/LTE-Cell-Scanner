@@ -176,9 +176,13 @@ void display_cell(
         printw(" %4i kHz\n",CB*90);
       }
     } else {
-      printw("%5.1lf dB SNR\n",
-        db10(tracked_cell.crs_sp_raw_av(t)/tracked_cell.crs_np_av(t))
-      );
+      if (isfinite(db10(tracked_cell.crs_sp_raw_av(t)/tracked_cell.crs_np_av(t)))) {
+        printw("%5.1lf dB SNR\n",
+          db10(tracked_cell.crs_sp_raw_av(t)/tracked_cell.crs_np_av(t))
+        );
+      } else {
+        printw(" -Inf dB SNR\n");
+      }
     }
   }
   if (expert_mode) {
@@ -196,9 +200,13 @@ void display_cell(
       );
     }
   } else {
-    printw("  S  %5.1lf dB SNR\n",
-      db10(tracked_cell.sync_sp_av/tracked_cell.sync_np_av)
-    );
+    if (isfinite(db10(tracked_cell.sync_sp_av/tracked_cell.sync_np_av))) {
+      printw("  S  %5.1lf dB SNR\n",
+        db10(tracked_cell.sync_sp_av/tracked_cell.sync_np_av)
+      );
+    } else {
+      printw("  S   -Inf dB SNR\n");
+    }
   }
   attroff(COLOR_PAIR(YELLOW));
 }
@@ -527,11 +535,11 @@ void display_thread(
       } else {
         printw("\n");
       }
-      if (global_thread_data.cell_seconds_dropped()||global_thread_data.raw_seconds_dropped()) {
+      /*if (global_thread_data.cell_seconds_dropped()||global_thread_data.raw_seconds_dropped()) {
         attron(COLOR_PAIR(RED));
         printw("[dropped cell/raw data: %i/%i s]\n",global_thread_data.cell_seconds_dropped(),global_thread_data.raw_seconds_dropped());
         attroff(COLOR_PAIR(RED));
-      } else {
+      } else*/ {
         printw("\n");
       }
       if (expert_mode) {

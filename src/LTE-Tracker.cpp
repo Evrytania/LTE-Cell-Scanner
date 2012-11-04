@@ -168,7 +168,7 @@ void parse_commandline(
     };
     /* getopt_long stores the option index here. */
     int option_index = 0;
-    int c = getopt_long (argc, argv, "hvbf:p:c:i:xl:rd:sn:123456789",
+    int c = getopt_long (argc, argv, "hvbf:p:c:i:xl:rd:sn:1:2:3:4:5:6:7:8:9:",
                      long_options, &option_index);
 
     /* Detect the end of the options. */
@@ -256,63 +256,63 @@ void parse_commandline(
       case '1':
         global_1=strtod(optarg,&endp);
         if ((optarg==endp)||(*endp!='\0')) {
-          cerr << "Error: could not global variable 1" << endl;
+          cerr << "Error: could not parse global variable 1" << endl;
           ABORT(-1);
         }
         break;
       case '2':
         global_2=strtod(optarg,&endp);
         if ((optarg==endp)||(*endp!='\0')) {
-          cerr << "Error: could not global variable 2" << endl;
+          cerr << "Error: could not parse global variable 2" << endl;
           ABORT(-1);
         }
         break;
       case '3':
         global_3=strtod(optarg,&endp);
         if ((optarg==endp)||(*endp!='\0')) {
-          cerr << "Error: could not global variable 3" << endl;
+          cerr << "Error: could not parse global variable 3" << endl;
           ABORT(-1);
         }
         break;
       case '4':
         global_4=strtod(optarg,&endp);
         if ((optarg==endp)||(*endp!='\0')) {
-          cerr << "Error: could not global variable 4" << endl;
+          cerr << "Error: could not parse global variable 4" << endl;
           ABORT(-1);
         }
         break;
       case '5':
         global_5=strtod(optarg,&endp);
         if ((optarg==endp)||(*endp!='\0')) {
-          cerr << "Error: could not global variable 5" << endl;
+          cerr << "Error: could not parse global variable 5" << endl;
           ABORT(-1);
         }
         break;
       case '6':
         global_6=strtod(optarg,&endp);
         if ((optarg==endp)||(*endp!='\0')) {
-          cerr << "Error: could not global variable 6" << endl;
+          cerr << "Error: could not parse global variable 6" << endl;
           ABORT(-1);
         }
         break;
       case '7':
         global_7=strtod(optarg,&endp);
         if ((optarg==endp)||(*endp!='\0')) {
-          cerr << "Error: could not global variable 7" << endl;
+          cerr << "Error: could not parse global variable 7" << endl;
           ABORT(-1);
         }
         break;
       case '8':
         global_8=strtod(optarg,&endp);
         if ((optarg==endp)||(*endp!='\0')) {
-          cerr << "Error: could not global variable 8" << endl;
+          cerr << "Error: could not parse global variable 8" << endl;
           ABORT(-1);
         }
         break;
       case '9':
         global_9=strtod(optarg,&endp);
         if ((optarg==endp)||(*endp!='\0')) {
-          cerr << "Error: could not global variable 9" << endl;
+          cerr << "Error: could not parse global variable 9" << endl;
           ABORT(-1);
         }
         break;
@@ -486,10 +486,19 @@ void config_usb(
   }
 
   // Turn on AGC
+  //MARK;
   if (rtlsdr_set_tuner_gain_mode(dev,0)<0) {
     cerr << "Error: unable to enter AGC mode" << endl;
     ABORT(-1);
   }
+  /*
+  MARK;
+  cout << "Gain : " << global_1 << " dB" << endl;
+  if (rtlsdr_set_tuner_gain(dev,global_1/10.0)<0) {
+    cerr << "Error: unable to manually set gain" << endl;
+    ABORT(-1);
+  }
+  */
 
   // Reset the buffer
   if (rtlsdr_reset_buffer(dev)<0) {
@@ -541,7 +550,11 @@ void read_datafile(
     // Drop several seconds while AGC converges.
     //sig_tx=sig_tx(FS_LTE/16*4,-1);
   }
-  sig_tx=sig_tx(round_i(FS_LTE/16*drop_secs),-1);
+  MARK;
+  cout << size(sig_tx) << endl;
+  MARK;
+  //sig_tx=sig_tx(round_i(FS_LTE/16*drop_secs),length(sig_tx));
+  MARK;
   if (length(sig_tx)==0) {
     cerr << "Error: not enough data in file!" << endl;
     ABORT(-1);

@@ -20,10 +20,12 @@
 #include <sstream>
 #include <queue>
 #include <curses.h>
+#include <boost/math/special_functions/gamma.hpp>
 #include "rtl-sdr.h"
 #include "common.h"
 #include "capbuf.h"
 #include "macros.h"
+#include "dsp.h"
 
 using namespace itpp;
 using namespace std;
@@ -32,7 +34,7 @@ using namespace std;
 #define CAPLENGTH 153600
 
 typedef struct {
-  vector <char> * buf;
+  vector <unsigned char> * buf;
   rtlsdr_dev_t * dev;
 } callback_package_t;
 static void capbuf_rtlsdr_callback(
@@ -42,7 +44,7 @@ static void capbuf_rtlsdr_callback(
 ) {
   //vector <char> & capbuf_raw = *((vector <char> *)ctx);
   callback_package_t * cp=(callback_package_t *)ctx;
-  vector <char> & capbuf_raw=(*((*cp).buf));
+  vector <unsigned char> & capbuf_raw=(*((*cp).buf));
   rtlsdr_dev_t * dev=(*cp).dev;
 
   if (len==0) {
@@ -56,6 +58,7 @@ static void capbuf_rtlsdr_callback(
       capbuf_raw.push_back(buf[t]);
     }
     if (capbuf_raw.size()==CAPLENGTH*2) {
+      //cout << rtlsdr_cancel_async(dev) << endl;
       rtlsdr_cancel_async(dev);
       break;
     }
@@ -122,14 +125,16 @@ void capture_data(
     fc_programmed=fc_programmed+58;
 
     // Reset the buffer
+    /*
     if (rtlsdr_reset_buffer(dev)<0) {
       cerr << "Error: unable to reset RTLSDR buffer" << endl;
       ABORT(-1);
     }
+    */
 
     // Read and store the data.
     // This will block until the call to rtlsdr_cancel_async().
-    vector <char> capbuf_raw;
+    vector <unsigned char> capbuf_raw;
     capbuf_raw.reserve(CAPLENGTH*2);
     callback_package_t cp;
     cp.buf=&capbuf_raw;
@@ -145,9 +150,27 @@ void capture_data(
 #ifndef NDEBUG
     capbuf=NAN;
 #endif
+/*
+    MARK;
+    for (uint32 t=0;t<100;t++) {
+      cout << capbuf_raw[t] << endl;
+    }
+    // Check hand modification here! (complex/real swap/conjugate)
+*/
     for (uint32 t=0;t<CAPLENGTH;t++) {
       capbuf(t)=complex<double>((capbuf_raw[(t<<1)]-127.0)/128.0,(capbuf_raw[(t<<1)+1]-127.0)/128.0);
+      //capbuf(t)=complex<double>((capbuf_raw[(t<<1)]-127.0)/128.0,-(capbuf_raw[(t<<1)+1]-127.0)/128.0);
+      //capbuf(t)=complex<double>((capbuf_raw[(t<<1)+1]-127.0)/128.0,(capbuf_raw[(t<<1)]-127.0)/128.0);
+      //capbuf(t)=complex<double>((capbuf_raw[(t<<1)+1]-127.0)/128.0,-(capbuf_raw[(t<<1)]-127.0)/128.0);
     }
+    /*
+    for (uint32 t=0;t<4;t++) {
+      cout << capbuf(t) << endl;
+    }
+    cout << max(real(capbuf)) << endl;
+    cout << max(imag(capbuf)) << endl;
+    */
+    cout << db10(sigpower(capbuf)) << endl;
 
   }
 

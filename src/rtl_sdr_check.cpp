@@ -114,7 +114,7 @@ void parse_commandline(
     };
     /* getopt_long stores the option index here. */
     int option_index = 0;
-    int c = getopt_long (argc, argv, "hd:f:o:s:i:123456789",
+    int c = getopt_long (argc, argv, "hd:f:o:s:i:1:2:3:4:5:6:7:8:9:",
                      long_options, &option_index);
 
     /* Detect the end of the options. */

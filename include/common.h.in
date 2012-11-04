@@ -21,7 +21,7 @@ inline std::ostream & operator<< (
   std::ostream & os,
   const uint8 & c
 ) {
-  os << ((int)c);
+  os << ((unsigned int)c);
   return os;
 }
 inline std::ostream & operator<< (
@@ -44,7 +44,7 @@ typedef std::vector < std::vector < std::vector < float > > > vf3d;
 typedef std::vector < std::vector < float > > vf2d;
 
 // Some enums must be enclosed in their own namespace because their
-// names conflict with each other and also ITPP declared enums.
+// names conflict with each other and also with ITPP declared enums.
 namespace cp_type_t {
   enum cp_type_t { UNKNOWN = 0, NORMAL, EXTENDED };
 }

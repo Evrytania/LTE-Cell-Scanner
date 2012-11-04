@@ -14,6 +14,7 @@ typedef struct {
   double frequency_offset;
   double frame_timing;
 } td_fifo_pdu_t;
+
 // Structure to describe a cell which is currently being tracked.
 class tracked_cell_t {
   public:
@@ -134,7 +135,8 @@ class tracked_cell_t {
     boost::mutex frame_timing_mutex;
     double frame_timing_private;
 };
-// Structure that is used to record all the tracked cells.
+
+// Structure that stores the list of all the tracked cells.
 typedef struct {
   // List of cells which are currently being tracked.
   // Only the searcher can add elements to this list.
@@ -142,6 +144,7 @@ typedef struct {
   boost::mutex mutex;
   std::list <tracked_cell_t *> tracked_cells;
 } tracked_cell_list_t;
+
 // Global data shared by all threads
 class global_thread_data_t {
   public:
@@ -220,6 +223,7 @@ class global_thread_data_t {
     boost::mutex raw_seconds_dropped_mutex;
     uint32 raw_seconds_dropped_private;
 };
+
 // IPC between main thread and searcher thread covering data capture issues.
 typedef struct {
   boost::mutex mutex;
@@ -228,6 +232,7 @@ typedef struct {
   itpp::cvec capbuf;
   double late;
 } capbuf_sync_t;
+
 // IPC between main thread and producer thread.
 typedef struct {
   boost::mutex mutex;
@@ -255,18 +260,15 @@ void producer_thread(
   tracked_cell_list_t & tracked_cell_list,
   double & fc
 );
-
 void tracker_thread(
   tracked_cell_t & tracked_cell,
   global_thread_data_t & global_thread_data
 );
-
 void searcher_thread(
   capbuf_sync_t & capbuf_sync,
   global_thread_data_t & global_thread_data,
   tracked_cell_list_t & tracked_cell_list
 );
-
 void display_thread(
   sampbuf_sync_t & sampbuf_sync,
   global_thread_data_t & global_thread_data,
