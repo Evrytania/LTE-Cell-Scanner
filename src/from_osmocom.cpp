@@ -115,11 +115,11 @@ double compute_fc_programmed(const double & fosc,const double & intended_flo)
         e4k_pll_params oscp_actual;
         e4k_pll_params * oscp=&oscp_actual;
 
-	uint32 i;
-	uint8 r = 2;
-	uint64 intended_fvco, remainder;
-	uint64 z = 0;
-	uint32 x;
+	uint32_t i;
+	uint8_t r = 2;
+	uint64_t intended_fvco, remainder;
+	uint64_t z = 0;
+	uint32_t x;
 	int flo;
 	int three_phase_mixing = 0;
 	oscp->r_idx = 0;
@@ -139,7 +139,7 @@ double compute_fc_programmed(const double & fosc,const double & intended_flo)
 	//fprintf(stderr, "[E4K] Fint=%u, R=%u\n", intended_flo, r);
 
 	/* flo(max) = 1700MHz, R(max) = 48, we need 64bit! */
-	intended_fvco = (uint64)intended_flo * r;
+	intended_fvco = ((uint64_t)intended_flo) * r;
 
 	/* compute integral component of multiplier */
 	z = intended_fvco / fosc;

@@ -426,6 +426,18 @@ string freq_formatter(
   return temp.str();
 }
 
+/*
+static void rtlsdr_callback_temp(unsigned char *buf, uint32 len, void *ctx) {
+  if (ctx) {
+
+    if (fwrite(buf, 1, len, (FILE*)ctx) != len) {
+      fprintf(stderr, "Short write, samples lost, exiting!\n");
+      //rtlsdr_cancel_async(dev);
+    }
+  }
+}
+*/
+
 // Open the USB device
 void config_usb(
   const double & correction,
@@ -486,19 +498,10 @@ void config_usb(
   }
 
   // Turn on AGC
-  //MARK;
   if (rtlsdr_set_tuner_gain_mode(dev,0)<0) {
     cerr << "Error: unable to enter AGC mode" << endl;
     ABORT(-1);
   }
-  /*
-  MARK;
-  cout << "Gain : " << global_1 << " dB" << endl;
-  if (rtlsdr_set_tuner_gain(dev,global_1/10.0)<0) {
-    cerr << "Error: unable to manually set gain" << endl;
-    ABORT(-1);
-  }
-  */
 
   // Reset the buffer
   if (rtlsdr_reset_buffer(dev)<0) {
@@ -556,7 +559,7 @@ void read_datafile(
   //MARK;
   //cout << size(sig_tx) << endl;
   //MARK;
-  //sig_tx=sig_tx(round_i(FS_LTE/16*drop_secs),length(sig_tx));
+  sig_tx=sig_tx(round_i(FS_LTE/16*drop_secs),length(sig_tx)-1);
   //MARK;
   if (length(sig_tx)==0) {
     cerr << "Error: not enough data in file!" << endl;
@@ -601,7 +604,7 @@ double kalibrate(
       cvec cbload;
       read_datafile(filename,rtl_sdr_format,drop_secs,cbload);
       if (length(cbload)>=length(capbuf)) {
-        capbuf=cbload(1,length(capbuf));
+        capbuf=cbload(0,length(capbuf)-1);
       } else {
         if (!repeat) {
           cerr << "Error: not enough data in file!" << endl;
@@ -614,7 +617,22 @@ double kalibrate(
       fc_programmed=fc_requested;
     } else {
       capture_data(fc_requested,correction,false,false,".",dev,capbuf,fc_programmed);
+/*
+if (global_1) {
+  FILE * file = fopen("blah","wb");
+  rtlsdr_read_async(dev, rtlsdr_callback_temp, (void *)file,32,16*16384);
+}
+*/
     }
+/*
+#define CAPLENGTH 153600
+    cout << "X CB0 " << capbuf[0] << endl;
+    cout << "X CB1 " << capbuf[1] << endl;
+    cout << "X CB2 " << capbuf[2] << endl;
+    cout << "X CB-1 " << capbuf[CAPLENGTH-1] << endl;
+    cout << "X CB-2 " << capbuf[CAPLENGTH-2] << endl;
+    cout << "X CB-3 " << capbuf[CAPLENGTH-3] << endl;
+*/
     //cout << "Capbuf power: " << db10(sigpower(capbuf)) << " dB" << endl;
     if (noise_power)
       capbuf+=blnoise(length(capbuf))*sqrt(noise_power);
@@ -686,6 +704,7 @@ double kalibrate(
 
       // Finally, attempt to decode the MIB
       (*iterator)=decode_mib((*iterator),tfg_comp,rs_dl);
+      cout << (*iterator) << endl << endl;
       if ((*iterator).n_rb_dl==-1) {
         // No MIB could be successfully decoded.
         iterator=detected_cells.erase(iterator);
@@ -806,11 +825,11 @@ int main(
   tracked_cell_list_t tracked_cell_list;
   capbuf_sync_t capbuf_sync;
   global_thread_data_t global_thread_data(fc_requested,fc_programmed,fs_programmed);
-  //cout << "fc_requested = " << fc_requested << endl;
-  //cout << "fc_programmed = " << fc_programmed << endl;
-  //cout << "fc_requested-fc_programmed = " << fc_requested-fc_programmed << endl;
-  //cout << "fs_programmed = " << fs_programmed << endl;
-  //cout << "fs_programmed-1.92e6 = " << fs_programmed-1.92e6 << endl;
+  cout << "fc_requested = " << fc_requested << endl;
+  cout << "fc_programmed = " << fc_programmed << endl;
+  cout << "fc_requested-fc_programmed = " << fc_requested-fc_programmed << endl;
+  cout << "fs_programmed = " << fs_programmed << endl;
+  cout << "fs_programmed-1.92e6 = " << fs_programmed-1.92e6 << endl;
   global_thread_data.main_thread_id=syscall(SYS_gettid);
   global_thread_data.frequency_offset(initial_freq_offset);
 
