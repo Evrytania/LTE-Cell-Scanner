@@ -72,7 +72,7 @@ void print_usage() {
   cout << "'c' is the correction factor to apply and indicates that if the desired" << endl;
   cout << "center frequency is fc, the RTL-SDR dongle should be instructed to tune" << endl;
   cout << "to freqency fc*c so that its true frequency shall be fc. Default: 1.0" << endl << endl;
-  cout << "'ppm' is the remaining frequency error of the crystal. Default: 100" << endl;
+  cout << "'ppm' is the remaining frequency error of the crystal. Default: 120" << endl;
   cout << "" << endl;
   cout << "If the crystal has not been used for a long time, use the default values for" << endl;
   cout << "'ppm' and 'c' until a cell is successfully located. The program will return" << endl;
@@ -106,7 +106,7 @@ void parse_commandline(
   // Default values
   freq_start=-1;
   freq_end=-1;
-  ppm=100;
+  ppm=120;
   correction=1;
   save_cap=false;
   use_recorded_data=false;

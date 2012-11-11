@@ -23,6 +23,9 @@ class tracked_cell_t {
       const uint16 & n_id_cell,
       const int8 & n_ports,
       const cp_type_t::cp_type_t & cp_type,
+      const int8 & n_rb_dl,
+      const phich_duration_t::phich_duration_t & phich_duration,
+      const phich_resource_t::phich_resource_t & phich_resource,
       const double & ft,
       const uint32 & serial_num
     ) :
@@ -31,6 +34,9 @@ class tracked_cell_t {
       n_id_cell(n_id_cell),
       n_ports(n_ports),
       cp_type(cp_type),
+      n_rb_dl(n_rb_dl),
+      phich_duration(phich_duration),
+      phich_resource(phich_resource),
       serial_num(serial_num)
     {
       frame_timing_private=ft;
@@ -71,6 +77,9 @@ class tracked_cell_t {
     const uint16 n_id_cell;
     const int8 n_ports;
     const cp_type_t::cp_type_t cp_type;
+    const int8 n_rb_dl;
+    const phich_duration_t::phich_duration_t phich_duration;
+    const phich_resource_t::phich_resource_t phich_resource;
     const uint32 serial_num;
 
     // Do we need this?

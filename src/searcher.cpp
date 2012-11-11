@@ -1641,7 +1641,7 @@ Cell decode_mib(
         // Unpack the MIB
         ivec c_est_ivec=to_ivec(c_est);
         // DL bandwidth
-        uint8 bw_packed=c_est_ivec(0)*4+c_est_ivec(1)*2+c_est_ivec(2);
+        const uint8 bw_packed=c_est_ivec(0)*4+c_est_ivec(1)*2+c_est_ivec(2);
         switch (bw_packed) {
           case 0:
             cell_out.n_rb_dl=6;

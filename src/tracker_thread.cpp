@@ -650,8 +650,62 @@ int8 do_mib_decode(
         crc_est(t)=1-((int)crc_est(t));
       }
     }
+
+    // Unpack MIB information bits that are used to determine whether
+    // we are still locked on or not. This reduces the probability of
+    // falsely detecting noise as an MIB.
+    ivec c_est_ivec=to_ivec(c_est);
+    const uint8 bw_packed=c_est_ivec(0)*4+c_est_ivec(1)*2+c_est_ivec(2);
+    uint8 n_rb_dl_est=0;
+    switch (bw_packed) {
+      case 0:
+        n_rb_dl_est=6;
+        break;
+      case 1:
+        n_rb_dl_est=15;
+        break;
+      case 2:
+        n_rb_dl_est=25;
+        break;
+      case 3:
+        n_rb_dl_est=50;
+        break;
+      case 4:
+        n_rb_dl_est=75;
+        break;
+      case 5:
+        n_rb_dl_est=100;
+        break;
+    }
+
+    // PHICH duration
+    phich_duration_t::phich_duration_t phich_duration_est=c_est_ivec(3)?phich_duration_t::EXTENDED:phich_duration_t::NORMAL;
+    // PHICH resources
+    uint8 phich_res=c_est_ivec(4)*2+c_est_ivec(5);
+    phich_resource_t::phich_resource_t phich_resource_est;
+    switch (phich_res) {
+      case 0:
+        phich_resource_est=phich_resource_t::oneSixth;
+        break;
+      case 1:
+        phich_resource_est=phich_resource_t::half;
+        break;
+      case 2:
+        phich_resource_est=phich_resource_t::one;
+        break;
+      case 3:
+      default:
+        phich_resource_est=phich_resource_t::two;
+        break;
+    }
+
     // Did we find it?
-    if (crc_est==c_est(24,-1)) {
+    if (
+      (crc_est==c_est(24,-1)) &&
+      (n_rb_dl_est==tracked_cell.n_rb_dl) &&
+      (phich_duration_est==tracked_cell.phich_duration) &&
+      (phich_resource_est==tracked_cell.phich_resource)
+    ) {
       mib_fifo_synchronized=1;
       {
         boost::mutex::scoped_lock lock(tracked_cell.meas_mutex);

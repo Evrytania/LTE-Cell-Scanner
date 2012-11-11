@@ -130,7 +130,7 @@ void parse_commandline(
 ) {
   // Default values
   fc=-1;
-  ppm=100;
+  ppm=120;
   correction=1;
   device_index=-1;
   expert_mode=false;
@@ -440,7 +440,6 @@ static void rtlsdr_callback_temp(unsigned char *buf, uint32 len, void *ctx) {
 
 // Open the USB device
 void config_usb(
-  const double & correction,
   const int32 & device_index_cmdline,
   const double & fc,
   rtlsdr_dev_t * & dev,
@@ -476,7 +475,7 @@ void config_usb(
   }
 
   // Set sampling frequency.
-  uint32 fs_requested=itpp::round(1920000.0*correction);
+  uint32 fs_requested=1920000;
   if (rtlsdr_set_sample_rate(dev,fs_requested)<0) {
     cerr << "Error: unable to set sampling rate" << endl;
     ABORT(-1);
@@ -492,7 +491,7 @@ void config_usb(
   //fs_programmed=(double)rtlsdr_get_sample_rate(dev);
 
   // Center frequency
-  if (rtlsdr_set_center_freq(dev,itpp::round(fc*correction))<0) {
+  if (rtlsdr_set_center_freq(dev,itpp::round(fc))<0) {
     cerr << "Error: unable to set center frequency" << endl;
     ABORT(-1);
   }
@@ -584,7 +583,8 @@ double kalibrate(
   // Generate a list of frequency offsets that should be searched for each
   // center frequency.
   const uint16 n_extra=floor_i((fc_requested*ppm/1e6+2.5e3)/5e3);
-  const vec f_search_set=to_vec(itpp_ext::matlab_range(-n_extra*5000,5000,n_extra*5000));
+  const vec f_search_set=(fc_requested*correction-fc_requested)+to_vec(itpp_ext::matlab_range(-n_extra*5000,5000,n_extra*5000));
+  //cout << f_search_set << endl;
   // Results are stored in this vector.
   list <Cell> detected_cells;
   // Loop until a cell is found
@@ -608,7 +608,7 @@ double kalibrate(
       }
       fc_programmed=fc_requested;
     } else {
-      capture_data(fc_requested,correction,false,false,".",dev,capbuf,fc_programmed);
+      capture_data(fc_requested,1.0,false,false,".",dev,capbuf,fc_programmed);
     }
     cout << "Capbuf power: " << db10(sigpower(capbuf)) << " dB" << endl;
     if (noise_power)
@@ -726,14 +726,14 @@ double kalibrate(
   const double crystal_freq_actual=fc_programmed-best.freq_superfine;
   // Calculate correction factors
   const double correction_residual=(true_location/fc_requested*fc_programmed)/crystal_freq_actual;
-  const double correction_new=correction*correction_residual;
+  //const double correction_new=correction*correction_residual;
 
   if (verbosity>=1) {
     cout << "Calibration succeeded!" << endl;
     cout << "   Residual frequency offset: " << best.freq_superfine << endl;
     cout << "   New correction factor: ";
     stringstream ss;
-    ss << setprecision(20) << correction_new;
+    ss << setprecision(20) << correction_residual;
     cout << ss.str() << endl;
   }
 
@@ -786,7 +786,7 @@ int main(
   rtlsdr_dev_t * dev=NULL;
   double fs_programmed;
   if (!use_recorded_data) {
-    config_usb(correction,device_index,fc_requested,dev,fs_programmed);
+    config_usb(device_index,fc_requested,dev,fs_programmed);
   } else {
     fs_programmed=correction*1.92e6;
   }

@@ -214,7 +214,16 @@ void searcher_thread(
 
       // Launch a cell tracker process!
       //tracked_cell_t * new_cell = new tracked_cell_t((*iterator).n_id_cell(),(*iterator).n_ports,(*iterator).cp_type,(*iterator).frame_start/k_factor+capbuf_sync.late,serial_num((*iterator).n_id_cell()));
-      tracked_cell_t * new_cell = new tracked_cell_t((*iterator).n_id_cell(),(*iterator).n_ports,(*iterator).cp_type,(*iterator).frame_start*(FS_LTE/16)/(fs_programmed*k_factor)+capbuf_sync.late,serial_num((*iterator).n_id_cell()));
+      tracked_cell_t * new_cell = new tracked_cell_t(
+        (*iterator).n_id_cell(),
+        (*iterator).n_ports,
+        (*iterator).cp_type,
+        (*iterator).n_rb_dl,
+        (*iterator).phich_duration,
+        (*iterator).phich_resource,
+        (*iterator).frame_start*(FS_LTE/16)/(fs_programmed*k_factor)+capbuf_sync.late,
+        serial_num((*iterator).n_id_cell())
+      );
       serial_num((*iterator).n_id_cell())++;
       // Cannot launch thread here. If thread was launched here, it would
       // have the same (low) priority as the searcher thread.
