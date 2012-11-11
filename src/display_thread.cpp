@@ -384,12 +384,12 @@ void display_thread(
   start_color();
   use_default_colors();
   if (LINES<LINES_MIN) {
-    endwin();
+    //endwin();
     cerr << "Error: resize window so it has at least " << LINES_MIN << " rows and " << COLS_MIN << " columns" << endl;
     ABORT(-1);
   }
   if (COLS<COLS_MIN) {
-    endwin();
+    //endwin();
     cerr << "Error: resize window so it has at least " << LINES_MIN << " rows and " << COLS_MIN << " columns" << endl;
     ABORT(-1);
   }
@@ -530,7 +530,7 @@ void display_thread(
       move(CELL_DISP_END_ROW+1,0);
       if (!all_cells_displayed) {
         attron(COLOR_PAIR(YELLOW));
-        printw("Warning: some tracked cells could not be displayed!\n");
+        printw("Warning: some tracked cells could not be displayed! (screen has too few rows)\n");
         attroff(COLOR_PAIR(YELLOW));
       } else {
         printw("\n");
@@ -764,7 +764,7 @@ void display_thread(
     switch (ch) {
       case 'q':
       case 'Q':
-        endwin();
+        //endwin();
         ABORT(-1);
         break;
       case 'r':

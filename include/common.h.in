@@ -134,7 +134,8 @@ std::ostream & operator<< (
   const Cell & c
 );
 
-#define ABORT(A) endwin(); exit(A)
+// The delay is necessary to prevent a sefault happening on exit.
+#define ABORT(A) endwin(); usleep(100); exit(A)
 
 #endif
 

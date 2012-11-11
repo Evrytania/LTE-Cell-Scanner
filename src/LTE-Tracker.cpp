@@ -802,11 +802,13 @@ int main(
   tracked_cell_list_t tracked_cell_list;
   capbuf_sync_t capbuf_sync;
   global_thread_data_t global_thread_data(fc_requested,fc_programmed,fs_programmed);
+  /*
   cout << "fc_requested = " << fc_requested << endl;
   cout << "fc_programmed = " << fc_programmed << endl;
   cout << "fc_requested-fc_programmed = " << fc_requested-fc_programmed << endl;
   cout << "fs_programmed = " << fs_programmed << endl;
   cout << "fs_programmed-1.92e6 = " << fs_programmed-1.92e6 << endl;
+  */
   global_thread_data.main_thread_id=syscall(SYS_gettid);
   global_thread_data.frequency_offset(initial_freq_offset);
 
