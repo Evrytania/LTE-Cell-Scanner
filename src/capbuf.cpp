@@ -34,43 +34,6 @@ using namespace std;
 // Number of complex samples to capture.
 #define CAPLENGTH 153600
 
-/*
-static void rtlsdr_callback_temp(unsigned char *buf, uint32 len, void *ctx) {
-  if (ctx) {
-
-    if (fwrite(buf, 1, len, (FILE*)ctx) != len) {
-      fprintf(stderr, "Short write, samples lost, exiting!\n");
-      //rtlsdr_cancel_async(dev);
-    }
-  }
-}
-*/
-
-
-/*
-rtlsdr_dev_t * dev_global;
-vector <int> temp_cb;
-static void temp_callback(
-  unsigned char * buf,
-  uint32_t len,
-  void * ctx
-) {
-  if (len<CAPLENGTH) {
-    cout << "len is less than CAPLENGTH" << endl;
-    ABORT(-1);
-  }
-  temp_cb=vector <int> (0);
-  temp_cb.reserve(2*CAPLENGTH);
-  double sp=0;
-  for (uint32 t=0;t<2*CAPLENGTH;t++) {
-    temp_cb.push_back(buf[t]);
-    sp+=pow((((double)buf[t])-127.0)/128.0,2.0);
-  }
-  cout << "sp : " << db10(sp/2/CAPLENGTH) << endl;
-  rtlsdr_cancel_async(dev_global);
-}
-*/
-
 typedef struct {
   vector <unsigned char> * buf;
   rtlsdr_dev_t * dev;
@@ -185,51 +148,7 @@ void capture_data(
     cp.buf=&capbuf_raw;
     cp.dev=dev;
 
-//FILE * file = fopen("blah","wb");
-//rtlsdr_read_async(dev, rtlsdr_callback_temp, (void *)file,32,16*16384);
-
     rtlsdr_read_async(dev,capbuf_rtlsdr_callback,(void *)&cp,0,0);
-    //dev_global=dev;
-    //rtlsdr_read_async(dev,temp_callback,(void *)&cp,0,0);
-    /*
-    if (capbuf_raw.size()!=CAPLENGTH*2) {
-      cerr << "Error: unable to read sufficient data from USB device" << endl;
-      ABORT(-1);
-    }
-    */
-
-    // Save to a file
-    /*
-    FILE * file = fopen("blah","wb");
-    unsigned char buf[2*CAPLENGTH];
-    for (uint32 t=0;t<2*CAPLENGTH;t++) {
-      buf[t]=capbuf_raw[t];
-    }
-    if (fwrite(buf, 1, 2*CAPLENGTH, file) != 2*CAPLENGTH) {
-      cout << "Unsuccessfule write..." << endl;
-      ABORT(-1);
-    }
-    fclose(file);
-    */
-  // Open file
-  FILE * file = fopen("cap_working","rb");
-  if (!file) {
-    cerr << "Error: could not open input file" << endl;
-    ABORT(-1);
-  }
-
-  // Read entire file, all at once!
-  uint8 * buffer=(uint8 *)malloc(2*CAPLENGTH*sizeof(uint8));
-  uint32 n_read=fread(buffer,1,2*CAPLENGTH,file);
-  if (n_read!=2*CAPLENGTH) {
-    cerr << "Error: error while reading file" << endl;
-    ABORT(-1);
-  }
-
-  for (uint32 t=0;t<2*CAPLENGTH;t++) {
-    capbuf_raw[t]=buffer[t];
-  }
-
 
     // Convert to complex
     capbuf.set_size(CAPLENGTH);
@@ -244,6 +163,7 @@ void capture_data(
       //capbuf(t)=complex<double>((capbuf_raw[(t<<1)+1]-127.0)/128.0,-(capbuf_raw[(t<<1)]-127.0)/128.0);
       //capbuf(t)=complex<double>((temp_cb[(t<<1)]-127.0)/128.0,(temp_cb[(t<<1)+1]-127.0)/128.0);
     }
+    //cout << "capbuf power: " << db10(sigpower(capbuf)) << " dB" << endl;
 
   }
 

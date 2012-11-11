@@ -194,8 +194,8 @@ void searcher_thread(
 
       // Finally, attempt to decode the MIB
       (*iterator)=decode_mib((*iterator),tfg_comp,rs_dl);
-      cout << (*iterator) << endl << endl;
-      sleep(100000);
+      //cout << (*iterator) << endl << endl;
+      //sleep(100000);
       if ((*iterator).n_rb_dl==-1) {
         // No MIB could be successfully decoded.
         iterator=detected_cells.erase(iterator);

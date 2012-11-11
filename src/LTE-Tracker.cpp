@@ -509,7 +509,7 @@ void config_usb(
     ABORT(-1);
   }
 
-  // Discard about 3s worth of data to give the AGC time to converge
+  // Discard several seconds worth of data to give the AGC time to converge
   if (verbosity>=2) {
     cout << "Waiting for AGC to converge..." << endl;
   }
@@ -519,7 +519,7 @@ void config_usb(
   uint8 * buffer=(uint8 *)malloc(BLOCK_SIZE*sizeof(uint8));
   while (true) {
     // sync mode is unreliable in that it may drop samples. However, in this
-    // case we can still use it because we dont' care about the data and sync
+    // case we can still use it because we don't care about the data and sync
     // mode will still gurantee a minimum number of samples have been
     // discarded.
     if (rtlsdr_read_sync(dev,buffer,BLOCK_SIZE,&n_read_current)<0) {
@@ -537,7 +537,7 @@ void config_usb(
   free(buffer);
 }
 
-// Read a file either in rtlsdr format or itp format.
+// Read a file either in rtlsdr format or itpp format.
 void read_datafile(
   const string & filename,
   const bool & rtl_sdr_format,
@@ -550,17 +550,9 @@ void read_datafile(
     itf>>sig_tx;
   } else {
     itpp_ext::rtl_sdr_to_cvec(filename,sig_tx);
-    // TODO: Fix code here...
-    MARK;
-    // Drop several seconds while AGC converges.
-    //sig_tx=sig_tx(FS_LTE/16*4,-1);
   }
-  // TODO: Fix code here...
-  //MARK;
-  //cout << size(sig_tx) << endl;
-  //MARK;
-  sig_tx=sig_tx(round_i(FS_LTE/16*drop_secs),length(sig_tx)-1);
-  //MARK;
+  // Drop several seconds while AGC converges.
+  sig_tx=sig_tx(MIN(round_i(FS_LTE/16*drop_secs),length(sig_tx)-1),length(sig_tx)-1);
   if (length(sig_tx)==0) {
     cerr << "Error: not enough data in file!" << endl;
     ABORT(-1);
@@ -617,23 +609,8 @@ double kalibrate(
       fc_programmed=fc_requested;
     } else {
       capture_data(fc_requested,correction,false,false,".",dev,capbuf,fc_programmed);
-/*
-if (global_1) {
-  FILE * file = fopen("blah","wb");
-  rtlsdr_read_async(dev, rtlsdr_callback_temp, (void *)file,32,16*16384);
-}
-*/
     }
-/*
-#define CAPLENGTH 153600
-    cout << "X CB0 " << capbuf[0] << endl;
-    cout << "X CB1 " << capbuf[1] << endl;
-    cout << "X CB2 " << capbuf[2] << endl;
-    cout << "X CB-1 " << capbuf[CAPLENGTH-1] << endl;
-    cout << "X CB-2 " << capbuf[CAPLENGTH-2] << endl;
-    cout << "X CB-3 " << capbuf[CAPLENGTH-3] << endl;
-*/
-    //cout << "Capbuf power: " << db10(sigpower(capbuf)) << " dB" << endl;
+    cout << "Capbuf power: " << db10(sigpower(capbuf)) << " dB" << endl;
     if (noise_power)
       capbuf+=blnoise(length(capbuf))*sqrt(noise_power);
 
@@ -704,7 +681,7 @@ if (global_1) {
 
       // Finally, attempt to decode the MIB
       (*iterator)=decode_mib((*iterator),tfg_comp,rs_dl);
-      cout << (*iterator) << endl << endl;
+      //cout << (*iterator) << endl << endl;
       if ((*iterator).n_rb_dl==-1) {
         // No MIB could be successfully decoded.
         iterator=detected_cells.erase(iterator);

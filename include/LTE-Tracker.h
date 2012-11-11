@@ -160,6 +160,7 @@ class global_thread_data_t {
     {
       searcher_cycle_time_private=0;
       cell_seconds_dropped_private=0;
+      raw_seconds_dropped_private=0;
     }
     // These values will never change.
     const double fc_requested;
