@@ -547,14 +547,17 @@ void read_datafile(
     itf>>sig_tx;
   } else {
     itpp_ext::rtl_sdr_to_cvec(filename,sig_tx);
+    // TODO: Fix code here...
+    MARK;
     // Drop several seconds while AGC converges.
     //sig_tx=sig_tx(FS_LTE/16*4,-1);
   }
-  MARK;
-  cout << size(sig_tx) << endl;
-  MARK;
+  // TODO: Fix code here...
+  //MARK;
+  //cout << size(sig_tx) << endl;
+  //MARK;
   //sig_tx=sig_tx(round_i(FS_LTE/16*drop_secs),length(sig_tx));
-  MARK;
+  //MARK;
   if (length(sig_tx)==0) {
     cerr << "Error: not enough data in file!" << endl;
     ABORT(-1);

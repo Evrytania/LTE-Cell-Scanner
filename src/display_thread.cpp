@@ -535,11 +535,11 @@ void display_thread(
       } else {
         printw("\n");
       }
-      /*if (global_thread_data.cell_seconds_dropped()||global_thread_data.raw_seconds_dropped()) {
+      if (global_thread_data.cell_seconds_dropped()||global_thread_data.raw_seconds_dropped()) {
         attron(COLOR_PAIR(RED));
         printw("[dropped cell/raw data: %i/%i s]\n",global_thread_data.cell_seconds_dropped(),global_thread_data.raw_seconds_dropped());
         attroff(COLOR_PAIR(RED));
-      } else*/ {
+      } else {
         printw("\n");
       }
       if (expert_mode) {
