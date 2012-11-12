@@ -610,7 +610,7 @@ double kalibrate(
     } else {
       capture_data(fc_requested,1.0,false,false,".",dev,capbuf,fc_programmed);
     }
-    cout << "Capbuf power: " << db10(sigpower(capbuf)) << " dB" << endl;
+    //cout << "Capbuf power: " << db10(sigpower(capbuf)) << " dB" << endl;
     if (noise_power)
       capbuf+=blnoise(length(capbuf))*sqrt(noise_power);
 
@@ -730,7 +730,7 @@ double kalibrate(
 
   if (verbosity>=1) {
     cout << "Calibration succeeded!" << endl;
-    cout << "   Residual frequency offset: " << best.freq_superfine << endl;
+    cout << "   Residual frequency offset: " << best.freq_superfine << " Hz" << endl;
     cout << "   New correction factor: ";
     stringstream ss;
     ss << setprecision(20) << correction_residual;

@@ -123,22 +123,30 @@ void capture_data(
       cerr << "Error: unable to set center frequency" << endl;
       ABORT(-1);
     }
+
     // Calculate the actual center frequency that was programmed.
-    //fc_programmed=(double)rtlsdr_get_center_freq(dev);
-    fc_programmed=compute_fc_programmed(28.8e6,fc_requested);
-    //FIXME!! Only for testing!!!
-    //fc_programmed=fc_requested+(fc_requested-fc_programmed);
-    fc_programmed=fc_programmed+58;
-    //MARK;
-    //fc_programmed=fc_requested;
+    if (rtlsdr_get_tuner_type(dev)==RTLSDR_TUNER_E4000) {
+      // This does not return the true center frequency, only the requested
+      // center frequency.
+      //fc_programmed=(double)rtlsdr_get_center_freq(dev);
+      // Directly call some rtlsdr frequency calculation routines.
+      fc_programmed=compute_fc_programmed(28.8e6,fc_requested);
+      // For some reason, this will tame the slow time offset drift.
+      // I don't know if this is a problem caused by the hardware or a problem
+      // with the tracking algorithm.
+      fc_programmed=fc_programmed+58;
+      //MARK;
+      //fc_programmed=fc_requested;
+    } else {
+      // Unsupported tuner...
+      fc_programmed=fc_requested;
+    }
 
     // Reset the buffer
-    /*
     if (rtlsdr_reset_buffer(dev)<0) {
       cerr << "Error: unable to reset RTLSDR buffer" << endl;
       ABORT(-1);
     }
-    */
 
     // Read and store the data.
     // This will block until the call to rtlsdr_cancel_async().
@@ -156,12 +164,14 @@ void capture_data(
     capbuf=NAN;
 #endif
     for (uint32 t=0;t<CAPLENGTH;t++) {
-      // First line is correct
+      // Normal
       capbuf(t)=complex<double>((((double)capbuf_raw[(t<<1)])-127.0)/128.0,(((double)capbuf_raw[(t<<1)+1])-127.0)/128.0);
+      // Conjugate
       //capbuf(t)=complex<double>((capbuf_raw[(t<<1)]-127.0)/128.0,-(capbuf_raw[(t<<1)+1]-127.0)/128.0);
+      // Swap I/Q
       //capbuf(t)=complex<double>((capbuf_raw[(t<<1)+1]-127.0)/128.0,(capbuf_raw[(t<<1)]-127.0)/128.0);
+      // Swap I/Q and conjugate
       //capbuf(t)=complex<double>((capbuf_raw[(t<<1)+1]-127.0)/128.0,-(capbuf_raw[(t<<1)]-127.0)/128.0);
-      //capbuf(t)=complex<double>((temp_cb[(t<<1)]-127.0)/128.0,(temp_cb[(t<<1)+1]-127.0)/128.0);
     }
     //cout << "capbuf power: " << db10(sigpower(capbuf)) << " dB" << endl;
 
