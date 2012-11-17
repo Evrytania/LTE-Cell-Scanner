@@ -1,0 +1,141 @@
+<h1>LTE Cell Search</h1>
+
+<p>The latest version of this document is <a href="http://www.evrytania.com/lte-tools/lte-cell-scanner">available online.</a></p>
+
+<h2>Brief</h2>
+<p><code>CellSearch</code> searches a set of carrier frequencies for LTE basestation
+signals and returns a list of all cells found. A cell is considered
+identified if the master information block (MIB) can be successfully
+decoded (i.e. passes CRC check).</p>
+
+<h2>Command line options:</h2>
+<pre>
+CellSearch -s start_frequency [optional_parameters]
+  Basic options
+    -h --help
+      print help screen
+    -v --verbose
+      increase status messages from program
+    -b --brief
+      reduce status messages from program
+    -i --device-index N
+      specify which attached RTLSDR dongle to use
+  Frequency search options:
+    -s --freq-start fs
+      frequency where cell search should start
+    -e --freq-end fe
+      frequency where cell search should end
+  Dongle LO correction options:
+    -p --ppm ppm
+      crystal remaining PPM error
+    -c --correction c
+      crystal correction factor
+  Capture buffer save/ load options:
+    -r --record
+      save captured data in the files capbuf_XXXX.it
+    -l --load
+      used data in capbuf_XXXX.it files instead of live data
+    -d --data-dir dir
+      directory where capbuf_XXXX.it files are located
+</pre>
+
+<h2>Basic usage</h2>
+<p>If you don't know the center frequency of the LTE cells in your area, you
+will have to perform a search specifying the first and the last frequency
+of the band that you want the dongle to examine. See <a href="http://niviuk.free.fr/lte_band.php">http://niviuk.free.fr/lte_band.php</a> for a list of
+possible LTE bands.</p>
+
+<p>In the US, the band between 715MHz and 768MHz often contains LTE carriers and
+the following command will search all possible LTE center frequencies there:</p>
+<code>CellSearch --freq-start 715e6 --freq-end 768e6</code>
+
+<p>On a dual core i7-2640
+with the default PPM value of 100, this search takes about 6s per center
+frequency. With a PPM value of 10 (which requires a crystal calibration factor as described below), the
+search takes about 1s per center frequency.</p>
+
+<p>If you know a frequency where LTE cells are located, perhaps from a
+previous call
+to CellSearch, you can specify just that frequency and the program will search
+for and report all cells detected on that frequency. In my location, in St.
+Louis, there are two LTE carriers, one for AT&amp;T and one for Verizon.
+To scan for cells on those two frequencies:</p>
+<code>CellSearch --freq-start 739000000</code>
+<p>OR<p>
+<code>CellSearch --freq-start 751000000</code>
+<p>These same frequencies are known to have LTE carriers in San Francisco, Chicago,
+and Portland.</p>
+
+<h2>Program output</h2>
+<p>After the program finishes executing, it prints a summary of all
+the carriers where LTE signals were present and also a list of all
+detected cells. For example:<p>
+
+<pre>
+Detected the following cells:
+A: #antenna ports C: CP type ; P: PHICH duration ; PR: PHICH resource type
+CID A      fc   foff RXPWR C nRB P  PR CrystalCorrectionFactor
+<font color="ff0000">277</font> <font color="0000ff">2</font>    <font color="00FF00">739M</font> <font color="9f9f00">-2.05k</font> <font color="ff00ff">-4.62</font> <font color="009f9f">N</font>  <font color="ff9f30">50</font> <font color="9f2f7f">N</font> <font color="7f7fff">one</font> 0.99999722639394528212
+271 2    739M -2.05k -5.21 N  50 N one 0.99999722679001878944
+256 2    739M -2.05k -9.01 N  50 N one 0.9999972314719194344
+259 2    739M -2.07k -9.91 N  50 N one 0.99999720228692212665
+150 2    751M -2.07k -6.07 N  50 N one 0.99999721052901307361
+</pre>
+
+<p>In the above example program output, three cells were detected. An LTE cell
+with ID <font color="ff0000">277</font> was found on carrier frequency <font
+color="00ff00">739 MHz</font>. This cell has <font color="0000ff">2</font>
+transmit antennas and the frequency offset between this cell and the dongle was
+<font color="9f9f00">-2.05 kHz</font>.  The received power was <font
+color="ff00ff">-4.62 dB</font> and it had a <font color="009f9f">normal</font>
+cyclic prefix. This cell occupies <font color="ff9f30">50</font> resource
+blocks (10MHz), the PHICH has <font color="9f2f7f">normal</font> duration and
+resource type <font color="7f7fff">one</font>.</p>
+
+<h2>Crystal calibration</h2>
+<p>The last column in the program output is the crystal correction factor which
+provides information about the frequency error of the crystal in the dongle.
+Suppose this column has the value C. This means that although the crystal in
+the dongle may be stamped with a label of 28.8MHz, its actual frequency is
+C*28.8MHz. In calculating this value the basestation is considered as an
+absolute reference since it has a frequency error of only 0.050
+PPM.</p>
+
+<p>The very first time an RTL2832 dongle is powered on, the frequency
+uncertainty is very high at around 100 PPM. This means that if 1000 dongles are
+randomly chosen and measured, each of them will have a different frequency
+error from -100 PPM to +100 PPM. However, for any one dongle, the frequency
+error does not change significantly from hour to hour or day to day.</p>
+
+<p>Furthermore, the frequency error due to temperature drift does not seem to be very
+large. For one particular dongle there is a drift of about 4kHz at 739MHz
+as the dongle warms from room temperature to operating temperature (5 minutes). This is a frequency uncertainty of about 5 PPM.
+</p>
+
+<p>The --ppm parameter to the program specifies the remaining frequency
+uncertainty after the frequency correction factor has been applied.
+The first time that a dongle is used, the default value of 100
+should be used until a cell is identified and the program
+returns a new correction factor.
+Subsequently, when a correction coefficient is supplied while re-running the
+program, the PPM value can be reduced, resulting in a much faster cell
+search.</p>
+
+<p>For example, if the program just exited and reported a correction factor of
+1.000052 and the program is re-run later, one can use this correction
+factor to improve execution speed by reducing the PPM value. If one immediately
+re-runs the program, it is possible to reduce the PPM value all the way down
+to zero:</p>
+<code>CellSearch --correction 1.000052 --ppm 0 --freq-start 739000000</code>
+<p>In general, there will always be some remaining frequency uncertainty and
+it is not recommended to set the ppm value less than 10:</p>
+<code>CellSearch --correction 1.000052 --ppm 10 --freq-start 739000000</code>
+
+<h2>Known Issues:</h2>
+<p>If you get the following error message:</p>
+<code>usb_open error -3</code>
+<p>This means that you need to be 'root' to access the device. Use:</p>
+<code>sudo CellSearch XXXXX</code>
+<p>instead of</p>
+<code>CellSearch XXXXX</code>
+

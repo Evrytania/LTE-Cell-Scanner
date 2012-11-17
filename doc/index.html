@@ -1,0 +1,61 @@
+<h1>LTE Cell Tools</h1>
+
+<p>The latest version of this document is <a href="http://www.evrytania.com/lte-tools">available online.</a></p>
+
+<h2>Introduction</h2>
+<p>This is a collection of tools to locate and track LTE basestation
+cells using very low performance RF front ends. For
+example, these tools work with RTL2832 based dongles (E4000, R820T, etc.)
+which have a
+noise figure of 20dB, only 8 bits in the A/D, and a crystal with a
+frequency error of about 100 PPM. In fact, since the LTE downlink center
+frequencies are accurate to within 0.050 PPM, this program can be used to
+calibrate the receiver's oscillator.
+</p>
+
+<p>Included executables:</p>
+<ul>
+<li><a href="CellSearch.html">CellSearch</a> is a tool that will scan a set of frequencies and identify LTE carriers. It also decodes the MIB.</li>
+<li><a href="LTE-Tracker.html">LTE-Tracker</a> is a realtime tool that continuously identifies and tracks all the LTE cells on a particular frequency.</li>
+</ul>
+
+<p>This code was developed on an Ubuntu 12.04 system. It has also been made to work on <a href="http://superkuh.com/rtlsdr.html#ltescanner">Ubuntu 10.04</a></p>
+
+<p>To report any bugs, contact <a href="mailto:james@evrytania.com">James Peroulas &lt;james@evrytania.com&gt;</a>, or use the <a href="https://github.com/Evrytania/LTE-Cell-Scanner/issues">bugtracker on github.</a></p>
+
+<h2>Obtaining the code</h2>
+<p>Using git:</p>
+<code>git clone git://github.com/Evrytania/LTE-Cell-Scanner.git</code>
+<p>ZIP file:</p>
+<code>https://github.com/Evrytania/Matlab-Library/zipball/master</code>
+
+<h2>Required libraries</h2>
+<p>The following libraries are required to compile and run these programs:</p>
+<ul>
+<li><a href="http://www.boost.org/">Boost</a></li>
+<li><a href="http://itpp.sourceforge.net/current/">ITPP</a></li>
+<li><a href="http://sdr.osmocom.org/trac/wiki/rtl-sdr">rtlsdr</a></li>
+<li><a href="http://www.fftw.org/">fftw</a></li>
+</ul>
+
+<h2>Compile</h2>
+<pre>
+cd LTE-Cell-Scanner
+mkdir build
+cd build
+cmake ..
+make
+</pre>
+
+<h2>Install</h2>
+<code>sudo make install</code>
+
+<h2>Un-Install</h2>
+<code>sudo make uninstall</code>
+
+<h2>Related links:</h2>
+<ul>
+<li><a href="http://sourceforge.net/p/openlte/home/Home/">OpenLTE</a>
+</li>
+</ul>
+

@@ -17,16 +17,16 @@ TARGET_LINK_LIBRARIES (LTE-Tracker optimized itpp ${common_link_libs})
 
 # Code use to test whether the rtl_sdr dongle is dropping samples
 # or not.
-ADD_EXECUTABLE (rtl_sdr_check rtl_sdr_check.cpp)
-TARGET_LINK_LIBRARIES (rtl_sdr_check general LTE_MISC curses)
-TARGET_LINK_LIBRARIES (rtl_sdr_check debug itpp_debug ${common_link_libs})
-TARGET_LINK_LIBRARIES (rtl_sdr_check optimized itpp ${common_link_libs})
+#ADD_EXECUTABLE (rtl_sdr_check rtl_sdr_check.cpp)
+#TARGET_LINK_LIBRARIES (rtl_sdr_check general LTE_MISC curses)
+#TARGET_LINK_LIBRARIES (rtl_sdr_check debug itpp_debug ${common_link_libs})
+#TARGET_LINK_LIBRARIES (rtl_sdr_check optimized itpp ${common_link_libs})
 
 # Experimental code...
-ADD_EXECUTABLE (exp exp.c)
-TARGET_LINK_LIBRARIES (exp general LTE_MISC)
-TARGET_LINK_LIBRARIES (exp debug itpp_debug ${common_link_libs})
-TARGET_LINK_LIBRARIES (exp optimized itpp ${common_link_libs})
+#ADD_EXECUTABLE (exp exp.cpp)
+#TARGET_LINK_LIBRARIES (exp general LTE_MISC)
+#TARGET_LINK_LIBRARIES (exp debug itpp_debug ${common_link_libs})
+#TARGET_LINK_LIBRARIES (exp optimized itpp ${common_link_libs})
 
 # Create a test that tests the overall functionality of the cell searcher.
 # The tests in the 'tests' subdirectory test some of the smaller internal

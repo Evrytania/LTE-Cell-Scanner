@@ -1,21 +1,45 @@
+--------------------------
 LTE Cell Scanner / Tracker
+--------------------------
 
 This is a collection of tools to locate and track LTE basestation cells using
 very low performance RF front ends. For example, these tools work with RTL2832
 based dongles (E4000, R820T, etc.) which have a noise figure of 20dB, only 8
 bits in the A/D, and a crystal with a frequency error of about 100 ppm.
 
+The 'CellSearch' program can be used to search for LTE carriers within a range
+of frequencies.  Once an LTE frequency has been located, 'LTE-Tracker' can be
+used to monitor and track, in realtime, any LTE cells on that frequency.
+
 The main documentation in html format can be found on the web at:
-XXX 
+  http://www.evrytania.com/lte-tools
 And in the doc/index.html subdirectory of this distribution.
 
+For questions, comments, or bug reports, contact James Peroulas
+james@evrytania.com, or check the bugtracker on github:
+  https://github.com/Evrytania/LTE-Cell-Scanner/issues
+
+------
 Quick build instructions:
+------
   cd LTE-Cell-Scanner
   mkdir build
   cd build
   cmake ..
   make
 
+------
 Install:
+------
   sudo make install
+
+------
+Quick usage instructions:
+------
+
+Search for LTE carriers within a common LTE frequency range used in the US:
+  CellSearch --freq-start 715e6 --freq-end 768e6
+
+Start tracking LTE cells on frequency 739 MHz:
+  LTE-Tracker -f 739000000
 
