@@ -17,6 +17,7 @@
 
 #include <itpp/itbase.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
 #include <curses.h>
