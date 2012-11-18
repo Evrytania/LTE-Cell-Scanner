@@ -98,7 +98,7 @@ itpp::vec matlab_range(const double first, const double incr, const double last)
   itpp::vec r;
   //it_assert_debug(incr!=0,"increment is zero...");
   ASSERT(incr!=0,"increment is zero...");
-  if ((last-first)*incr>=0) {
+  if (sign(last-first)*sign(incr)>=0) {
     r.set_length(floor_i((last-first)/incr)+1,false);
     for (int t=0;t<length(r);t++) {
       r(t)=first+t*incr;
@@ -116,7 +116,7 @@ itpp::ivec matlab_range(const int32 first, const int32 incr, const int32 last) {
   itpp::ivec r;
   //it_assert_debug(incr!=0,"increment is zero...");
   ASSERT(incr!=0,"increment is zero...");
-  if ((last-first)*incr>=0) {
+  if (sign(last-first)*sign(incr)>=0) {
     r.set_length(floor_i((last-first)/((double)incr))+1,false);
     for (int t=0;t<length(r);t++) {
       r(t)=first+t*incr;
