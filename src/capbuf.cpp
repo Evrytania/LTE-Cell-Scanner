@@ -119,9 +119,15 @@ void capture_data(
     }
 
     // Center frequency
-    if (rtlsdr_set_center_freq(dev,itpp::round(fc_requested*correction))<0) {
-      cerr << "Error: unable to set center frequency" << endl;
-      ABORT(-1);
+    uint8 n_fail=0;
+    while (rtlsdr_set_center_freq(dev,itpp::round(fc_requested*correction))<0) {
+      n_fail++;
+      if (n_fail>=5) {
+        cerr << "Error: unable to set center frequency" << endl;
+        ABORT(-1);
+      }
+      cerr << "Unable to set center frequency... retrying..." << endl;
+      sleep(1);
     }
 
     // Calculate the actual center frequency that was programmed.
