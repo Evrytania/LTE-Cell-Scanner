@@ -585,7 +585,7 @@ int main(
       stringstream ss;
       ss << setw(3) << (*it).n_id_cell();
       ss << setw(2) << (*it).n_ports;
-      ss << " " << setw(6) << setprecision(4) << (*it).fc_requested/1e6 << "M";
+      ss << " " << setw(6) << setprecision(5) << (*it).fc_requested/1e6 << "M";
       ss << " " << freq_formatter((*it).freq_superfine);
       ss << " " << setw(5) << setprecision(3) << db10((*it).pss_pow);
       ss << " " << (((*it).cp_type==cp_type_t::NORMAL)?"N":(((*it).cp_type==cp_type_t::UNKNOWN)?"U":"E"));
