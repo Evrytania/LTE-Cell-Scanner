@@ -578,7 +578,7 @@ int main(
   } else {
     cout << "Detected the following cells:" << endl;
     cout << "A: #antenna ports C: CP type ; P: PHICH duration ; PR: PHICH resource type" << endl;
-    cout << "CID A      fc   foff RXPWR C nRB P  PR CrystalCorrectionFactor" << endl;
+    cout << "CID A      fc   foff RXPWR C nRB P  PR CrystalCorrection  ppm" << endl;
     list <Cell>::iterator it=cells_final.begin();
     while (it!=cells_final.end()) {
       // Use a stringstream to avoid polluting the iostream settings of cout.
@@ -606,7 +606,10 @@ int main(
       // Calculate correction factors
       const double correction_residual=true_location/crystal_freq_actual;
       const double correction_new=correction*correction_residual;
-      ss << " " << setprecision(20) << correction_new;
+      ss << " " << setw(17) << setprecision(15) << correction_new;
+      // Calculate deviation in ppm
+      const double correction_ppm=1e6*(correction_new-1);
+      ss << " " << setw(5) << setprecision(3) << correction_ppm;
       cout << ss.str() << endl;
 
       ++it;
