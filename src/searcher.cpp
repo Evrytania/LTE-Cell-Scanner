@@ -554,7 +554,8 @@ void sss_detect_getce_sss(
 
   // Skip to the right by 5 subframes if there is no room here to detect
   // the SSS.
-  if (peak_loc+9<162) {
+  if (peak_loc+9<482) {//TDD
+  //if (peak_loc+9<162) { //FDD
     peak_loc+=9600*k_factor;
   }
   // The location of all PSS's in the capture buffer where we also have
@@ -591,9 +592,11 @@ void sss_detect_getce_sss(
     pss_np(k)=sigpower(h_sm.get_row(k)-h_raw.get_row(k));
 
     // Calculate SSS in the frequency domain for extended and normal CP
-    uint32 sss_dft_location=pss_dft_location-128-32;
+    uint32 sss_dft_location=pss_dft_location-3*(128+32); //TDD
+    //uint32 sss_dft_location=pss_dft_location-128-32; //FDD
     sss_ext_raw.set_row(k,extract_psss(capbuf.mid(sss_dft_location,128),-peak_freq,k_factor,fs_programmed));
-    sss_dft_location=pss_dft_location-128-9;
+    sss_dft_location=pss_dft_location-3*(128+9)-1; //TDD
+    //sss_dft_location=pss_dft_location-128-9; //FDD
     sss_nrm_raw.set_row(k,extract_psss(capbuf.mid(sss_dft_location,128),-peak_freq,k_factor,fs_programmed));
   }
 
@@ -777,11 +780,15 @@ Cell pss_sss_foe(
   uint16 pss_sss_dist;
   double first_sss_dft_location;
   if (cell_in.cp_type==cp_type_t::NORMAL) {
-    pss_sss_dist=itpp::round_i((128+9)*16/FS_LTE*fs_programmed*k_factor);
-    first_sss_dft_location=cell_in.frame_start+(960-128-9-128)*16/FS_LTE*fs_programmed*k_factor;
+    //pss_sss_dist=itpp::round_i((128+9)*16/FS_LTE*fs_programmed*k_factor); //FDD
+    //first_sss_dft_location=cell_in.frame_start+(960-128-9-128)*16/FS_LTE*fs_programmed*k_factor; //FDD
+    pss_sss_dist=itpp::round_i((3*(128+9)+1)*16/FS_LTE*fs_programmed*k_factor); //TDD
+    first_sss_dft_location=cell_in.frame_start-128*16/FS_LTE*fs_programmed*k_factor; //TDD
   } else if (cell_in.cp_type==cp_type_t::EXTENDED) {
-    pss_sss_dist=round_i((128+32)*k_factor);
-    first_sss_dft_location=cell_in.frame_start+(960-128-32-128)*16/FS_LTE*fs_programmed*k_factor;
+    //pss_sss_dist=round_i((128+32)*k_factor); //FDD
+    //first_sss_dft_location=cell_in.frame_start+(960-128-32-128)*16/FS_LTE*fs_programmed*k_factor; //FDD
+    pss_sss_dist=round_i((3*(128+32))*k_factor); //TDD
+    first_sss_dft_location=cell_in.frame_start-128*16/FS_LTE*fs_programmed*k_factor; //TDD
   } else {
     throw("Error... check code...");
   }
