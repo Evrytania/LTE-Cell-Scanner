@@ -495,7 +495,7 @@ int main(
       cout << "  Calculating PSS correlations" << endl;
     }
     xcorr_pss(capbuf,f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,xc,sp,n_comb_xc,n_comb_sp);
-
+    //cout << "1" << endl;
     // Calculate the threshold vector
     const uint8 thresh1_n_nines=12;
     double R_th1=chi2cdf_inv(1-pow(10.0,-thresh1_n_nines),2*n_comb_xc*(2*DS_COMB_ARM+1));

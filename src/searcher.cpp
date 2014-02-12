@@ -408,14 +408,19 @@ void xcorr_pss(
 ) {
   // Perform correlations
   xc_correlate(capbuf,f_search_set,fc_requested,fc_programmed,fs_programmed,xc);
+  cout << "1" << endl;
   // Incoherently combine correlations
   xc_combine(capbuf,xc,fc_requested,fc_programmed,fs_programmed,f_search_set,xc_incoherent_single,n_comb_xc);
+  cout << "2" << endl;
   // Combine according to delay spread
   xc_delay_spread(xc_incoherent_single,ds_comb_arm,xc_incoherent);
+  cout << "3" << endl;
   // Estimate received signal power
   sp_est(capbuf,sp,sp_incoherent,n_comb_sp);
+  cout << "4" << endl;
   // Search for peaks among all the frequency offsets.
   xc_peak_freq(xc_incoherent,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq);
+  cout << "5" << endl;
 }
 
 // Search through all the correlations and determine if any PSS were found.
