@@ -66,6 +66,7 @@ typedef struct {
   int16 n_id_cell;
   // -1 indicates this is the 'synchronization' port.
   int8 port_num;
+  int8 duplex_mode;
 } row_desc_t;
 
 // ncurses right justified print of a string
@@ -114,10 +115,21 @@ void display_cell(
 ) {
   move(row,0);
   attron(COLOR_PAIR(BLUE));
-  printw("[Cell ID %3i][TO: %7.1lf]",
-    tracked_cell.n_id_cell,
-    tracked_cell.frame_timing()
-  );
+  if (tracked_cell.duplex_mode==0)
+  {
+      printw("[FDD Cell ID %3i][TO: %7.1lf]",
+        tracked_cell.n_id_cell,
+        tracked_cell.frame_timing()
+      );
+  }
+  else
+  {
+      printw("[TDD Cell ID %3i][TO: %7.1lf]",
+        tracked_cell.n_id_cell,
+        tracked_cell.frame_timing()
+      );
+  }
+
   if (expert_mode) {
     printw("[UOS pwr: %5.1lf dB]",db10(tracked_cell.sync_np_blank_av));
   }
@@ -234,10 +246,12 @@ void set_occupied(
   for (uint8 t=0;t<tracked_cell.n_ports;t++) {
     row_desc[print_row+t+1].occupied=true;
     row_desc[print_row+t+1].n_id_cell=tracked_cell.n_id_cell;
+    row_desc[print_row+t+1].duplex_mode=tracked_cell.duplex_mode;
     row_desc[print_row+t+1].port_num=t;
   }
   row_desc[print_row+tracked_cell.n_ports+1].occupied=true;
   row_desc[print_row+tracked_cell.n_ports+1].n_id_cell=tracked_cell.n_id_cell;
+  row_desc[print_row+tracked_cell.n_ports+1].duplex_mode=tracked_cell.duplex_mode;
   row_desc[print_row+tracked_cell.n_ports+1].port_num=-1;
 }
 
@@ -446,6 +460,7 @@ void display_thread(
     for (uint16 t=0;t<CELL_DISP_N_ROWS;t++) {
       row_desc[t].occupied=false;
       row_desc[t].n_id_cell=-1;
+      row_desc[t].duplex_mode=-3;
       row_desc[t].port_num=-2;
       //row_occupied(t)=false;
     }
@@ -520,7 +535,7 @@ void display_thread(
       // Header and footer
       {
         stringstream ss;
-        ss << "LTE-Tracker v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " -- www.evrytania.com";
+        ss << "LTE-Tracker v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " -- www.evrytania.com; 1.0.0-->1.1.0: TDD support is added by Jiao Xianjun(putaoshu@gmail.com).";
         move(0,0);
         attron(COLOR_PAIR(CYAN));
         print_center(ss.str());
@@ -599,6 +614,7 @@ void display_thread(
 
       // Shortcuts
       const int16 & n_id_cell=row_desc[highlight_row].n_id_cell;
+      const int8 & duplex_mode=row_desc[highlight_row].duplex_mode;
       const int8 & port_num=row_desc[highlight_row].port_num;
 
       {
@@ -640,7 +656,10 @@ void display_thread(
             );
             move(0,0);
             stringstream ss;
-            ss << "Cell " << n_id_cell;
+            if (duplex_mode==0)
+                ss << "FDD Cell " << n_id_cell;
+            else
+                ss << "TDD Cell " << n_id_cell;
             if (port_num==-1) {
               ss << " Sync channel magnitude\n";
             } else {
@@ -694,7 +713,10 @@ void display_thread(
             );
             move(0,0);
             stringstream ss;
-            ss << "Cell " << n_id_cell;
+            if (duplex_mode==0)
+                ss << "FDD Cell " << n_id_cell;
+            else
+                ss << "TDD Cell " << n_id_cell;
             if (port_num==-1) {
               ss << " Sync channel phase\n";
             } else {
@@ -726,7 +748,10 @@ void display_thread(
               true
             );
             move(LINES-2,0);
-            printw("Cell ID: %i\n",n_id_cell);
+            if (duplex_mode==0)
+                printw("FDD Cell ID: %i\n",n_id_cell);
+            else
+                printw("TDD Cell ID: %i\n",n_id_cell);
             printw("Frequency domain channel autocorrelation function. x-axis spans 1.26MHz\n");
           } else if (detail_type==3) {
             // Time domain autocorrelation
@@ -745,7 +770,10 @@ void display_thread(
               true
             );
             move(LINES-2,0);
-            printw("Cell ID: %i\n",n_id_cell);
+            if (duplex_mode == 0)
+                printw("FDD Cell ID: %i\n",n_id_cell);
+            else
+                printw("TDD Cell ID: %i\n",n_id_cell);
             printw("Time domain channel autocorrelation function. x-axis spans 35.5ms\n");
           }
         } else {

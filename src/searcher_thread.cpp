@@ -117,7 +117,8 @@ void searcher_thread(
     if (verbosity>=2) {
       cout << "  Calculating PSS correlations" << endl;
     }
-    xcorr_pss(capbuf,f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,xc,sp,n_comb_xc,n_comb_sp);
+    int sampling_carrier_twist = 1;
+    xcorr_pss(capbuf,f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,xc,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist);
 
     // Calculate the threshold vector
     const uint8 thresh1_n_nines=12;
@@ -133,6 +134,7 @@ void searcher_thread(
 
     // Loop and check each peak
     list<Cell>::iterator iterator=detected_cells.begin();
+    Cell cell_temp(*iterator);
     while (iterator!=detected_cells.end()) {
       // Detect SSS if possible
       vec sss_h1_np_est_meas;
@@ -144,7 +146,14 @@ void searcher_thread(
       mat log_lik_nrm;
       mat log_lik_ext;
 #define THRESH2_N_SIGMA 3
-      (*iterator)=sss_detect((*iterator),capbuf,THRESH2_N_SIGMA,fc_requested,fc_programmed,fs_programmed,sss_h1_np_est_meas,sss_h2_np_est_meas,sss_h1_nrm_est_meas,sss_h2_nrm_est_meas,sss_h1_ext_est_meas,sss_h2_ext_est_meas,log_lik_nrm,log_lik_ext);
+      int tdd_flag = 0;
+      cell_temp = (*iterator);
+      for(tdd_flag=0;tdd_flag<2;tdd_flag++)
+      {
+        (*iterator)=sss_detect(cell_temp,capbuf,THRESH2_N_SIGMA,fc_requested,fc_programmed,fs_programmed,sss_h1_np_est_meas,sss_h2_np_est_meas,sss_h1_nrm_est_meas,sss_h2_nrm_est_meas,sss_h1_ext_est_meas,sss_h2_ext_est_meas,log_lik_nrm,log_lik_ext,sampling_carrier_twist,tdd_flag);
+        if ((*iterator).n_id_1!=-1)
+            break;
+      }
       if ((*iterator).n_id_1==-1) {
         // No SSS detected.
         iterator=detected_cells.erase(iterator);
@@ -177,12 +186,12 @@ void searcher_thread(
       }
 
       // Fine FOE
-      (*iterator)=pss_sss_foe((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed);
+      (*iterator)=pss_sss_foe((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,sampling_carrier_twist,tdd_flag);
 
       // Extract time and frequency grid
       cmat tfg;
       vec tfg_timestamp;
-      extract_tfg((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,tfg,tfg_timestamp);
+      extract_tfg((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,tfg,tfg_timestamp,sampling_carrier_twist);
 
       // Create object containing all RS
       RS_DL rs_dl((*iterator).n_id_cell(),6,(*iterator).cp_type);
@@ -190,7 +199,7 @@ void searcher_thread(
       // Compensate for time and frequency offsets
       cmat tfg_comp;
       vec tfg_comp_timestamp;
-      (*iterator)=tfoec((*iterator),tfg,tfg_timestamp,fc_requested,fc_programmed,rs_dl,tfg_comp,tfg_comp_timestamp);
+      (*iterator)=tfoec((*iterator),tfg,tfg_timestamp,fc_requested,fc_programmed,rs_dl,tfg_comp,tfg_comp_timestamp,sampling_carrier_twist);
 
       // Finally, attempt to decode the MIB
       (*iterator)=decode_mib((*iterator),tfg_comp,rs_dl);
@@ -217,6 +226,7 @@ void searcher_thread(
       tracked_cell_t * new_cell = new tracked_cell_t(
         (*iterator).n_id_cell(),
         (*iterator).n_ports,
+        (*iterator).duplex_mode,
         (*iterator).cp_type,
         (*iterator).n_rb_dl,
         (*iterator).phich_duration,

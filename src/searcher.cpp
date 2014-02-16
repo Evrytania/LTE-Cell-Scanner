@@ -270,7 +270,8 @@ void xc_combine(
   const vec & f_search_set,
   // Outputs
   vf3d & xc_incoherent_single,
-  uint16 & n_comb_xc
+  uint16 & n_comb_xc,
+  int sampling_carrier_twist
 ) {
   const uint16 n_f=f_search_set.length();
   n_comb_xc=floor_i((xc[0].size()-100)/9600);
@@ -284,7 +285,11 @@ void xc_combine(
   for (uint16 foi=0;foi<n_f;foi++) {
     // Combine incoherently
     const double f_off=f_search_set[foi];
-    const double k_factor=(fc_requested-f_off)/fc_programmed;
+    double k_factor=(fc_requested-f_off)/fc_programmed;
+
+    if (sampling_carrier_twist == 0)
+        k_factor=1;
+
     for (uint8 t=0;t<3;t++) {
       for (uint16 idx=0;idx<9600;idx++) {
         xc_incoherent_single[t][idx][foi]=0;
@@ -404,23 +409,19 @@ void xcorr_pss(
   vcf3d & xc,
   vec & sp,
   uint16 & n_comb_xc,
-  uint16 & n_comb_sp
+  uint16 & n_comb_sp,
+  int sampling_carrier_twist
 ) {
   // Perform correlations
   xc_correlate(capbuf,f_search_set,fc_requested,fc_programmed,fs_programmed,xc);
-  cout << "1" << endl;
   // Incoherently combine correlations
-  xc_combine(capbuf,xc,fc_requested,fc_programmed,fs_programmed,f_search_set,xc_incoherent_single,n_comb_xc);
-  cout << "2" << endl;
+  xc_combine(capbuf,xc,fc_requested,fc_programmed,fs_programmed,f_search_set,xc_incoherent_single,n_comb_xc,sampling_carrier_twist);
   // Combine according to delay spread
   xc_delay_spread(xc_incoherent_single,ds_comb_arm,xc_incoherent);
-  cout << "3" << endl;
   // Estimate received signal power
   sp_est(capbuf,sp,sp_incoherent,n_comb_sp);
-  cout << "4" << endl;
   // Search for peaks among all the frequency offsets.
   xc_peak_freq(xc_incoherent,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq);
-  cout << "5" << endl;
 }
 
 // Search through all the correlations and determine if any PSS were found.
@@ -548,19 +549,27 @@ void sss_detect_getce_sss(
   cvec & sss_h1_nrm_est,
   cvec & sss_h2_nrm_est,
   cvec & sss_h1_ext_est,
-  cvec & sss_h2_ext_est
+  cvec & sss_h2_ext_est,
+  int sampling_carrier_twist,
+  int tdd_flag
 ) {
   // Local copies
   double peak_loc=cell.ind;
   const double peak_freq=cell.freq;
   const uint8 n_id_2_est=cell.n_id_2;
 
-  const double k_factor=(fc_requested-peak_freq)/fc_programmed;
-
+  double k_factor=(fc_requested-peak_freq)/fc_programmed;
+  if (sampling_carrier_twist==0)
+    k_factor=1;
   // Skip to the right by 5 subframes if there is no room here to detect
   // the SSS.
-  if (peak_loc+9<482) {//TDD
-  //if (peak_loc+9<162) { //FDD
+  int min_idx = 0;
+  if (tdd_flag == 1)
+    min_idx = 3*(128+32)+32;
+  else
+    min_idx = 163-9;
+
+  if (peak_loc<min_idx) {
     peak_loc+=9600*k_factor;
   }
   // The location of all PSS's in the capture buffer where we also have
@@ -597,11 +606,19 @@ void sss_detect_getce_sss(
     pss_np(k)=sigpower(h_sm.get_row(k)-h_raw.get_row(k));
 
     // Calculate SSS in the frequency domain for extended and normal CP
-    uint32 sss_dft_location=pss_dft_location-3*(128+32); //TDD
-    //uint32 sss_dft_location=pss_dft_location-128-32; //FDD
+    uint32 sss_dft_location=0;
+    if (tdd_flag==1)
+        sss_dft_location=pss_dft_location-3*(128+32); //TDD
+    else
+        sss_dft_location=pss_dft_location-128-32; //FDD
+
     sss_ext_raw.set_row(k,extract_psss(capbuf.mid(sss_dft_location,128),-peak_freq,k_factor,fs_programmed));
-    sss_dft_location=pss_dft_location-3*(128+9)-1; //TDD
-    //sss_dft_location=pss_dft_location-128-9; //FDD
+
+    if (tdd_flag==1)
+        sss_dft_location=pss_dft_location-3*(128+9)-1; //TDD
+    else
+        sss_dft_location=pss_dft_location-128-9; //FDD
+
     sss_nrm_raw.set_row(k,extract_psss(capbuf.mid(sss_dft_location,128),-peak_freq,k_factor,fs_programmed));
   }
 
@@ -717,30 +734,48 @@ Cell sss_detect(
   cvec & sss_h1_ext_est,
   cvec & sss_h2_ext_est,
   mat & log_lik_nrm,
-  mat & log_lik_ext
+  mat & log_lik_ext,
+  int sampling_carrier_twist,
+  int tdd_flag
 ) {
   // Get the channel estimates and extract the raw SSS subcarriers
-  sss_detect_getce_sss(cell,capbuf,fc_requested,fc_programmed,fs_programmed,sss_h1_np_est,sss_h2_np_est,sss_h1_nrm_est,sss_h2_nrm_est,sss_h1_ext_est,sss_h2_ext_est);
+  sss_detect_getce_sss(cell,capbuf,fc_requested,fc_programmed,fs_programmed,sss_h1_np_est,sss_h2_np_est,sss_h1_nrm_est,sss_h2_nrm_est,sss_h1_ext_est,sss_h2_ext_est,sampling_carrier_twist,tdd_flag);
   // Perform maximum likelihood detection
   sss_detect_ml(cell,sss_h1_np_est,sss_h2_np_est,sss_h1_nrm_est,sss_h2_nrm_est,sss_h1_ext_est,sss_h2_ext_est,log_lik_nrm,log_lik_ext);
 
   // Determine normal/ extended CP
   mat log_lik;
   cp_type_t::cp_type_t cp_type;
+  int cp_type_flag = 0;
   if (max(max(log_lik_nrm))>max(max(log_lik_ext))) {
     log_lik=log_lik_nrm;
     cp_type=cp_type_t::NORMAL;
+    cp_type_flag = 0;
   } else {
     log_lik=log_lik_ext;
     cp_type=cp_type_t::EXTENDED;
+    cp_type_flag = 1;
   }
 
   // Locate the 'frame start' defined as the start of the CP of the frame.
   // The first DFT should be located at frame_start + cp_length.
   // It is expected (not guaranteed!) that a DFT performed at this
   // location will have a measured time offset of 2 samples.
-  const double k_factor=(fc_requested-cell.freq)/fc_programmed;
-  double frame_start=cell.ind+(128+9-960-2)*16/FS_LTE*fs_programmed*k_factor;
+  double k_factor=(fc_requested-cell.freq)/fc_programmed;
+  if (sampling_carrier_twist==0)
+    k_factor = 1;
+  double frame_start=0;
+
+  if (tdd_flag == 1)
+  {
+      if (cp_type_flag == 0)
+        frame_start=cell.ind+(-(2*(128+9)+1)-1920-2)*16/FS_LTE*fs_programmed*k_factor;// TDD NORMAL CP
+      else
+        frame_start=cell.ind+(-(2*(128+32))-1920-2)*16/FS_LTE*fs_programmed*k_factor; //TDD EXTENDED CP
+  }
+  else
+    frame_start=cell.ind+(128+9-960-2)*16/FS_LTE*fs_programmed*k_factor;
+
   vec ll;
   if (max(log_lik.get_col(0))>max(log_lik.get_col(1))) {
     ll=log_lik.get_col(0);
@@ -763,6 +798,7 @@ Cell sss_detect(
     cell_out.n_id_1=n_id_1_est;
     cell_out.cp_type=cp_type;
     cell_out.frame_start=frame_start;
+    cell_out.duplex_mode=tdd_flag;
   }
 
   return cell_out;
@@ -777,23 +813,39 @@ Cell pss_sss_foe(
   const cvec & capbuf,
   const double & fc_requested,
   const double & fc_programmed,
-  const double & fs_programmed
+  const double & fs_programmed,
+  int sampling_carrier_twist,
+  int tdd_flag
 ) {
-  const double k_factor=(fc_requested-cell_in.freq)/fc_programmed;
+  double k_factor=(fc_requested-cell_in.freq)/fc_programmed;
+  if (sampling_carrier_twist==0)
+    k_factor=1;
 
   // Determine where we can find both PSS and SSS
   uint16 pss_sss_dist;
   double first_sss_dft_location;
   if (cell_in.cp_type==cp_type_t::NORMAL) {
-    //pss_sss_dist=itpp::round_i((128+9)*16/FS_LTE*fs_programmed*k_factor); //FDD
-    //first_sss_dft_location=cell_in.frame_start+(960-128-9-128)*16/FS_LTE*fs_programmed*k_factor; //FDD
-    pss_sss_dist=itpp::round_i((3*(128+9)+1)*16/FS_LTE*fs_programmed*k_factor); //TDD
-    first_sss_dft_location=cell_in.frame_start-128*16/FS_LTE*fs_programmed*k_factor; //TDD
+    if (tdd_flag==0)
+    {
+        pss_sss_dist=itpp::round_i((128+9)*16/FS_LTE*fs_programmed*k_factor); //FDD
+        first_sss_dft_location=cell_in.frame_start+(960-128-9-128)*16/FS_LTE*fs_programmed*k_factor; //FDD
+    }
+    else
+    {
+        pss_sss_dist=itpp::round_i((3*(128+9)+1)*16/FS_LTE*fs_programmed*k_factor); //TDD
+        first_sss_dft_location=cell_in.frame_start+(1920-128)*16/FS_LTE*fs_programmed*k_factor; //TDD
+    }
   } else if (cell_in.cp_type==cp_type_t::EXTENDED) {
-    //pss_sss_dist=round_i((128+32)*k_factor); //FDD
-    //first_sss_dft_location=cell_in.frame_start+(960-128-32-128)*16/FS_LTE*fs_programmed*k_factor; //FDD
-    pss_sss_dist=round_i((3*(128+32))*k_factor); //TDD
-    first_sss_dft_location=cell_in.frame_start-128*16/FS_LTE*fs_programmed*k_factor; //TDD
+    if (tdd_flag==0)
+    {
+        pss_sss_dist=round_i((128+32)*16/FS_LTE*fs_programmed*k_factor); //FDD
+        first_sss_dft_location=cell_in.frame_start+(960-128-32-128)*16/FS_LTE*fs_programmed*k_factor; //FDD
+    }
+    else
+    {
+        pss_sss_dist=round_i((3*(128+32))*16/FS_LTE*fs_programmed*k_factor); //TDD
+        first_sss_dft_location=cell_in.frame_start+(1920-128)*16/FS_LTE*fs_programmed*k_factor; //TDD
+    }
   } else {
     throw("Error... check code...");
   }
@@ -875,7 +927,8 @@ void extract_tfg(
   const double & fs_programmed,
   // Outputs
   cmat & tfg,
-  vec & tfg_timestamp
+  vec & tfg_timestamp,
+  int sampling_carrier_twist
 ) {
   // Local shortcuts
   const double frame_start=cell.frame_start;
@@ -884,7 +937,9 @@ void extract_tfg(
 
   // Derive some values
   // fc*k_factor is the receiver's actual RX center frequency.
-  const double k_factor=(fc_requested-cell.freq_fine)/fc_programmed;
+  double k_factor=(fc_requested-cell.freq_fine)/fc_programmed;
+  if (sampling_carrier_twist==0)
+    k_factor=1;
   const int8 n_symb_dl=cell.n_symb_dl();
   double dft_location;
   if (cp_type==cp_type_t::NORMAL) {
@@ -971,7 +1026,8 @@ Cell tfoec(
   const RS_DL & rs_dl,
   // Outputs
   cmat & tfg_comp,
-  vec & tfg_comp_timestamp
+  vec & tfg_comp_timestamp,
+  int sampling_carrier_twist
 ) {
   // Local shortcuts
   const int8 n_symb_dl=cell.n_symb_dl();
@@ -1002,6 +1058,8 @@ Cell tfoec(
 
   // Perform FOC. Does not fix ICI!
   double k_factor_residual=(fc_requested-residual_f)/fc_programmed;
+  if (sampling_carrier_twist==0)
+    k_factor_residual=1;
   tfg_comp=cmat(n_ofdm,72);
 #ifndef NDEBUG
   tfg_comp=NAN;

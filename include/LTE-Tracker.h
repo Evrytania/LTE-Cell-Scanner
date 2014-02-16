@@ -22,6 +22,7 @@ class tracked_cell_t {
     tracked_cell_t(
       const uint16 & n_id_cell,
       const int8 & n_ports,
+      const int8 & duplex_mode,
       const cp_type_t::cp_type_t & cp_type,
       const int8 & n_rb_dl,
       const phich_duration_t::phich_duration_t & phich_duration,
@@ -33,6 +34,7 @@ class tracked_cell_t {
       n_id_2(n_id_cell-3*floor(n_id_cell/3.0)),
       n_id_cell(n_id_cell),
       n_ports(n_ports),
+      duplex_mode(duplex_mode),
       cp_type(cp_type),
       n_rb_dl(n_rb_dl),
       phich_duration(phich_duration),
@@ -76,6 +78,7 @@ class tracked_cell_t {
     const uint8 n_id_2;
     const uint16 n_id_cell;
     const int8 n_ports;
+    const int8 duplex_mode;
     const cp_type_t::cp_type_t cp_type;
     const int8 n_rb_dl;
     const phich_duration_t::phich_duration_t phich_duration;

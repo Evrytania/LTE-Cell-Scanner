@@ -108,6 +108,7 @@ class Cell {
     int8 n_id_2;
 
     int16 n_id_1;
+    int8 duplex_mode;
     cp_type_t::cp_type_t cp_type;
     double frame_start;
     double freq_fine;
