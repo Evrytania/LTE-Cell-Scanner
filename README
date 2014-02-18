@@ -2,6 +2,8 @@ Jiao Xianjun (putaoshu@gmail.com; putaoshu@msn.com).
 
 TDD support is added now! In the future this will be merged back to https://github.com/Evrytania/LTE-Cell-Scanner
 
+ATTENTION!!! I find that LTE-Cell-Scanner only works with v0.5.2 librtlsdr (https://github.com/steve-m/librtlsdr). Not v0.5.3! (at least in my computer)
+
 I study and do experiments using MATLAB in this repo: https://github.com/JiaoXianjun/rtl-sdr-LTE
 
 You may find more information there.
