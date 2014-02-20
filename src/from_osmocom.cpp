@@ -120,7 +120,8 @@ double compute_fc_programmed(const double & fosc,const double & intended_flo)
 	uint64_t intended_fvco, remainder;
 	uint64_t z = 0;
 	uint32_t x;
-	int flo;
+	//int flo;
+	uint32_t flo;
 	int three_phase_mixing = 0;
 	oscp->r_idx = 0;
 
