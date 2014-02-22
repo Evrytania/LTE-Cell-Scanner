@@ -564,10 +564,20 @@ void sss_detect_getce_sss(
   // Skip to the right by 5 subframes if there is no room here to detect
   // the SSS.
   int min_idx = 0;
+  int sss_ext_offset = 0;
+  int sss_nrm_offset = 0;
   if (tdd_flag == 1)
+  {
     min_idx = 3*(128+32)+32;
+    sss_ext_offset = 3*(128+32);
+    sss_nrm_offset = 412;
+  }
   else
+  {
     min_idx = 163-9;
+    sss_ext_offset = 128+32;
+    sss_nrm_offset = 128+9;
+  }
 
   if (peak_loc<min_idx) {
     peak_loc+=9600*k_factor;
@@ -607,18 +617,10 @@ void sss_detect_getce_sss(
 
     // Calculate SSS in the frequency domain for extended and normal CP
     uint32 sss_dft_location=0;
-    if (tdd_flag==1)
-        sss_dft_location=pss_dft_location-3*(128+32); //TDD
-    else
-        sss_dft_location=pss_dft_location-128-32; //FDD
-
+    sss_dft_location=pss_dft_location-sss_ext_offset;
     sss_ext_raw.set_row(k,extract_psss(capbuf.mid(sss_dft_location,128),-peak_freq,k_factor,fs_programmed));
 
-    if (tdd_flag==1)
-        sss_dft_location=pss_dft_location-3*(128+9)-1; //TDD
-    else
-        sss_dft_location=pss_dft_location-128-9; //FDD
-
+    sss_dft_location=pss_dft_location-sss_nrm_offset;
     sss_nrm_raw.set_row(k,extract_psss(capbuf.mid(sss_dft_location,128),-peak_freq,k_factor,fs_programmed));
   }
 
