@@ -57,6 +57,8 @@ void print_usage() {
   cout << "      frequency where cell search should start" << endl;
   cout << "    -e --freq-end fe" << endl;
   cout << "      frequency where cell search should end" << endl;
+  cout << "    -t --num-try nt" << endl;
+  cout << "      number of tries at each frequency/file" << endl;
   cout << "  Dongle LO correction options:" << endl;
   cout << "    -p --ppm ppm" << endl;
   cout << "      crystal remaining PPM error" << endl;
@@ -100,6 +102,7 @@ void parse_commandline(
   // Outputs
   double & freq_start,
   double & freq_end,
+  int & num_try,
   double & ppm,
   double & correction,
   bool & save_cap,
@@ -112,6 +115,7 @@ void parse_commandline(
   // Default values
   freq_start=-1;
   freq_end=-1;
+  num_try=10; // default number
   ppm=120;
   correction=1;
   save_cap=false;
@@ -126,6 +130,7 @@ void parse_commandline(
       {"brief",        no_argument,       0, 'b'},
       {"freq-start",   required_argument, 0, 's'},
       {"freq-end",     required_argument, 0, 'e'},
+      {"num-try",      required_argument, 0, 't'},
       {"ppm",          required_argument, 0, 'p'},
       {"correction",   required_argument, 0, 'c'},
       {"recbin",       required_argument, 0, 'x'},
@@ -174,6 +179,13 @@ void parse_commandline(
         freq_end=strtod(optarg,&endp);
         if ((optarg==endp)||(*endp!='\0')) {
           cerr << "Error: could not parse end frequency" << endl;
+          ABORT(-1);
+        }
+        break;
+      case 't':
+        num_try=strtol(optarg,&endp,10);
+        if ((optarg==endp)||(*endp!='\0')) {
+          cerr << "Error: could not parse number of tries" << endl;
           ABORT(-1);
         }
         break;
@@ -273,6 +285,11 @@ void parse_commandline(
   // Start and end frequencies should be on a 100kHz raster.
   if (freq_start<1e6) {
     cerr << "Error: start frequency must be greater than 1MHz" << endl;
+    ABORT(-1);
+  }
+  // Number of tries should be not less than 1.
+  if (num_try<1) {
+    cerr << "Error: number of tries at each frequency/file should be not less than 1" << endl;
     ABORT(-1);
   }
   if (freq_start/100e3!=itpp::round(freq_start/100e3)) {
@@ -493,6 +510,7 @@ int main(
   // Command line parameters are stored here.
   double freq_start;
   double freq_end;
+  int32 num_try;
   double ppm;
   double correction;
   bool save_cap;
@@ -503,30 +521,16 @@ int main(
   char load_bin_filename[256] = {0};
 
   // Get search parameters from user
-  parse_commandline(argc,argv,freq_start,freq_end,ppm,correction,save_cap,use_recorded_data,data_dir,device_index, record_bin_filename, load_bin_filename);
-//  cout << "record_bin_filename" << "\n";
-//  cout << record_bin_filename <<  "\n";
-//
-//  cout << "load_bin_filename" <<  "\n";
-//  cout << load_bin_filename <<  "\n";
-//
-//  cout << "save_cap" <<  "\n";
-//  cout << save_cap <<  "\n";
-//
-//  cout << use_recorded_data <<  "\n";
-//  cout << "use_recorded_data" <<  "\n";
-//
-//  cout << freq_start <<  "\n";
-//  cout << "freq_start" <<  "\n";
-//
-//  cout << freq_end <<  "\n";
-//  cout << "freq_end" <<  "\n";
+  parse_commandline(argc,argv,freq_start,freq_end,num_try,ppm,correction,save_cap,use_recorded_data,data_dir,device_index, record_bin_filename, load_bin_filename);
 
   // Open the USB device (if necessary).
   rtlsdr_dev_t * dev=NULL;
   double fs_programmed = 1920000; // in case not initialized by config_usb
   if ( (!use_recorded_data) && (strlen(load_bin_filename)==0) )
     config_usb(correction,device_index,freq_start,dev,fs_programmed);
+
+  if (use_recorded_data)
+    num_try=1; // compatible to .it file case
 
   // Generate a list of center frequencies that should be searched and also
   // a list of frequency offsets that should be searched for each center
