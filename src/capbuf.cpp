@@ -83,7 +83,9 @@ void capture_data(
   const double & fc_requested,
   const double & correction,
   const bool & save_cap,
+  char * record_bin_filename,
   const bool & use_recorded_data,
+  char * load_bin_filename,
   const string & data_dir,
   rtlsdr_dev_t * & dev,
   // Output
@@ -94,6 +96,9 @@ void capture_data(
   static uint32 capture_number=0;
   stringstream filename;
   filename << data_dir << "/capbuf_" << setw(4) << setfill('0') << capture_number << ".it";
+
+  bool record_bin_flag = (strlen(record_bin_filename)>4);
+  bool load_bin_flag = (strlen(load_bin_filename)>4);
 
   if (use_recorded_data) {
     // Read data from a file. Do not use live data.
@@ -112,7 +117,32 @@ void capture_data(
       cout << "center frequency did not match the expected center frequency." << endl;
     }
     itf.close();
-
+    fc_programmed=fc_requested; // be careful about this!
+  } else if (load_bin_flag) {
+    // Read data from load_bin_filename. Do not use live data.
+    // Convert to complex
+    capbuf.set_size(CAPLENGTH);
+    unsigned char *capbuf_raw = new unsigned char[2*CAPLENGTH];
+    FILE *fp = fopen(load_bin_filename, "rb");
+    if (fp == NULL)
+    {
+      cerr << "Error: unable to open file: " << load_bin_filename << endl;
+      ABORT(-1);
+    }
+    int read_count = fread(capbuf_raw, sizeof(unsigned char), 2*CAPLENGTH, fp);
+    fclose(fp);
+    if (read_count != (2*CAPLENGTH))
+    {
+      cerr << "Error: file " << load_bin_filename << " size is not correct" << endl;
+      ABORT(-1);
+    }
+    for (uint32 t=0;t<CAPLENGTH;t++) {
+      capbuf(t)=complex<double>((((double)capbuf_raw[(t<<1)])-128.0)/128.0,(((double)capbuf_raw[(t<<1)+1])-128.0)/128.0);
+      // 127 --> 128.
+    }
+    delete[] capbuf_raw;
+    fc_programmed=fc_requested; // be careful about this!
+    //cout << capbuf(0).real() << " " << capbuf(0).imag() << " "<< capbuf(1).real() << " " << capbuf(1).imag() << " "<< capbuf(2).real() << " " << capbuf(2).imag() << " "<< capbuf(3).real() << " " << capbuf(3).imag() << " "<< capbuf(4).real() << " " << capbuf(4).imag() << " "<< capbuf(5).real() << " " << capbuf(5).imag() << " "<< capbuf(6).real() << " " << capbuf(6).imag() << " "<<"\n";
   } else {
     if (verbosity>=2) {
       cout << "Capturing live data" << endl;
@@ -171,7 +201,8 @@ void capture_data(
 #endif
     for (uint32 t=0;t<CAPLENGTH;t++) {
       // Normal
-      capbuf(t)=complex<double>((((double)capbuf_raw[(t<<1)])-127.0)/128.0,(((double)capbuf_raw[(t<<1)+1])-127.0)/128.0);
+      capbuf(t)=complex<double>((((double)capbuf_raw[(t<<1)])-128.0)/128.0,(((double)capbuf_raw[(t<<1)+1])-128.0)/128.0);
+      //// 127 --> 128.
       // Conjugate
       //capbuf(t)=complex<double>((capbuf_raw[(t<<1)]-127.0)/128.0,-(capbuf_raw[(t<<1)+1]-127.0)/128.0);
       // Swap I/Q
@@ -194,6 +225,26 @@ void capture_data(
     fc_v(0)=fc_requested;
     itf << Name("fc") << fc_v;
     itf.close();
+  }
+
+  if (record_bin_flag) {
+    if (verbosity>=2) {
+      cout << "Saving captured data to file: " << record_bin_filename << endl;
+    }
+    FILE *fp = fopen(record_bin_filename, "wb");
+    if (fp == NULL)
+    {
+      cerr << "Error: unable to open file: " << record_bin_filename << endl;
+      ABORT(-1);
+    }
+    for (uint32 t=0;t<CAPLENGTH;t++) {
+      unsigned char tmp;
+      tmp = (unsigned char)( capbuf(t).real()*128.0 + 128.0 );
+      fwrite(&tmp, sizeof(unsigned char), 1, fp);
+      tmp = (unsigned char)( capbuf(t).imag()*128.0 + 128.0 );
+      fwrite(&tmp, sizeof(unsigned char), 1, fp);
+    }
+    fclose(fp);
   }
 
   capture_number++;

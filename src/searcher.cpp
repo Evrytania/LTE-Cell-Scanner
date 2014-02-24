@@ -117,6 +117,7 @@ void xc_correlate(
   const double & fc_requested,
   const double & fc_programmed,
   const double & fs_programmed,
+  int sampling_carrier_twist,
   // Outputs
   vcf3d & xc
 ) {
@@ -145,6 +146,9 @@ void xc_correlate(
   for (foi=0;foi<n_f;foi++) {
     f_off=f_search_set(foi);
     double k_factor=(fc_requested-f_off)/fc_programmed;
+    if (sampling_carrier_twist==0)
+      k_factor=1;
+    //cout << "f_off " << f_off << " k_factor " << k_factor << " fc_requested " << fc_requested << " fc_programmed " << fc_programmed << " fs_programmed " << fs_programmed << "\n";
     for (t=0;t<3;t++) {
       temp=ROM_TABLES.pss_td[t];
       temp=fshift(temp,f_off,fs_programmed*k_factor);
@@ -413,7 +417,7 @@ void xcorr_pss(
   int sampling_carrier_twist
 ) {
   // Perform correlations
-  xc_correlate(capbuf,f_search_set,fc_requested,fc_programmed,fs_programmed,xc);
+  xc_correlate(capbuf,f_search_set,fc_requested,fc_programmed,fs_programmed,sampling_carrier_twist,xc);
   // Incoherently combine correlations
   xc_combine(capbuf,xc,fc_requested,fc_programmed,fs_programmed,f_search_set,xc_incoherent_single,n_comb_xc,sampling_carrier_twist);
   // Combine according to delay spread

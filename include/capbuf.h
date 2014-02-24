@@ -25,7 +25,9 @@ void capture_data(
   const double & fc_requested,
   const double & correction,
   const bool & save_cap,
+  char * record_bin_filename,
   const bool & use_recorded_data,
+  char * load_bin_filename,
   const std::string & str,
   rtlsdr_dev_t * & dev,
   // Output

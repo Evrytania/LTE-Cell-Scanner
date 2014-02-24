@@ -63,6 +63,10 @@ void print_usage() {
   cout << "    -c --correction c" << endl;
   cout << "      crystal correction factor" << endl;
   cout << "  Capture buffer save/ load options:" << endl;
+  cout << "    -x --recbin" << endl;
+  cout << "      save captured data in the bin file" << endl;
+  cout << "    -y --loadbin" << endl;
+  cout << "      used data in captured bin file" << endl;
   cout << "    -r --record" << endl;
   cout << "      save captured data in the files capbuf_XXXX.it" << endl;
   cout << "    -l --load" << endl;
@@ -101,7 +105,9 @@ void parse_commandline(
   bool & save_cap,
   bool & use_recorded_data,
   string & data_dir,
-  int & device_index
+  int & device_index,
+  char * record_bin_filename,
+  char * load_bin_filename
 ) {
   // Default values
   freq_start=-1;
@@ -122,6 +128,8 @@ void parse_commandline(
       {"freq-end",     required_argument, 0, 'e'},
       {"ppm",          required_argument, 0, 'p'},
       {"correction",   required_argument, 0, 'c'},
+      {"recbin",       required_argument, 0, 'x'},
+      {"loadbin",      required_argument, 0, 'y'},
       {"record",       no_argument,       0, 'r'},
       {"load",         no_argument,       0, 'l'},
       {"data-dir",     required_argument, 0, 'd'},
@@ -188,6 +196,45 @@ void parse_commandline(
         break;
       case 'l':
         use_recorded_data=true;
+        break;
+      case 'x':
+        {
+          int len_str = strlen(optarg);
+          if (len_str<5)
+          {
+            cerr << "Error: record bin filename too short" << endl;
+            ABORT(-1);
+          }
+          if ( (len_str<1) || (strcmp(optarg+len_str-4, ".bin")) )
+          {
+            cerr << "Error: could not parse record bin filename (must be .bin file)" << endl;
+            ABORT(-1);
+          }
+          else
+          {
+            strcpy(record_bin_filename, optarg);
+          }
+        }
+        break;
+      case 'y':
+        {
+          int len_str = strlen(optarg);
+          if (len_str<5)
+          {
+            cerr << "Error: load bin filename too short" << endl;
+            ABORT(-1);
+          }
+          if ( (len_str<1) || (strcmp(optarg+len_str-4, ".bin")) )
+          {
+            cerr << "Error: could not parse load bin filename (must be .bin file)" << endl;
+            ABORT(-1);
+          }
+          else
+          {
+            strcpy(load_bin_filename, optarg);
+            //freq_start=9999e6; // fake
+          }
+        }
         break;
       case 'd':
         data_dir=optarg;
@@ -258,6 +305,11 @@ void parse_commandline(
   // Should never both read and write captured data from a file
   if (save_cap&&use_recorded_data) {
     cerr << "Error: cannot read and write captured data at the same time!" << endl;
+    ABORT(-1);
+  }
+  // Should never both read from .it and read from .bin file.
+  if ( use_recorded_data && (strlen(load_bin_filename)>4) ) {
+    cerr << "Error: cannot read from .it and .bin file at the same time!" << endl;
     ABORT(-1);
   }
 
@@ -447,14 +499,33 @@ int main(
   bool use_recorded_data;
   string data_dir;
   int32 device_index;
+  char record_bin_filename[256] = {0};
+  char load_bin_filename[256] = {0};
 
   // Get search parameters from user
-  parse_commandline(argc,argv,freq_start,freq_end,ppm,correction,save_cap,use_recorded_data,data_dir,device_index);
+  parse_commandline(argc,argv,freq_start,freq_end,ppm,correction,save_cap,use_recorded_data,data_dir,device_index, record_bin_filename, load_bin_filename);
+//  cout << "record_bin_filename" << "\n";
+//  cout << record_bin_filename <<  "\n";
+//
+//  cout << "load_bin_filename" <<  "\n";
+//  cout << load_bin_filename <<  "\n";
+//
+//  cout << "save_cap" <<  "\n";
+//  cout << save_cap <<  "\n";
+//
+//  cout << use_recorded_data <<  "\n";
+//  cout << "use_recorded_data" <<  "\n";
+//
+//  cout << freq_start <<  "\n";
+//  cout << "freq_start" <<  "\n";
+//
+//  cout << freq_end <<  "\n";
+//  cout << "freq_end" <<  "\n";
 
   // Open the USB device (if necessary).
   rtlsdr_dev_t * dev=NULL;
-  double fs_programmed;
-  if (!use_recorded_data)
+  double fs_programmed = 1920000; // in case not initialized by config_usb
+  if ( (!use_recorded_data) && (strlen(load_bin_filename)==0) )
     config_usb(correction,device_index,freq_start,dev,fs_programmed);
 
   // Generate a list of center frequencies that should be searched and also
@@ -478,7 +549,13 @@ int main(
     // Fill capture buffer
     cvec capbuf;
     double fc_programmed;
-    capture_data(fc_requested,correction,save_cap,use_recorded_data,data_dir,dev,capbuf,fc_programmed);
+    capture_data(fc_requested,correction,save_cap,record_bin_filename,use_recorded_data,load_bin_filename,data_dir,dev,capbuf,fc_programmed);
+//    cout << "capture_data" <<  "\n";
+//    cout << "fc_requested" <<  "\n";
+//    cout << fc_requested <<  "\n";
+//    cout << "fc_programmed" <<  "\n";
+//    cout << fc_programmed <<  "\n";
+//    cout << capbuf(0).real() << " " << capbuf(0).imag() << " "<< capbuf(1).real() << " " << capbuf(1).imag() << " "<< capbuf(2).real() << " " << capbuf(2).imag() << " "<< capbuf(3).real() << " " << capbuf(3).imag() << " "<< capbuf(4).real() << " " << capbuf(4).imag() << " "<< capbuf(5).real() << " " << capbuf(5).imag() << " "<< capbuf(6).real() << " " << capbuf(6).imag() << " "<<"\n";
 
     // Correlate
 #define DS_COMB_ARM 2

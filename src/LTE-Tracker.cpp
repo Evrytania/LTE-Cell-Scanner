@@ -608,7 +608,7 @@ double kalibrate(
       }
       fc_programmed=fc_requested;
     } else {
-      capture_data(fc_requested,1.0,false,false,".",dev,capbuf,fc_programmed);
+      capture_data(fc_requested,1.0,false,"no",false,"no",".",dev,capbuf,fc_programmed);
     }
     //cout << "Capbuf power: " << db10(sigpower(capbuf)) << " dB" << endl;
     if (noise_power)
