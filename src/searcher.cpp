@@ -392,6 +392,58 @@ void xc_peak_freq(
   }
 }
 
+// pre-generate time domain pss at all frequencies
+void pss_fo_set_gen(
+  // Inputs
+  const vec & fo_search_set,
+  // Outputs
+  vcf3d & pss_fo_set
+){
+}
+
+// sub function of sampling_ppm_f_search_set_by_pss()
+// perform corr in a specific window, and return locations of maximum values
+// of interesting frequencies.
+void pss_fix_location_corr(
+  // Inputs
+  const cvec & capbuf,
+  uint32 start_position,
+  uint32 end_position,
+  const vcf3d & pss_fo_set,
+  const ivec & hit_pss_fo_set_idx,
+  // Outputs
+  ivec hit_time_idx,
+  vec & max_val
+){
+}
+
+
+// sub function of sampling_ppm_f_search_set_by_pss()
+// perform moving corr until any peak at any frequencies exceeds specific threshold
+void pss_moving_corr(
+  // Inputs
+  const cvec & capbuf,
+  const vcf3d & pss_fo_set,
+  float th,
+  // Outputs
+  ivec & hit_pss_fo_set_idx,
+  ivec & hit_time_idx,
+  vec & corr_val
+) {
+}
+
+// pre-processing before xcorr_pss
+void sampling_ppm_f_search_set_by_pss(
+  // Inputs
+  const cvec & capbuf,
+  const vec & f_search_set,
+  // Outpus
+  double & ppm,
+  vec & f_set
+) {
+
+}
+
 // Correlate the received signal against all possible PSS and all possible
 // frequency offsets.
 // This is the main function that calls all of the previously declared
