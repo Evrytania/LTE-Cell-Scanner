@@ -540,6 +540,7 @@ int main(
   const vec fc_search_set=itpp_ext::matlab_range(freq_start,100e3,freq_end);
   const uint16 n_fc=length(fc_search_set);
 
+  // construct data for multiple tries
   const uint32 n_fc_multi_try=n_fc*num_try;
   vec fc_search_set_multi_try;
   fc_search_set_multi_try.set_length(n_fc_multi_try, false);
@@ -559,7 +560,6 @@ int main(
     double fc_requested=fc_search_set_multi_try(fci);
     uint32 fc_idx = fci/num_try;
     uint32 try_idx = fci - fc_idx*num_try;
-//    cout << "fci " << fci <<  " fc_idx " << fc_idx << " try_idx " << try_idx << "\n";
 
     if (verbosity>=1) {
       cout << "Examining center frequency " << fc_requested/1e6 << " MHz ... try " << try_idx << endl;
@@ -569,13 +569,9 @@ int main(
     cvec capbuf;
     double fc_programmed;
     capture_data(fc_requested,correction,save_cap,record_bin_filename,use_recorded_data,load_bin_filename,data_dir,dev,capbuf,fc_programmed);
-//    cout << "capture_data" <<  "\n";
-//    cout << "fc_requested" <<  "\n";
-//    cout << fc_requested <<  "\n";
-//    cout << "fc_programmed" <<  "\n";
-//    cout << fc_programmed <<  "\n";
-//    cout << capbuf(0).real() << " " << capbuf(0).imag() << " "<< capbuf(1).real() << " " << capbuf(1).imag() << " "<< capbuf(2).real() << " " << capbuf(2).imag() << " "<< capbuf(3).real() << " " << capbuf(3).imag() << " "<< capbuf(4).real() << " " << capbuf(4).imag() << " "<< capbuf(5).real() << " " << capbuf(5).imag() << " "<< capbuf(6).real() << " " << capbuf(6).imag() << " "<<"\n";
 
+    int sampling_carrier_twist = 1;
+    double k_factor = 1.0; // need to be decided further together with sampling_carrier_twist
     // Correlate
 #define DS_COMB_ARM 2
     mat xc_incoherent_collapsed_pow;
@@ -590,8 +586,7 @@ int main(
     if (verbosity>=2) {
       cout << "  Calculating PSS correlations" << endl;
     }
-    int sampling_carrier_twist = 1;
-    xcorr_pss(capbuf,f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,xc,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist);
+    xcorr_pss(capbuf,f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,xc,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist,k_factor);
 
     // Calculate the threshold vector
     const uint8 thresh1_n_nines=12;
@@ -628,7 +623,7 @@ int main(
       cell_temp = (*iterator);
       for(tdd_flag=0;tdd_flag<2;tdd_flag++)
       {
-        (*iterator)=sss_detect(cell_temp,capbuf,THRESH2_N_SIGMA,fc_requested,fc_programmed,fs_programmed,sss_h1_np_est_meas,sss_h2_np_est_meas,sss_h1_nrm_est_meas,sss_h2_nrm_est_meas,sss_h1_ext_est_meas,sss_h2_ext_est_meas,log_lik_nrm,log_lik_ext,sampling_carrier_twist,tdd_flag);
+        (*iterator)=sss_detect(cell_temp,capbuf,THRESH2_N_SIGMA,fc_requested,fc_programmed,fs_programmed,sss_h1_np_est_meas,sss_h2_np_est_meas,sss_h1_nrm_est_meas,sss_h2_nrm_est_meas,sss_h1_ext_est_meas,sss_h2_ext_est_meas,log_lik_nrm,log_lik_ext,sampling_carrier_twist,k_factor,tdd_flag);
         if ((*iterator).n_id_1!=-1)
             break;
       }
@@ -638,12 +633,12 @@ int main(
         continue;
       }
       // Fine FOE
-      (*iterator)=pss_sss_foe((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,sampling_carrier_twist,tdd_flag);
+      (*iterator)=pss_sss_foe((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,sampling_carrier_twist,k_factor,tdd_flag);
 
       // Extract time and frequency grid
       cmat tfg;
       vec tfg_timestamp;
-      extract_tfg((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,tfg,tfg_timestamp,sampling_carrier_twist);
+      extract_tfg((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,tfg,tfg_timestamp,sampling_carrier_twist,k_factor);
 
       // Create object containing all RS
       RS_DL rs_dl((*iterator).n_id_cell(),6,(*iterator).cp_type);
@@ -651,7 +646,7 @@ int main(
       // Compensate for time and frequency offsets
       cmat tfg_comp;
       vec tfg_comp_timestamp;
-      (*iterator)=tfoec((*iterator),tfg,tfg_timestamp,fc_requested,fc_programmed,rs_dl,tfg_comp,tfg_comp_timestamp,sampling_carrier_twist);
+      (*iterator)=tfoec((*iterator),tfg,tfg_timestamp,fc_requested,fc_programmed,rs_dl,tfg_comp,tfg_comp_timestamp,sampling_carrier_twist,k_factor);
 
       // Finally, attempt to decode the MIB
       (*iterator)=decode_mib((*iterator),tfg_comp,rs_dl);
@@ -675,7 +670,6 @@ int main(
     }
     if (detected_cells[fc_idx].size() > 0){
       fci = (fc_idx+1)*num_try - 1; // skip to next frequency
-//      cout << "skip! next fci " << fci+1 << "\n";
     }
   }
 

@@ -38,7 +38,8 @@ void xcorr_pss(
   itpp::vec & sp,
   uint16 & n_comb_xc,
   uint16 & n_comb_sp,
-  int sampling_carrier_twist
+  int sampling_carrier_twist,
+  double k_facotr
 );
 
 // Search the correlations for peaks.
@@ -75,6 +76,7 @@ Cell sss_detect(
   itpp::mat & log_lik_nrm,
   itpp::mat & log_lik_ext,
   int sampling_carrier_twist,
+  double k_factor,
   int tdd_flag
 );
 
@@ -86,6 +88,7 @@ Cell pss_sss_foe(
   const double & fc_programmed,
   const double & fs_programmed,
   int sampling_carrier_twist,
+  double k_factor,
   int tdd_flag
 );
 
@@ -100,7 +103,8 @@ void extract_tfg(
   // Outputs
   itpp::cmat & tfg,
   itpp::vec & tfg_timestamp,
-  int sampling_carrier_twist
+  int sampling_carrier_twist,
+  double k_factor
 );
 
 // Perform TOE/FOE/TOC/FOC on the time/ frequency grid.
@@ -115,7 +119,8 @@ Cell tfoec(
   // Outputs
   itpp::cmat & tfg_comp,
   itpp::vec & tfg_comp_timestamp,
-  int sampling_carrier_twist
+  int sampling_carrier_twist,
+  double k_factor
 );
 
 // Attempt to decode the MIB.
