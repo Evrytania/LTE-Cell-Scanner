@@ -115,7 +115,7 @@ void parse_commandline(
   // Default values
   freq_start=-1;
   freq_end=-1;
-  num_try=10; // default number
+  num_try=1; // default number
   ppm=120;
   correction=1;
   save_cap=false;
@@ -510,7 +510,7 @@ int main(
   // Command line parameters are stored here.
   double freq_start;
   double freq_end;
-  int32 num_try;
+  int32 num_try=1;
   double ppm;
   double correction;
   bool save_cap;
@@ -539,15 +539,29 @@ int main(
   const vec f_search_set=to_vec(itpp_ext::matlab_range(-n_extra*5000,5000,n_extra*5000));
   const vec fc_search_set=itpp_ext::matlab_range(freq_start,100e3,freq_end);
   const uint16 n_fc=length(fc_search_set);
+
+  const uint32 n_fc_multi_try=n_fc*num_try;
+  vec fc_search_set_multi_try;
+  fc_search_set_multi_try.set_length(n_fc_multi_try, false);
+  for(uint32 i=0; i<n_fc; i++) {
+    uint32 sp = i*num_try;
+    uint32 ep = sp + num_try;
+    for(uint32 j=sp; j<ep; j++){
+      fc_search_set_multi_try(j) = fc_search_set(i);
+    }
+  }
+
   // Each center frequency is searched independently. Results are stored in
   // this vector.
   vector < list<Cell> > detected_cells(n_fc);
   // Loop for each center frequency.
-  for (uint16 fci=0;fci<n_fc;fci++) {
-    double fc_requested=fc_search_set(fci);
+  for (uint32 fci=0;fci<n_fc_multi_try;fci++) {
+    double fc_requested=fc_search_set_multi_try(fci);
+    uint32 fc_idx = fci/num_try;
+    uint32 try_idx = fci - fc_idx*num_try;
 
     if (verbosity>=1) {
-      cout << "Examining center frequency " << fc_requested/1e6 << " MHz ..." << endl;
+      cout << "Examining center frequency " << fc_requested/1e6 << " MHz ... try " << try_idx << endl;
     }
 
     // Fill capture buffer
@@ -590,12 +604,12 @@ int main(
     }
     list <Cell> peak_search_cells;
     peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,f_search_set,fc_requested,fc_programmed,xc_incoherent_single,DS_COMB_ARM,peak_search_cells);
-    detected_cells[fci]=peak_search_cells;
+    detected_cells[fc_idx]=peak_search_cells;
 
     // Loop and check each peak
-    list<Cell>::iterator iterator=detected_cells[fci].begin();
+    list<Cell>::iterator iterator=detected_cells[fc_idx].begin();
     Cell cell_temp(*iterator);
-    while (iterator!=detected_cells[fci].end()) {
+    while (iterator!=detected_cells[fc_idx].end()) {
       //cout << "Further examining: " << endl;
       //cout << (*iterator) << endl << endl;
 
@@ -619,7 +633,7 @@ int main(
       }
       if ((*iterator).n_id_1==-1) {
         // No SSS detected.
-        iterator=detected_cells[fci].erase(iterator);
+        iterator=detected_cells[fc_idx].erase(iterator);
         continue;
       }
       // Fine FOE
@@ -642,21 +656,24 @@ int main(
       (*iterator)=decode_mib((*iterator),tfg_comp,rs_dl);
       if ((*iterator).n_rb_dl==-1) {
         // No MIB could be successfully decoded.
-        iterator=detected_cells[fci].erase(iterator);
+        iterator=detected_cells[fc_idx].erase(iterator);
         continue;
       }
 
       if (verbosity>=1) {
         if (tdd_flag==0)
-            cout << "  Detected a FDD cell!" << endl;
+            cout << "  Detected a FDD cell! At freqeuncy " << fc_requested/1e6 << "MHz, try " << try_idx << endl;
         else
-            cout << "  Detected a TDD cell!" << endl;
+            cout << "  Detected a TDD cell! At freqeuncy " << fc_requested/1e6 << "MHz, try " << try_idx << endl;
         cout << "    cell ID: " << (*iterator).n_id_cell() << endl;
         cout << "    RX power level: " << db10((*iterator).pss_pow) << " dB" << endl;
         cout << "    residual frequency offset: " << (*iterator).freq_superfine << " Hz" << endl;
       }
 
       ++iterator;
+    }
+    if (detected_cells[fc_idx].size() > 0){
+      fci = fc_idx*num_try - 1; // skip to next frequency
     }
   }
 

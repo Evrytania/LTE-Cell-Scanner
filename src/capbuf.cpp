@@ -129,13 +129,16 @@ void capture_data(
       cerr << "Error: unable to open file: " << load_bin_filename << endl;
       ABORT(-1);
     }
-    int read_count = fread(capbuf_raw, sizeof(unsigned char), 2*CAPLENGTH, fp);
-    fclose(fp);
-    if (read_count != (2*CAPLENGTH))
-    {
-      cerr << "Error: file " << load_bin_filename << " size is not correct" << endl;
-      ABORT(-1);
+    for(uint16 i=0; i<capture_number; i++) {
+      int read_count = fread(capbuf_raw, sizeof(unsigned char), 2*CAPLENGTH, fp);
+      if (read_count != (2*CAPLENGTH))
+      {
+        fclose(fp);
+        cerr << "Error: file " << load_bin_filename << " size is not sufficient" << endl;
+        ABORT(-1);
+      }
     }
+    fclose(fp);
     for (uint32 t=0;t<CAPLENGTH;t++) {
       capbuf(t)=complex<double>((((double)capbuf_raw[(t<<1)])-128.0)/128.0,(((double)capbuf_raw[(t<<1)+1])-128.0)/128.0);
       // 127 --> 128.
@@ -231,7 +234,13 @@ void capture_data(
     if (verbosity>=2) {
       cout << "Saving captured data to file: " << record_bin_filename << endl;
     }
-    FILE *fp = fopen(record_bin_filename, "wb");
+    FILE *fp = NULL;
+    if (capture_number==0){
+      fp = fopen(record_bin_filename, "wb");
+    } else {
+      fp = fopen(record_bin_filename, "ab");
+    }
+
     if (fp == NULL)
     {
       cerr << "Error: unable to open file: " << record_bin_filename << endl;
