@@ -559,6 +559,7 @@ int main(
     double fc_requested=fc_search_set_multi_try(fci);
     uint32 fc_idx = fci/num_try;
     uint32 try_idx = fci - fc_idx*num_try;
+//    cout << "fci " << fci <<  " fc_idx " << fc_idx << " try_idx " << try_idx << "\n";
 
     if (verbosity>=1) {
       cout << "Examining center frequency " << fc_requested/1e6 << " MHz ... try " << try_idx << endl;
@@ -673,7 +674,8 @@ int main(
       ++iterator;
     }
     if (detected_cells[fc_idx].size() > 0){
-      fci = fc_idx*num_try - 1; // skip to next frequency
+      fci = (fc_idx+1)*num_try - 1; // skip to next frequency
+//      cout << "skip! next fci " << fci+1 << "\n";
     }
   }
 

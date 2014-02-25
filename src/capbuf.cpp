@@ -129,7 +129,7 @@ void capture_data(
       cerr << "Error: unable to open file: " << load_bin_filename << endl;
       ABORT(-1);
     }
-    for(uint16 i=0; i<capture_number; i++) {
+    for(uint16 i=0; i<(capture_number+1); i++) {
       int read_count = fread(capbuf_raw, sizeof(unsigned char), 2*CAPLENGTH, fp);
       if (read_count != (2*CAPLENGTH))
       {
