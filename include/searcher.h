@@ -18,6 +18,14 @@
 #ifndef HAVE_SEARCHER_H
 #define HAVE_SEARCHER_H
 
+// FIR 6RB filter
+void filter_my(
+  //Inputs
+  const itpp::vec & coef,
+  //Outputs
+  itpp::cvec & capbuf
+);
+
 // Correlate the captured data against the PSS.
 void xcorr_pss(
   // Inputs

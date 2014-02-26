@@ -535,9 +535,12 @@ int main(
   // Generate a list of center frequencies that should be searched and also
   // a list of frequency offsets that should be searched for each center
   // frequency.
-  const uint16 n_extra=floor_i((freq_start*ppm/1e6+2.5e3)/5e3);
-  const vec f_search_set=to_vec(itpp_ext::matlab_range(-n_extra*5000,5000,n_extra*5000));
   const vec fc_search_set=itpp_ext::matlab_range(freq_start,100e3,freq_end);
+
+//  const uint16 n_extra=floor_i((freq_start*ppm/1e6+2.5e3)/5e3);
+//  const vec f_search_set=to_vec(itpp_ext::matlab_range(-n_extra*5000,5000,n_extra*5000));
+  // since we have frequency step is 100e3, why not have sub search set limited by this regardless PPM?
+  const vec f_search_set=to_vec(itpp_ext::matlab_range(-65000,5000,65000)); // 2*65kHz > 100kHz, overlap adjacent frequencies
   const uint16 n_fc=length(fc_search_set);
 
   // construct data for multiple tries
@@ -551,6 +554,19 @@ int main(
       fc_search_set_multi_try(j) = fc_search_set(i);
     }
   }
+
+  // get coefficients of 6 RB filter (to improve SNR)
+  // coef = fir1(46, (0.18e6*6+150e3)/sampling_rate);
+  vec coef = "8.193313185354206e-04     3.535548569572820e-04    -1.453429245341695e-03     1.042805860697287e-03     1.264224526451337e-03 \
+  -3.219586065044259e-03     1.423981657254563e-03     3.859884310477692e-03    -6.552708013395765e-03     8.590509694961493e-04 \
+  9.363722386299336e-03    -1.120357391780316e-02    -2.423088424232164e-03     1.927528718829535e-02    -1.646405738285926e-02 \
+  -1.143040384534755e-02     3.652830082843752e-02    -2.132986170036144e-02    -3.396829121834471e-02     7.273086636811442e-02 \
+  -2.476823886110626e-02    -1.207789042999466e-01     2.861583432079335e-01     6.398255789896659e-01     2.861583432079335e-01 \
+  -1.207789042999466e-01    -2.476823886110626e-02     7.273086636811442e-02    -3.396829121834471e-02    -2.132986170036144e-02 \
+  3.652830082843752e-02    -1.143040384534755e-02    -1.646405738285926e-02     1.927528718829535e-02    -2.423088424232164e-03 \
+  -1.120357391780316e-02     9.363722386299336e-03     8.590509694961493e-04    -6.552708013395765e-03     3.859884310477692e-03 \
+  1.423981657254563e-03    -3.219586065044259e-03     1.264224526451337e-03     1.042805860697287e-03    -1.453429245341695e-03 \
+  3.535548569572820e-04     8.193313185354206e-04";
 
   // Each center frequency is searched independently. Results are stored in
   // this vector.
@@ -569,6 +585,9 @@ int main(
     cvec capbuf;
     double fc_programmed;
     capture_data(fc_requested,correction,save_cap,record_bin_filename,use_recorded_data,load_bin_filename,data_dir,dev,capbuf,fc_programmed);
+
+    // 6RB filter to improve SNR
+    filter_my(coef, capbuf);
 
     int sampling_carrier_twist = 1;
     double k_factor = 1.0; // need to be decided further together with sampling_carrier_twist

@@ -392,6 +392,46 @@ void xc_peak_freq(
   }
 }
 
+// FIR 6RB filter
+void filter_my(
+  //Inputs
+  const vec & coef,
+  //Inputs&Outputs
+  cvec & capbuf
+) {
+  uint32 len = length(capbuf);
+  uint16 len_fir = length(coef);
+  complex <double> acc;
+
+  cvec tmpbuf(len);
+
+  // to conform matlab filter
+  for (uint32 i=23; i<len_fir; i++) {
+    acc=0;
+    for (uint16 j=0; j<(i+1); j++){
+      acc = acc + coef[j]*capbuf[i-j];
+    }
+    tmpbuf[i-23] = acc;
+  }
+
+  for (uint32 i=len_fir; i<len; i++) {
+    acc=0;
+    for (uint16 j=0; j<len_fir; j++){
+      acc = acc + coef[j]*capbuf[i-j];
+    }
+    tmpbuf[i-23] = acc;
+  }
+
+  for (uint32 i=len; i<(len+23); i++) {
+    acc=0;
+    for (uint16 j=(i-len+1); j<len_fir; j++){
+      acc = acc + coef[j]*capbuf[i-j];
+    }
+    tmpbuf[i-23] = acc;
+  }
+
+  capbuf = tmpbuf;
+}
 // pre-generate time domain pss at all frequencies
 void pss_fo_set_gen(
   // Inputs
