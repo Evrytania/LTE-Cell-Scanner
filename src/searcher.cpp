@@ -392,6 +392,19 @@ void xc_peak_freq(
   }
 }
 
+// normalize a vector to unit power for each sample (average meaning)
+void normalize(
+  // Input&Output
+  cvec & s
+) {
+  uint32 len = length(s);
+  double acc = 0;
+  for( uint32 i=0; i<len; i++){
+    acc = acc + real(s(i)*conj(s(i)));
+  }
+  s = sqrt(len)*s/sqrt(acc);
+}
+
 // FIR 6RB filter
 void filter_my(
   //Inputs
@@ -401,17 +414,18 @@ void filter_my(
 ) {
   uint32 len = length(capbuf);
   uint16 len_fir = length(coef);
+  uint16 len_half = (len_fir-1)/2;
   complex <double> acc;
 
   cvec tmpbuf(len);
 
   // to conform matlab filter
-  for (uint32 i=23; i<len_fir; i++) {
+  for (uint32 i=len_half; i<len_fir; i++) {
     acc=0;
     for (uint16 j=0; j<(i+1); j++){
       acc = acc + coef[j]*capbuf[i-j];
     }
-    tmpbuf[i-23] = acc;
+    tmpbuf[i-len_half] = acc;
   }
 
   for (uint32 i=len_fir; i<len; i++) {
@@ -419,26 +433,18 @@ void filter_my(
     for (uint16 j=0; j<len_fir; j++){
       acc = acc + coef[j]*capbuf[i-j];
     }
-    tmpbuf[i-23] = acc;
+    tmpbuf[i-len_half] = acc;
   }
 
-  for (uint32 i=len; i<(len+23); i++) {
+  for (uint32 i=len; i<(len+len_half); i++) {
     acc=0;
     for (uint16 j=(i-len+1); j<len_fir; j++){
       acc = acc + coef[j]*capbuf[i-j];
     }
-    tmpbuf[i-23] = acc;
+    tmpbuf[i-len_half] = acc;
   }
 
   capbuf = tmpbuf;
-}
-// pre-generate time domain pss at all frequencies
-void pss_fo_set_gen(
-  // Inputs
-  const vec & fo_search_set,
-  // Outputs
-  vcf3d & pss_fo_set
-){
 }
 
 // sub function of sampling_ppm_f_search_set_by_pss()
@@ -462,26 +468,122 @@ void pss_fix_location_corr(
 // perform moving corr until any peak at any frequencies exceeds specific threshold
 void pss_moving_corr(
   // Inputs
-  const cvec & capbuf,
-  const vcf3d & pss_fo_set,
-  float th,
+  const cvec & s,
+  const vec & f_search_set,
+  const vector <cvec> & pss_fo_set,
+  double th,
   // Outputs
   ivec & hit_pss_fo_set_idx,
   ivec & hit_time_idx,
   vec & corr_val
 ) {
+  uint16 num_pss = 3;
+  uint16 len_pss = length( ROM_TABLES.pss_td[0] );
+  uint16 num_fo_pss = num_pss*length( f_search_set );
+  uint16 max_reserve = 8;
+
+  uint32 len = length(s);
+  uint32 len_half_store = 64;
+  mat corr_store(2*len_half_store+1, num_fo_pss);
+
+  int32 end_idx = -1;
+  int32 current_idx = -1;
+
+  cvec chn_tmp(len_pss);
+  for(uint32 i=0; i<(len - (len_pss-1)); i++) {
+    chn_tmp = s(i, (i+len_pss-1));
+    normalize(chn_tmp);
+
+    vec tmp(num_fo_pss);
+    for (uint16 j=0; j<num_fo_pss; j++){
+      complex <double> acc=0;
+      for (uint16 k=0; k<len_pss; k++){
+        acc = acc + chn_tmp(k)*pss_fo_set[j][k];
+      }
+      tmp(j) = real( acc*conj(acc) );
+    }
+
+    for (uint16 j=2*len_half_store; j>=1; j--) {
+      for (uint16 k=0; k<num_fo_pss; k++){
+        corr_store(j,k) = corr_store(j-1,k);
+      }
+    }
+    for (uint16 k=0; k<num_fo_pss; k++){
+      corr_store(0,k) = tmp(k);
+    }
+
+    uint16 acc=0;
+    for (uint16 k=0; k<num_fo_pss; k++){
+      acc = acc + tmp(k)>th?1:0;
+    }
+    if (acc) {
+      current_idx = i;
+      end_idx = current_idx + len_half_store;
+      break;
+    }
+  }
 }
 
+// pre-generate td-pss of all frequencies offsets
+void pss_fo_set_gen(
+  // Input
+  const vec & fo_search_set,
+  // Output
+  vector <cvec> & pss_fo_set
+){
+  uint16 num_pss = 3;
+  uint16 len_pss = length(ROM_TABLES.pss_td[0]);
+
+  double sampling_rate = FS_LTE/16; // LTE spec
+  uint16 num_fo = length(fo_search_set);
+  uint32 num_fo_pss = num_fo*num_pss;
+  cvec temp(len_pss);
+
+  pss_fo_set.resize(num_pss);
+  for (uint32 fo_pss_i=0; fo_pss_i<num_fo_pss; fo_pss_i++) {
+    uint32 pssi = fo_pss_i/num_fo;
+    uint32 foi = fo_pss_i - pssi*num_fo;
+    double f_off = fo_search_set(foi);
+    for (uint16 t=0; t<num_pss; t++) {
+      temp = ROM_TABLES.pss_td[t];
+      temp = fshift(temp,f_off,sampling_rate);
+      temp = conj(temp);
+      normalize(temp);
+      pss_fo_set[t] = temp;
+    }
+  }
+}
 // pre-processing before xcorr_pss
 void sampling_ppm_f_search_set_by_pss(
   // Inputs
   const cvec & capbuf,
-  const vec & f_search_set,
+  // Inputs&Outputs
+  vec & f_search_set,
   // Outpus
-  double & ppm,
-  vec & f_set
+  double & ppm
 ) {
+  uint16 len_pss = length(ROM_TABLES.pss_td[0]);
+  ppm = NAN;
+  vec f_set;
 
+  vector <cvec> pss_fo_set;
+  pss_fo_set_gen(f_search_set, pss_fo_set);
+
+  uint32 len = length(capbuf);
+
+  double th = 25*265.1154;
+
+  double sampling_rate = FS_LTE/16; // LTE spec
+
+  double len_time_subframe = 1e-3; //% 1ms. //LTE spec
+  uint32 num_subframe_per_radioframe = 10;
+  uint32 num_sample_per_subframe = (uint32)(len_time_subframe*sampling_rate);
+  uint32 num_sample_per_radioframe = num_sample_per_subframe*num_subframe_per_radioframe;
+
+  ivec hit_pss_fo_set_idx;
+  ivec hit_time_idx;
+  vec corr_val;
+  pss_moving_corr(capbuf(0,(2*num_sample_per_radioframe-1)), f_search_set, pss_fo_set, th, hit_pss_fo_set_idx, hit_time_idx, corr_val);
 }
 
 // Correlate the received signal against all possible PSS and all possible
