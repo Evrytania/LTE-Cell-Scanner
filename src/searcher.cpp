@@ -490,11 +490,11 @@ void pss_moving_corr(
   int32 current_idx = -1;
 
   cvec chn_tmp(len_pss);
+  vec tmp(num_fo_pss);
   for(uint32 i=0; i<(len - (len_pss-1)); i++) {
     chn_tmp = s(i, (i+len_pss-1));
     normalize(chn_tmp);
 
-    vec tmp(num_fo_pss);
     for (uint16 j=0; j<num_fo_pss; j++){
       complex <double> acc=0;
       for (uint16 k=0; k<len_pss; k++){
@@ -521,6 +521,39 @@ void pss_moving_corr(
       end_idx = current_idx + len_half_store;
       break;
     }
+  }
+
+  if (end_idx != -1){
+    int32 tmpi = (len - (len_pss-1))-1;
+    int32 last_idx = end_idx>tmpi?tmpi:end_idx;
+
+    for (uint32 i=(current_idx+1); i<(last_idx+1); i++ ){
+      chn_tmp = s(i, (i+len_pss-1));
+
+      normalize(chn_tmp);
+
+      for (uint16 j=0; j<num_fo_pss; j++){
+        complex <double> acc=0;
+        for (uint16 k=0; k<len_pss; k++){
+          acc = acc + chn_tmp(k)*pss_fo_set[j][k];
+        }
+        tmp(j) = real( acc*conj(acc) );
+      }
+
+      for (uint16 j=2*len_half_store; j>=1; j--) {
+        for (uint16 k=0; k<num_fo_pss; k++){
+          corr_store(j,k) = corr_store(j-1,k);
+        }
+      }
+      for (uint16 k=0; k<num_fo_pss; k++){
+        corr_store(0,k) = tmp(k);
+      }
+    }
+
+    vec max_val(num_fo_pss);
+    ivec max_idx(num_fo_pss);
+    max_val = max(corr_store, max_idx, 1);
+    sort(max_val);
   }
 }
 
