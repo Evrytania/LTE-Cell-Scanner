@@ -415,6 +415,7 @@ void filter_my(
   uint32 len = length(capbuf);
   uint16 len_fir = length(coef);
   uint16 len_half = (len_fir-1)/2;
+//  cout << len_half << "\n";
   complex <double> acc;
 
   cvec tmpbuf(len);
@@ -452,15 +453,40 @@ void filter_my(
 // of interesting frequencies.
 void pss_fix_location_corr(
   // Inputs
-  const cvec & capbuf,
-  uint32 start_position,
-  uint32 end_position,
-  const vcf3d & pss_fo_set,
+  const cvec & s,
+  int32 start_position,
+  int32 end_position,
+  const vector <cvec> & pss_fo_set,
   const ivec & hit_pss_fo_set_idx,
   // Outputs
-  ivec hit_time_idx,
+  ivec & hit_time_idx,
   vec & max_val
 ){
+  uint16 len_pss = length( ROM_TABLES.pss_td[0] );
+  vector <cvec> pss_fo_specific_set;
+  uint16 num_fo_pss = length(hit_pss_fo_set_idx);
+
+  vec tmp(num_fo_pss);
+  mat corr_store(end_position-start_position+1, num_fo_pss);
+  corr_store.zeros();
+  cvec chn_tmp(len_pss);
+  for(int32 i=start_position; i<=end_position; i++) {
+    chn_tmp = s(i, (i+len_pss-1));
+    normalize(chn_tmp);
+
+    for (uint16 j=0; j<num_fo_pss; j++){
+      complex <double> acc=0;
+      for (uint16 k=0; k<len_pss; k++){
+        acc = acc + chn_tmp(k)*pss_fo_set[hit_pss_fo_set_idx(j)][k];
+      }
+      tmp(j) = real( acc*conj(acc) );
+    }
+
+    corr_store.set_row(i-start_position, tmp);
+  }
+  ivec max_idx(num_fo_pss);
+  max_val = max(corr_store, max_idx, 1);
+  hit_time_idx = start_position + max_idx;
 }
 
 
@@ -475,7 +501,7 @@ void pss_moving_corr(
   // Outputs
   ivec & hit_pss_fo_set_idx,
   ivec & hit_time_idx,
-  vec & corr_val
+  vec & hit_corr_val
 ) {
   uint16 num_pss = 3;
   uint16 len_pss = length( ROM_TABLES.pss_td[0] );
@@ -485,6 +511,11 @@ void pss_moving_corr(
   uint32 len = length(s);
   uint32 len_half_store = 64;
   mat corr_store(2*len_half_store+1, num_fo_pss);
+  corr_store.zeros();
+
+  hit_pss_fo_set_idx.set_length(0);
+  hit_time_idx.set_length(0);
+  hit_corr_val.set_length(0);
 
   int32 end_idx = -1;
   int32 current_idx = -1;
@@ -514,7 +545,7 @@ void pss_moving_corr(
 
     uint16 acc=0;
     for (uint16 k=0; k<num_fo_pss; k++){
-      acc = acc + tmp(k)>th?1:0;
+      acc = acc + (tmp(k)>th?1:0);
     }
     if (acc) {
       current_idx = i;
@@ -524,7 +555,9 @@ void pss_moving_corr(
   }
 
   if (end_idx != -1){
-    int32 tmpi = (len - (len_pss-1))-1;
+    double tmp_val;
+    int tmpi;
+    tmpi = (len - (len_pss-1))-1;
     int32 last_idx = end_idx>tmpi?tmpi:end_idx;
 
     for (uint32 i=(current_idx+1); i<(last_idx+1); i++ ){
@@ -553,7 +586,31 @@ void pss_moving_corr(
     vec max_val(num_fo_pss);
     ivec max_idx(num_fo_pss);
     max_val = max(corr_store, max_idx, 1);
+    ivec sort_idx = sort_index(max_val);
     sort(max_val);
+    tmp_val = max_val(num_fo_pss-1)/2;
+    int16 k;
+    for (k=num_fo_pss-1; k>=0; k--) {
+      if (max_val(k)<tmp_val)
+        break;
+    }
+    int16 num_valid;
+    if (k==-1){
+      num_valid = num_fo_pss;
+    }
+    else {
+      num_valid = num_fo_pss - k - 1;
+    }
+    num_valid = num_valid>max_reserve?max_reserve:num_valid;
+
+    hit_pss_fo_set_idx.set_length(num_valid, false);
+    hit_time_idx.set_length(num_valid, false);
+    hit_corr_val.set_length(num_valid, false);
+    for (k=0; k<num_valid; k++) {
+      hit_pss_fo_set_idx(k) = sort_idx(num_fo_pss-1-k);
+      hit_corr_val(k) = max_val(num_fo_pss-1-k);
+      hit_time_idx(k) = last_idx - max_idx(hit_pss_fo_set_idx(k));
+    }
   }
 }
 
@@ -572,26 +629,25 @@ void pss_fo_set_gen(
   uint32 num_fo_pss = num_fo*num_pss;
   cvec temp(len_pss);
 
-  pss_fo_set.resize(num_pss);
+  pss_fo_set.resize(num_fo_pss);
   for (uint32 fo_pss_i=0; fo_pss_i<num_fo_pss; fo_pss_i++) {
     uint32 pssi = fo_pss_i/num_fo;
     uint32 foi = fo_pss_i - pssi*num_fo;
+
     double f_off = fo_search_set(foi);
-    for (uint16 t=0; t<num_pss; t++) {
-      temp = ROM_TABLES.pss_td[t];
-      temp = fshift(temp,f_off,sampling_rate);
-      temp = conj(temp);
-      normalize(temp);
-      pss_fo_set[t] = temp;
-    }
+    temp = ROM_TABLES.pss_td[pssi];
+    temp = fshift(temp,f_off,sampling_rate);
+    temp = conj(temp);
+    normalize(temp);
+    pss_fo_set[fo_pss_i] = temp;
   }
 }
 // pre-processing before xcorr_pss
 void sampling_ppm_f_search_set_by_pss(
   // Inputs
-  const cvec & capbuf,
+  const cvec & s,
   // Inputs&Outputs
-  vec & f_search_set,
+  vec & fo_search_set,
   // Outpus
   double & ppm
 ) {
@@ -600,9 +656,11 @@ void sampling_ppm_f_search_set_by_pss(
   vec f_set;
 
   vector <cvec> pss_fo_set;
-  pss_fo_set_gen(f_search_set, pss_fo_set);
+  pss_fo_set_gen(fo_search_set, pss_fo_set);
 
-  uint32 len = length(capbuf);
+  uint32 len = length(s);
+
+  uint16 num_fo_orig = length(fo_search_set);
 
   double th = 25*265.1154;
 
@@ -616,7 +674,164 @@ void sampling_ppm_f_search_set_by_pss(
   ivec hit_pss_fo_set_idx;
   ivec hit_time_idx;
   vec corr_val;
-  pss_moving_corr(capbuf(0,(2*num_sample_per_radioframe-1)), f_search_set, pss_fo_set, th, hit_pss_fo_set_idx, hit_time_idx, corr_val);
+  pss_moving_corr(s(0,(2*num_sample_per_radioframe-1)), fo_search_set, pss_fo_set, th, hit_pss_fo_set_idx, hit_time_idx, corr_val);
+  if (length(hit_pss_fo_set_idx)==0){
+    cout << "No strong enough PSS correlation peak.\n";
+    return;
+  }
+
+  int32 pss_period = num_sample_per_radioframe/2;
+
+  uint16 num_fo = length(hit_pss_fo_set_idx);
+  uint16 max_num_hit = ceil((double)len/(double)pss_period);
+  imat time_location(max_num_hit, num_fo);
+  time_location.zeros();
+  time_location.set_row(0, hit_time_idx);
+  mat hit_corr_val(max_num_hit, num_fo);
+  hit_corr_val.zeros();
+  hit_corr_val.set_row(0,corr_val);
+
+  uint16 pss_count = 0;
+  uint16 max_offset = 32;
+  imat time_location_invalid_record(max_num_hit, num_fo);
+  time_location_invalid_record.zeros();
+
+  ivec next_location(num_fo);
+  while(1) {
+    next_location = time_location.get_row(pss_count) + pss_period;
+    int32 min_next_location = min(next_location);
+    int32 max_next_location = max(next_location);
+
+    if( (max_next_location+max_offset) > (len-(len_pss-1)-1) ){
+      break;
+    }
+
+    pss_fix_location_corr(s, min_next_location-max_offset, max_next_location+max_offset, pss_fo_set, hit_pss_fo_set_idx, hit_time_idx, corr_val);
+
+    pss_count = pss_count + 1;
+    time_location.set_row(pss_count, hit_time_idx);
+    hit_corr_val.set_row(pss_count, corr_val);
+
+    for (uint16 k=0; k<num_fo; k++){
+      if (corr_val(k)<(th*3.0/4.0)){
+        time_location(pss_count, k) = next_location(k);
+        time_location_invalid_record(pss_count, k) = 1;
+      }
+    }
+  }
+
+  vec ppm_store(num_fo);
+  ivec valid_idx(num_fo);
+  int32 min_dist = (int32)floor( ((double)len/(double)pss_period) * (1.0/2.0) );
+  int16 ppm_idx = -1;
+
+  for (uint16 i=0; i<num_fo; i++){
+    uint16 col_idx = i;
+
+    int16 sp = -1;
+    for (uint16 j=0; j<pss_count; j++){
+      if (time_location_invalid_record(j,col_idx) == 0){
+        sp = j;
+        break;
+      }
+    }
+
+    int16 ep = -1;
+    for (int16 j=pss_count-1; j>=0; j--){
+      if (time_location_invalid_record(j,col_idx) == 0){
+        ep = j;
+        break;
+      }
+    }
+
+    if (sp==-1){
+      continue;
+    }
+
+    if ( (ep-sp)<min_dist ){
+      continue;
+    }
+
+    uint32 distance = time_location(ep,col_idx) - time_location(sp,col_idx);
+    int32 len_ppm = ep-sp+1;
+    len_ppm = pss_period*(len_ppm-1);
+    double ppm_raw = 1.0e6 * ( (double)distance - (double)len_ppm )/(double)len_ppm;
+
+    ppm_idx = ppm_idx + 1;
+    ppm_store(ppm_idx) = ppm_raw;
+    valid_idx(ppm_idx) = i;
+  }
+
+  if (ppm_idx == -1){
+    cout << "No valid PSS hit sequence.\n";
+    return;
+  }
+
+  bool extra_frequency_flag = false;
+  cout << "PPM: " << ppm_store(0, ppm_idx);
+
+  if (ppm_idx==0){
+    ppm = ppm_store(0);
+    cout << "Total " << (ppm_idx+1) << " freq. idx for PPM: " << valid_idx(0) << "\n";
+    cout << "Average PPM: " << ppm << "\n";
+    uint16 idx_in_fo_search_set = hit_pss_fo_set_idx(valid_idx(0));
+    double f_set = fo_search_set( idx_in_fo_search_set%num_fo_orig );
+    cout << "Period PPM " << ppm << "PPM; f_set " << f_set/1.0e3 << "kHz\n";
+    fo_search_set.set_length(1, false);
+    fo_search_set(0) = f_set;
+    return;
+  } else if (ppm_idx==1) {
+    ppm = ( ppm_store(0) + ppm_store(1) )/2.0;
+    cout << "Total " << (ppm_idx+1) << " freq. idx for PPM: " << valid_idx(0,1) << "\n";
+    cout << "Average PPM: " << ppm << "\n";
+    if ( ( abs(ppm_store(1)-ppm_store(0))/abs(ppm_store(0)) ) > (1.0/20.0) ){
+      vec f_set(2);
+      for (uint16 i=0; i<2; i++){
+        int32 idx_in_fo_search_set = hit_pss_fo_set_idx(valid_idx(i));
+        f_set(i) = fo_search_set( idx_in_fo_search_set%num_fo_orig );
+      }
+      cout << "Period PPM " << ppm << "PPM; f_set " << f_set/1.0e3 << "kHz\n";
+      fo_search_set.set_length(2, false);
+      fo_search_set = f_set;
+      return;
+    }
+  } else if ( variance(ppm_store(0, ppm_idx)) > 0.01 ) {
+    double mean_ppm = mean(ppm_store(0, ppm_idx));
+    vec tmp = abs(ppm_store(0, ppm_idx)-mean_ppm);
+    int32 max_idx;
+    double max_val = max(tmp, max_idx);
+    uint16 num_drop_idx = 0;
+    ivec drop_idx(ppm_idx+1);
+    for (uint16 i=0; i<=ppm_idx; i++){
+      if (ppm_store(i) == ppm_store(max_idx)){
+        drop_idx(num_drop_idx) = i;
+        num_drop_idx++;
+      }
+    }
+    if ( ( (double)num_drop_idx ) >= ( ((double)ppm_idx+1.0)*3.0/8.0 ) ){
+      cout << "Too many PPM drops. Will not do it.\n";
+      extra_frequency_flag = true;
+    } else {
+      cout << "Drop PPM: ";
+      for (uint16 i=0; i<num_drop_idx; i++) {
+        cout << ppm_store(drop_idx(i)) << " ";
+      }
+      cout << "\n";
+      for (uint16 i=0; i<num_drop_idx; i++) {
+        ppm_store.del(drop_idx(i));
+        valid_idx.del(drop_idx(i));
+      }
+      ppm_idx = ppm_idx - num_drop_idx;
+    }
+    ppm = mean(ppm_store(0, ppm_idx));
+    cout << "Total " << (ppm_idx+1) << " freq. idx for PPM: " << valid_idx(0,ppm_idx) << "\n";
+    cout << "Average PPM: " << ppm << "\n";
+  }
+
+  vec sum_corr_val(ppm_idx+1);
+  sum_corr_val.zeros();
+
+
 }
 
 // Correlate the received signal against all possible PSS and all possible

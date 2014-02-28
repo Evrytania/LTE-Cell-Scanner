@@ -26,6 +26,15 @@ void filter_my(
   itpp::cvec & capbuf
 );
 
+void sampling_ppm_f_search_set_by_pss(
+  // Inputs
+  const itpp::cvec & capbuf,
+  // Inputs&Outputs
+  itpp::vec & f_search_set,
+  // Outpus
+  double & ppm
+);
+
 // Correlate the captured data against the PSS.
 void xcorr_pss(
   // Inputs

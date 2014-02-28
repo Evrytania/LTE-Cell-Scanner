@@ -540,7 +540,8 @@ int main(
 //  const uint16 n_extra=floor_i((freq_start*ppm/1e6+2.5e3)/5e3);
 //  const vec f_search_set=to_vec(itpp_ext::matlab_range(-n_extra*5000,5000,n_extra*5000));
   // since we have frequency step is 100e3, why not have sub search set limited by this regardless PPM?
-  const vec f_search_set=to_vec(itpp_ext::matlab_range(-65000,5000,65000)); // 2*65kHz > 100kHz, overlap adjacent frequencies
+//  vec f_search_set=to_vec(itpp_ext::matlab_range(-65000,5000,65000)); // 2*65kHz > 100kHz, overlap adjacent frequencies
+  vec f_search_set=to_vec(itpp_ext::matlab_range(-100000,5000,100000)); // 2*65kHz > 100kHz, overlap adjacent frequencies
   const uint16 n_fc=length(fc_search_set);
 
   // construct data for multiple tries
@@ -591,6 +592,9 @@ int main(
 
     int sampling_carrier_twist = 1;
     double k_factor = 1.0; // need to be decided further together with sampling_carrier_twist
+    double ppm;
+
+    sampling_ppm_f_search_set_by_pss(capbuf, f_search_set, ppm);
     // Correlate
 #define DS_COMB_ARM 2
     mat xc_incoherent_collapsed_pow;
