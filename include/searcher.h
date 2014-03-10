@@ -55,7 +55,7 @@ void xcorr_pss(
   itpp::vec & sp,
   uint16 & n_comb_xc,
   uint16 & n_comb_sp,
-  int sampling_carrier_twist,
+  bool sampling_carrier_twist,
   double k_facotr
 );
 
@@ -92,7 +92,7 @@ Cell sss_detect(
   itpp::cvec & sss_h2_ext_est,
   itpp::mat & log_lik_nrm,
   itpp::mat & log_lik_ext,
-  int sampling_carrier_twist,
+  bool sampling_carrier_twist,
   double k_factor,
   int tdd_flag
 );
@@ -104,7 +104,7 @@ Cell pss_sss_foe(
   const double & fc_requested,
   const double & fc_programmed,
   const double & fs_programmed,
-  int sampling_carrier_twist,
+  bool sampling_carrier_twist,
   double k_factor,
   int tdd_flag
 );
@@ -120,7 +120,7 @@ void extract_tfg(
   // Outputs
   itpp::cmat & tfg,
   itpp::vec & tfg_timestamp,
-  int sampling_carrier_twist,
+  bool sampling_carrier_twist,
   double k_factor
 );
 
@@ -136,7 +136,7 @@ Cell tfoec(
   // Outputs
   itpp::cmat & tfg_comp,
   itpp::vec & tfg_comp_timestamp,
-  int sampling_carrier_twist,
+  bool sampling_carrier_twist,
   double k_factor
 );
 

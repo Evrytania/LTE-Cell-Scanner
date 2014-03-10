@@ -57,9 +57,11 @@ void print_usage() {
   cout << "      frequency where cell search should start" << endl;
   cout << "    -e --freq-end fe" << endl;
   cout << "      frequency where cell search should end" << endl;
-  cout << "    -t --num-try nt" << endl;
+  cout << "    -n --num-try nt" << endl;
   cout << "      number of tries at each frequency/file" << endl;
   cout << "  Dongle LO correction options:" << endl;
+  cout << "    -t --twisted" << endl;
+  cout << "      enable original sampling-carrier-twisted mode (default is disable and using pre-search/calculated sampling PPM)" << endl;
   cout << "    -p --ppm ppm" << endl;
   cout << "      crystal remaining PPM error" << endl;
   cout << "    -c --correction c" << endl;
@@ -103,6 +105,7 @@ void parse_commandline(
   double & freq_start,
   double & freq_end,
   int & num_try,
+  bool & sampling_carrier_twist,
   double & ppm,
   double & correction,
   bool & save_cap,
@@ -115,7 +118,8 @@ void parse_commandline(
   // Default values
   freq_start=-1;
   freq_end=-1;
-  num_try=1; // default number
+  num_try=10; // default number
+  sampling_carrier_twist=false;
   ppm=120;
   correction=1;
   save_cap=false;
@@ -130,7 +134,8 @@ void parse_commandline(
       {"brief",        no_argument,       0, 'b'},
       {"freq-start",   required_argument, 0, 's'},
       {"freq-end",     required_argument, 0, 'e'},
-      {"num-try",      required_argument, 0, 't'},
+      {"num-try",      required_argument, 0, 'n'},
+      {"twisted",      no_argument,       0, 't'},
       {"ppm",          required_argument, 0, 'p'},
       {"correction",   required_argument, 0, 'c'},
       {"recbin",       required_argument, 0, 'x'},
@@ -143,7 +148,7 @@ void parse_commandline(
     };
     /* getopt_long stores the option index here. */
     int option_index = 0;
-    int c = getopt_long (argc, argv, "hvbs:e:p:c:rld:i:",
+    int c = getopt_long (argc, argv, "hvbs:e:n:tp:c:x:y:rld:i:",
                      long_options, &option_index);
 
     /* Detect the end of the options. */
@@ -182,12 +187,15 @@ void parse_commandline(
           ABORT(-1);
         }
         break;
-      case 't':
+      case 'n':
         num_try=strtol(optarg,&endp,10);
         if ((optarg==endp)||(*endp!='\0')) {
           cerr << "Error: could not parse number of tries" << endl;
           ABORT(-1);
         }
+        break;
+      case 't':
+        sampling_carrier_twist=true;
         break;
       case 'p':
         ppm=strtod(optarg,&endp);
@@ -279,8 +287,13 @@ void parse_commandline(
   // Second order command line checking. Ensure that command line options
   // are consistent.
   if (freq_start==-1) {
-    cerr << "Error: must specify a start frequency. (Try --help)" << endl;
-    ABORT(-1);
+    if (!sampling_carrier_twist) {
+      freq_start=9999e6; // fake
+      cout << "Warning: Frequency not specified. Make sure you are working on captured file.\n";
+    } else {
+      cerr << "Error: must specify a start frequency. (Try --help)" << endl;
+      ABORT(-1);
+    }
   }
   // Start and end frequencies should be on a 100kHz raster.
   if (freq_start<1e6) {
@@ -337,10 +350,12 @@ void parse_commandline(
     } else {
       cout << "  Search frequency range: " << freq_start/1e6 << "-" << freq_end/1e6 << " MHz" << endl;
     }
-    cout << "  PPM: " << ppm << endl;
-    stringstream temp;
-    temp << setprecision(20) << correction;
-    cout << "  correction: " << temp.str() << endl;
+    if (sampling_carrier_twist) {
+      cout << "  PPM: " << ppm << endl;
+      stringstream temp;
+      temp << setprecision(20) << correction;
+      cout << "  correction: " << temp.str() << endl;
+    }
     if (save_cap)
       cout << "  Captured data will be saved in capbufXXXX.it files" << endl;
     if (use_recorded_data)
@@ -510,7 +525,8 @@ int main(
   // Command line parameters are stored here.
   double freq_start;
   double freq_end;
-  int32 num_try=1;
+  int32 num_try;
+  bool sampling_carrier_twist;
   double ppm;
   double correction;
   bool save_cap;
@@ -521,7 +537,7 @@ int main(
   char load_bin_filename[256] = {0};
 
   // Get search parameters from user
-  parse_commandline(argc,argv,freq_start,freq_end,num_try,ppm,correction,save_cap,use_recorded_data,data_dir,device_index, record_bin_filename, load_bin_filename);
+  parse_commandline(argc,argv,freq_start,freq_end,num_try,sampling_carrier_twist,ppm,correction,save_cap,use_recorded_data,data_dir,device_index, record_bin_filename, load_bin_filename);
 
   // Open the USB device (if necessary).
   rtlsdr_dev_t * dev=NULL;
@@ -537,11 +553,15 @@ int main(
   // frequency.
   const vec fc_search_set=itpp_ext::matlab_range(freq_start,100e3,freq_end);
 
-//  const uint16 n_extra=floor_i((freq_start*ppm/1e6+2.5e3)/5e3);
-//  const vec f_search_set=to_vec(itpp_ext::matlab_range(-n_extra*5000,5000,n_extra*5000));
-  // since we have frequency step is 100e3, why not have sub search set limited by this regardless PPM?
-  vec f_search_set=to_vec(itpp_ext::matlab_range(-65000,5000,65000)); // 2*65kHz > 100kHz, overlap adjacent frequencies
-//  vec f_search_set=to_vec(itpp_ext::matlab_range(-100000,5000,100000)); // align to matlab script
+  vec f_search_set;
+  if (sampling_carrier_twist) { // original mode
+    const uint16 n_extra=floor_i((freq_start*ppm/1e6+2.5e3)/5e3);
+    f_search_set=to_vec(itpp_ext::matlab_range(-n_extra*5000,5000,n_extra*5000));
+  } else {
+    // since we have frequency step is 100e3, why not have sub search set limited by this regardless PPM?
+    f_search_set=to_vec(itpp_ext::matlab_range(-65000,5000,65000)); // 2*65kHz > 100kHz, overlap adjacent frequencies
+    //  vec f_search_set=to_vec(itpp_ext::matlab_range(-100000,5000,100000)); // align to matlab script
+  }
   const uint16 n_fc=length(fc_search_set);
 
   // construct data for multiple tries
@@ -593,25 +613,23 @@ int main(
 //    cout << capbuf(100000, 100010) << "\n";
 //    cout << capbuf(153590, 153599) << "\n";
 
-    int sampling_carrier_twist = 1;
     double k_factor = 1.0; // need to be decided further together with sampling_carrier_twist
     double period_ppm = NAN;
 
     vec dynamic_f_search_set = f_search_set; // don't touch the original
-    sampling_ppm_f_search_set_by_pss(capbuf, dynamic_f_search_set, period_ppm);
-    if (length(dynamic_f_search_set)<length(f_search_set) && !isnan(period_ppm) ) {
-      sampling_carrier_twist = 0;
-      k_factor=(1+period_ppm*1e-6);
-    } else { // recover original mode
-      dynamic_f_search_set = f_search_set;
-      sampling_carrier_twist = 1;
-      k_factor = 1.0;
-      period_ppm = NAN;
-      cout << "No valid PSS is found at pre-proc phase! Please try again.\n";
-      continue;
-//      cout << "Pre search failed. Back to original sampling-carrier-twisted mode.\n";
+    if (!sampling_carrier_twist) {
+      sampling_ppm_f_search_set_by_pss(capbuf, dynamic_f_search_set, period_ppm);
+      if (length(dynamic_f_search_set)<length(f_search_set) && !isnan(period_ppm) ) {
+        k_factor=(1+period_ppm*1e-6);
+      } else { // recover original mode
+        dynamic_f_search_set = f_search_set;
+        k_factor = 1.0;
+        period_ppm = NAN;
+        cout << "No valid PSS is found at pre-proc phase! Please try again.\n";
+        continue;
+  //      cout << "Pre search failed. Back to original sampling-carrier-twisted mode.\n";
+      }
     }
-
     // Correlate
 #define DS_COMB_ARM 2
     mat xc_incoherent_collapsed_pow;
@@ -747,6 +765,7 @@ int main(
         case phich_resource_t::one: ss << " one"; break;
         case phich_resource_t::two: ss << " two"; break;
       }
+
       // Calculate the correction factor.
       // This is where we know the carrier is located
       const double true_location=(*it).fc_requested;
@@ -754,7 +773,10 @@ int main(
       const double crystal_freq_actual=(*it).fc_requested-(*it).freq_superfine;
       // Calculate correction factors
       const double correction_residual=true_location/crystal_freq_actual;
-      const double correction_new=correction*correction_residual;
+      double correction_new=correction*correction_residual;
+      if (!sampling_carrier_twist) {
+        correction_new = NAN;
+      }
       ss << " " << setprecision(20) << correction_new;
       cout << ss.str() << endl;
 

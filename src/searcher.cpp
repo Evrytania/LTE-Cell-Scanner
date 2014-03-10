@@ -117,7 +117,7 @@ void xc_correlate(
   const double & fc_requested,
   const double & fc_programmed,
   const double & fs_programmed,
-  int sampling_carrier_twist,
+  bool sampling_carrier_twist,
   double k_factor,
   // Outputs
   vcf3d & xc
@@ -146,7 +146,7 @@ void xc_correlate(
   //tt.tic();
   for (foi=0;foi<n_f;foi++) {
     f_off=f_search_set(foi);
-    if (sampling_carrier_twist==1) {
+    if (sampling_carrier_twist) {
         k_factor=(fc_requested-f_off)/fc_programmed;
     }
     //cout << "f_off " << f_off << " k_factor " << k_factor << " fc_requested " << fc_requested << " fc_programmed " << fc_programmed << " fs_programmed " << fs_programmed << "\n";
@@ -276,7 +276,7 @@ void xc_combine(
   // Outputs
   vf3d & xc_incoherent_single,
   uint16 & n_comb_xc,
-  int sampling_carrier_twist,
+  bool sampling_carrier_twist,
   double k_factor
 ) {
   const uint16 n_f=f_search_set.length();
@@ -291,7 +291,7 @@ void xc_combine(
   for (uint16 foi=0;foi<n_f;foi++) {
     // Combine incoherently
     const double f_off=f_search_set[foi];
-    if (sampling_carrier_twist == 1) {
+    if (sampling_carrier_twist) {
         k_factor=(fc_requested-f_off)/fc_programmed;
     }
 
@@ -965,7 +965,7 @@ void xcorr_pss(
   vec & sp,
   uint16 & n_comb_xc,
   uint16 & n_comb_sp,
-  int sampling_carrier_twist,
+  bool sampling_carrier_twist,
   double k_factor
 ) {
   // Perform correlations
@@ -1106,7 +1106,7 @@ void sss_detect_getce_sss(
   cvec & sss_h2_nrm_est,
   cvec & sss_h1_ext_est,
   cvec & sss_h2_ext_est,
-  int sampling_carrier_twist,
+  bool sampling_carrier_twist,
   double k_factor,
   int tdd_flag
 ) {
@@ -1115,7 +1115,7 @@ void sss_detect_getce_sss(
   const double peak_freq=cell.freq;
   const uint8 n_id_2_est=cell.n_id_2;
 
-  if (sampling_carrier_twist==1) {
+  if (sampling_carrier_twist) {
       k_factor=(fc_requested-peak_freq)/fc_programmed;
   }
   // Skip to the right by 5 subframes if there is no room here to detect
@@ -1294,7 +1294,7 @@ Cell sss_detect(
   cvec & sss_h2_ext_est,
   mat & log_lik_nrm,
   mat & log_lik_ext,
-  int sampling_carrier_twist,
+  bool sampling_carrier_twist,
   double k_factor,
   int tdd_flag
 ) {
@@ -1374,11 +1374,11 @@ Cell pss_sss_foe(
   const double & fc_requested,
   const double & fc_programmed,
   const double & fs_programmed,
-  int sampling_carrier_twist,
+  bool sampling_carrier_twist,
   double k_factor,
   int tdd_flag
 ) {
-  if (sampling_carrier_twist==1){
+  if (sampling_carrier_twist){
     k_factor=(fc_requested-cell_in.freq)/fc_programmed;
   }
 
@@ -1489,7 +1489,7 @@ void extract_tfg(
   // Outputs
   cmat & tfg,
   vec & tfg_timestamp,
-  int sampling_carrier_twist,
+  bool sampling_carrier_twist,
   double k_factor
 ) {
   // Local shortcuts
@@ -1499,7 +1499,7 @@ void extract_tfg(
 
   // Derive some values
   // fc*k_factor is the receiver's actual RX center frequency.
-  if (sampling_carrier_twist==1){
+  if (sampling_carrier_twist){
     k_factor=(fc_requested-cell.freq_fine)/fc_programmed;
   }
   const int8 n_symb_dl=cell.n_symb_dl();
@@ -1589,7 +1589,7 @@ Cell tfoec(
   // Outputs
   cmat & tfg_comp,
   vec & tfg_comp_timestamp,
-  int sampling_carrier_twist,
+  bool sampling_carrier_twist,
   double k_factor_residual
 ) {
   // Local shortcuts
@@ -1620,7 +1620,7 @@ Cell tfoec(
   double residual_f=arg(foe)/(2*pi)/0.0005;
 
   // Perform FOC. Does not fix ICI!
-  if (sampling_carrier_twist==1){
+  if (sampling_carrier_twist){
     k_factor_residual=(fc_requested-residual_f)/fc_programmed;
   }
 
