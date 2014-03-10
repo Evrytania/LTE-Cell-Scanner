@@ -540,8 +540,8 @@ int main(
 //  const uint16 n_extra=floor_i((freq_start*ppm/1e6+2.5e3)/5e3);
 //  const vec f_search_set=to_vec(itpp_ext::matlab_range(-n_extra*5000,5000,n_extra*5000));
   // since we have frequency step is 100e3, why not have sub search set limited by this regardless PPM?
-//  vec f_search_set=to_vec(itpp_ext::matlab_range(-65000,5000,65000)); // 2*65kHz > 100kHz, overlap adjacent frequencies
-  vec f_search_set=to_vec(itpp_ext::matlab_range(-100000,5000,100000)); // align to matlab script
+  vec f_search_set=to_vec(itpp_ext::matlab_range(-65000,5000,65000)); // 2*65kHz > 100kHz, overlap adjacent frequencies
+//  vec f_search_set=to_vec(itpp_ext::matlab_range(-100000,5000,100000)); // align to matlab script
   const uint16 n_fc=length(fc_search_set);
 
   // construct data for multiple tries
@@ -595,18 +595,20 @@ int main(
 
     int sampling_carrier_twist = 1;
     double k_factor = 1.0; // need to be decided further together with sampling_carrier_twist
-    double period_ppm;
+    double period_ppm = NAN;
 
-    vec orig_f_search_set = f_search_set;
-    sampling_ppm_f_search_set_by_pss(capbuf, f_search_set, period_ppm);
-    if (length(f_search_set)<length(orig_f_search_set) && !isnan(period_ppm) ) {
-      k_factor=(1+period_ppm*1e-6);
+    vec dynamic_f_search_set = f_search_set; // don't touch the original
+    sampling_ppm_f_search_set_by_pss(capbuf, dynamic_f_search_set, period_ppm);
+    if (length(dynamic_f_search_set)<length(f_search_set) && !isnan(period_ppm) ) {
       sampling_carrier_twist = 0;
+      k_factor=(1+period_ppm*1e-6);
     } else { // recover original mode
+      dynamic_f_search_set = f_search_set;
+      sampling_carrier_twist = 1;
+      k_factor = 1.0;
+      period_ppm = NAN;
       cout << "No valid PSS is found at pre-proc phase! Please try again.\n";
       continue;
-//      f_search_set = orig_f_search_set;
-//      sampling_carrier_twist = 1;
 //      cout << "Pre search failed. Back to original sampling-carrier-twisted mode.\n";
     }
 
@@ -624,7 +626,7 @@ int main(
     if (verbosity>=2) {
       cout << "  Calculating PSS correlations" << endl;
     }
-    xcorr_pss(capbuf,f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,xc,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist,k_factor);
+    xcorr_pss(capbuf,dynamic_f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,xc,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist,k_factor);
 
     // Calculate the threshold vector
     const uint8 thresh1_n_nines=12;
@@ -637,7 +639,7 @@ int main(
       cout << "  Searching for and examining correlation peaks..." << endl;
     }
     list <Cell> peak_search_cells;
-    peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,f_search_set,fc_requested,fc_programmed,xc_incoherent_single,DS_COMB_ARM,peak_search_cells);
+    peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,dynamic_f_search_set,fc_requested,fc_programmed,xc_incoherent_single,DS_COMB_ARM,peak_search_cells);
     detected_cells[fc_idx]=peak_search_cells;
 
     // Loop and check each peak
