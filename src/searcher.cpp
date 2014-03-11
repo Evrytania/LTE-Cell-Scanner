@@ -778,15 +778,26 @@ void sampling_ppm_f_search_set_by_pss(
     return;
   }
 
+  ppm_store.set_length(ppm_idx+1, true);
+  valid_idx.set_length(ppm_idx+1, true);
+
+  ivec valid_idx_backup = valid_idx;
+
   bool extra_frequency_flag = false;
   cout << "PPM: " << ppm_store(0, ppm_idx) << "\n";
 
+  ivec pss_idx = hit_pss_fo_set_idx.get(valid_idx)/(int)num_fo_orig;
+  cout << "PSS: " << pss_idx << "\n";
+
   uint16 num_drop_idx = 0;
+  uint16 num_reserve_idx = 0;
   ivec drop_idx(ppm_idx+1);
 
   if (ppm_idx==0){
     ppm = ppm_store(0);
-    cout << "Total " << (ppm_idx+1) << " freq. idx for PPM: " << valid_idx(0) << "\n";
+    cout << "Total " << (ppm_idx+1) << " freq. idx for PPM: " << valid_idx << "\n";
+    pss_idx = hit_pss_fo_set_idx.get(valid_idx)/(int)num_fo_orig;
+    cout << "Total " << (ppm_idx+1) << "  pss. idx for PPM: " << pss_idx << "\n";
     cout << "Average PPM: " << ppm << "\n";
     uint16 idx_in_fo_search_set = hit_pss_fo_set_idx(valid_idx(0));
     double f_set = fo_search_set( idx_in_fo_search_set%num_fo_orig );
@@ -796,44 +807,49 @@ void sampling_ppm_f_search_set_by_pss(
     return;
   } else if (ppm_idx==1) {
     ppm = ( ppm_store(0) + ppm_store(1) )/2.0;
-    cout << "Total " << (ppm_idx+1) << " freq. idx for PPM: " << valid_idx(0,1) << "\n";
+    cout << "Total " << (ppm_idx+1) << " freq. idx for PPM: " << valid_idx << "\n";
+    pss_idx = hit_pss_fo_set_idx.get(valid_idx)/(int)num_fo_orig;
+    cout << "Total " << (ppm_idx+1) << "  pss. idx for PPM: " << pss_idx << "\n";
     cout << "Average PPM: " << ppm << "\n";
     if ( ( abs(ppm_store(1)-ppm_store(0))/abs(ppm_store(0)) ) > (1.0/20.0) ){
-      vec f_set(2);
-      for (uint16 i=0; i<2; i++){
-        int32 idx_in_fo_search_set = hit_pss_fo_set_idx(valid_idx(i));
-        f_set(i) = fo_search_set( idx_in_fo_search_set%num_fo_orig );
+      ivec idx_in_fo_search_set = hit_pss_fo_set_idx.get(valid_idx);
+
+      ivec fo_idx = idx_in_fo_search_set - pss_idx*(int)num_fo_orig;
+      if ( fo_idx(0) == fo_idx(1) ) {
+        cout << "Discard duplicated frequency idx " << idx_in_fo_search_set << "\n";
+        idx_in_fo_search_set.set_length(1,true);
       }
+
+      vec f_set = fo_search_set.get( idx_in_fo_search_set - idx_in_fo_search_set/(int)num_fo_orig );
       cout << "Period PPM " << ppm << "PPM; f_set " << f_set/1.0e3 << "kHz\n";
-      fo_search_set.set_length(2, false);
       fo_search_set = f_set;
       return;
     }
-  } else if ( variance(ppm_store(0, ppm_idx)) > 0.01 ) {
-    double mean_ppm = mean(ppm_store(0, ppm_idx));
-    vec tmp = abs(ppm_store(0, ppm_idx)-mean_ppm);
+  } else if ( variance(ppm_store) > 0.01 ) {
+    double mean_ppm = mean(ppm_store);
+    vec tmp = abs(ppm_store-mean_ppm);
     int32 max_idx;
     max(tmp, max_idx);
-    for (uint16 i=0; i<=ppm_idx; i++){
-      if (ppm_store(i) == ppm_store(max_idx)){
-        drop_idx(num_drop_idx) = i;
-        num_drop_idx++;
-      }
-    }
+    bvec drop_idx_bin = (ppm_store == ppm_store(max_idx));
+    bvec reserve_idx_bin = drop_idx_bin+(bin)1;
+    num_drop_idx = sum(to_ivec(drop_idx_bin));
     if ( ( (double)num_drop_idx ) >= ( ((double)ppm_idx+1.0)*3.0/8.0 ) ){
       cout << "Too many PPM drops. Will not do it.\n";
       extra_frequency_flag = true;
     } else {
-      cout << "Drop PPM: ";
-      for (uint16 i=0; i<num_drop_idx; i++) {
-        cout << ppm_store(drop_idx(i)) << " ";
-      }
-      cout << "\n";
+      cout << "Drop PPM: " << drop_idx_bin << "\n";
 
       // delete dropped elements
-      for (uint16 i=0; i<num_drop_idx; i++) {
-        valid_idx(drop_idx(i)) = -1;
+      num_reserve_idx = 0;
+      ivec reserve_idx(ppm_idx+1-num_drop_idx);
+      for (uint16 i=0; i<=ppm_idx; i++) {
+        if (reserve_idx_bin(i)==1){
+          reserve_idx(num_reserve_idx) = i;
+          num_reserve_idx++;
+        }
       }
+      reserve_idx.set_length(num_reserve_idx, true);
+
       vec tmp_ppm_store = ppm_store;
       ivec tmp_valid_idx = valid_idx;
       uint16 tmp_ppm_idx = 0;
@@ -845,11 +861,13 @@ void sampling_ppm_f_search_set_by_pss(
         }
       }
       ppm_idx = ppm_idx - num_drop_idx;
-      ppm_store.set_length(ppm_idx+1, true);
-      valid_idx.set_length(ppm_idx+1, true);
+      ppm_store = ppm_store.get(reserve_idx);
+      valid_idx = valid_idx.get(reserve_idx);
     }
     ppm = mean(ppm_store(0, ppm_idx));
     cout << "Total " << (ppm_idx+1) << " freq. idx for PPM: " << valid_idx(0,ppm_idx) << "\n";
+    pss_idx = hit_pss_fo_set_idx.get(valid_idx)/(int)num_fo_orig;
+    cout << "Total " << (ppm_idx+1) << "  pss. idx for PPM: " << pss_idx << "\n";
     cout << "Average PPM: " << ppm << "\n";
   }
 
