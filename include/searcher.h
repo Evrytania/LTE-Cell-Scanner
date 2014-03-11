@@ -26,9 +26,17 @@ void filter_my(
   itpp::cvec & capbuf
 );
 
+void pss_fo_set_gen(
+  // Input
+  const itpp::vec & fo_search_set,
+  // Output
+  itpp::cmat & pss_fo_set
+);
+
 void sampling_ppm_f_search_set_by_pss(
   // Inputs
   const itpp::cvec & capbuf,
+  const itpp::cmat & pss_fo_set,
   // Inputs&Outputs
   itpp::vec & f_search_set,
   // Outpus

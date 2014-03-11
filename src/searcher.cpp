@@ -496,7 +496,7 @@ void pss_moving_corr(
   // Inputs
   const cvec & s,
   const vec & f_search_set,
-  const vector <cvec> & pss_fo_set,
+  const cmat & pss_fo_set,
   double th,
   // Outputs
   ivec & hit_pss_fo_set_idx,
@@ -526,27 +526,33 @@ void pss_moving_corr(
     chn_tmp = s(i, (i+len_pss-1));
     normalize(chn_tmp);
 
-    for (uint16 j=0; j<num_fo_pss; j++){
-      complex <double> acc=0;
-      for (uint16 k=0; k<len_pss; k++){
-        acc = acc + chn_tmp(k)*pss_fo_set[j][k];
-      }
-      tmp(j) = real( acc*conj(acc) );
-    }
+//    for (uint16 j=0; j<num_fo_pss; j++){
+////      complex <double> acc=0;
+////      for (uint16 k=0; k<len_pss; k++){
+////        acc = acc + chn_tmp(k)*pss_fo_set[j][k];
+////      }
+//      complex <double> acc = elem_mult_sum(chn_tmp, pss_fo_set[j]);
+////      tmp(j) = real( acc*conj(acc) );
+//      tmp(j) = abs(acc);
+//    }
+    tmp = abs(pss_fo_set*chn_tmp);
 
     for (uint16 j=2*len_half_store; j>=1; j--) {
-      for (uint16 k=0; k<num_fo_pss; k++){
-        corr_store(j,k) = corr_store(j-1,k);
-      }
+//      for (uint16 k=0; k<num_fo_pss; k++){
+//        corr_store(j,k) = corr_store(j-1,k);
+//      }
+      corr_store.set_row(j, corr_store.get_row(j-1));
     }
-    for (uint16 k=0; k<num_fo_pss; k++){
-      corr_store(0,k) = tmp(k);
-    }
+//    for (uint16 k=0; k<num_fo_pss; k++){
+//      corr_store(0,k) = tmp(k);
+//    }
+    corr_store.set_row(0, tmp);
 
-    uint16 acc=0;
-    for (uint16 k=0; k<num_fo_pss; k++){
-      acc = acc + (tmp(k)>th?1:0);
-    }
+//    uint16 acc=0;
+//    for (uint16 k=0; k<num_fo_pss; k++){
+//      acc = acc + (tmp(k)>th?1:0);
+//    }
+    uint16 acc = sum(tmp>th);
     if (acc) {
 //      cout << tmp << "\n";
       current_idx = i;
@@ -566,22 +572,25 @@ void pss_moving_corr(
 
       normalize(chn_tmp);
 
-      for (uint16 j=0; j<num_fo_pss; j++){
-        complex <double> acc=0;
-        for (uint16 k=0; k<len_pss; k++){
-          acc = acc + chn_tmp(k)*pss_fo_set[j][k];
-        }
-        tmp(j) = real( acc*conj(acc) );
-      }
+//      for (uint16 j=0; j<num_fo_pss; j++){
+//        complex <double> acc=0;
+//        for (uint16 k=0; k<len_pss; k++){
+//          acc = acc + chn_tmp(k)*pss_fo_set[j][k];
+//        }
+//        tmp(j) = real( acc*conj(acc) );
+//      }
+      tmp = abs(pss_fo_set*chn_tmp);
 
       for (uint16 j=2*len_half_store; j>=1; j--) {
-        for (uint16 k=0; k<num_fo_pss; k++){
-          corr_store(j,k) = corr_store(j-1,k);
-        }
+//        for (uint16 k=0; k<num_fo_pss; k++){
+//          corr_store(j,k) = corr_store(j-1,k);
+//        }
+        corr_store.set_row(j, corr_store.get_row(j-1));
       }
-      for (uint16 k=0; k<num_fo_pss; k++){
-        corr_store(0,k) = tmp(k);
-      }
+//      for (uint16 k=0; k<num_fo_pss; k++){
+//        corr_store(0,k) = tmp(k);
+//      }
+      corr_store.set_row(0, tmp);
     }
 //    cout << tmp << "\n";
 
@@ -627,7 +636,7 @@ void pss_fo_set_gen(
   // Input
   const vec & fo_search_set,
   // Output
-  vector <cvec> & pss_fo_set
+  cmat & pss_fo_set
 ){
   uint16 num_pss = 3;
   uint16 len_pss = length(ROM_TABLES.pss_td[0]);
@@ -637,7 +646,7 @@ void pss_fo_set_gen(
   uint32 num_fo_pss = num_fo*num_pss;
   cvec temp(len_pss);
 
-  pss_fo_set.resize(num_fo_pss);
+  pss_fo_set.set_size(num_fo_pss, len_pss, false);
   for (uint32 fo_pss_i=0; fo_pss_i<num_fo_pss; fo_pss_i++) {
     uint32 pssi = fo_pss_i/num_fo;
     uint32 foi = fo_pss_i - pssi*num_fo;
@@ -647,13 +656,14 @@ void pss_fo_set_gen(
     temp = fshift(temp,f_off,sampling_rate);
     temp = conj(temp);
     normalize(temp);
-    pss_fo_set[fo_pss_i] = temp;
+    pss_fo_set.set_row(fo_pss_i, temp);
   }
 }
 // pre-processing before xcorr_pss
 void sampling_ppm_f_search_set_by_pss(
   // Inputs
   const cvec & s,
+  const cmat & pss_fo_set,
   // Inputs&Outputs
   vec & fo_search_set,
   // Outpus
@@ -661,9 +671,6 @@ void sampling_ppm_f_search_set_by_pss(
 ) {
   uint16 len_pss = length(ROM_TABLES.pss_td[0]);
   ppm = NAN;
-
-  vector <cvec> pss_fo_set;
-  pss_fo_set_gen(fo_search_set, pss_fo_set);
 
   uint32 len = length(s);
 
