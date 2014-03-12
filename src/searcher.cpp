@@ -456,31 +456,33 @@ void pss_fix_location_corr(
   const cvec & s,
   int32 start_position,
   int32 end_position,
-  const vector <cvec> & pss_fo_set,
+  const cmat & pss_fo_set,
   const ivec & hit_pss_fo_set_idx,
   // Outputs
   ivec & hit_time_idx,
   vec & max_val
 ){
   uint16 len_pss = length( ROM_TABLES.pss_td[0] );
-  vector <cvec> pss_fo_specific_set;
   uint16 num_fo_pss = length(hit_pss_fo_set_idx);
 
   vec tmp(num_fo_pss);
   mat corr_store(end_position-start_position+1, num_fo_pss);
   corr_store.zeros();
   cvec chn_tmp(len_pss);
+
   for(int32 i=start_position; i<=end_position; i++) {
     chn_tmp = s(i, (i+len_pss-1));
     normalize(chn_tmp);
 
-    for (uint16 j=0; j<num_fo_pss; j++){
-      complex <double> acc=0;
-      for (uint16 k=0; k<len_pss; k++){
-        acc = acc + chn_tmp(k)*pss_fo_set[hit_pss_fo_set_idx(j)][k];
-      }
-      tmp(j) = real( acc*conj(acc) );
-    }
+//    for (uint16 j=0; j<num_fo_pss; j++){
+//      complex <double> acc=0;
+//      for (uint16 k=0; k<len_pss; k++){
+//        acc = acc + chn_tmp(k)*pss_fo_set[hit_pss_fo_set_idx(j)][k];
+//      }
+//      tmp(j) = real( acc*conj(acc) );
+//    }
+
+    tmp = abs(pss_fo_set.get_rows(hit_pss_fo_set_idx)*chn_tmp);
 
     corr_store.set_row(i-start_position, tmp);
   }
@@ -552,7 +554,7 @@ void pss_moving_corr(
 //    for (uint16 k=0; k<num_fo_pss; k++){
 //      acc = acc + (tmp(k)>th?1:0);
 //    }
-    uint16 acc = sum(tmp>th);
+    uint16 acc = sum(to_ivec(tmp>th));
     if (acc) {
 //      cout << tmp << "\n";
       current_idx = i;
@@ -598,33 +600,37 @@ void pss_moving_corr(
     ivec max_idx(num_fo_pss);
     max_val = max(corr_store, max_idx, 1);
     ivec sort_idx = sort_index(max_val);
-    sort(max_val);
+    reverse(sort_idx);
+    max_val = max_val.get(sort_idx);
 //    cout << sort_idx << "\n";
 //    cout << max_val << "\n";
-    tmp_val = max_val(num_fo_pss-1)/2;
-    int16 k;
-    for (k=num_fo_pss-1; k>=0; k--) {
+    tmp_val = max_val(0)/2;
+    uint16 k;
+    for (k=0; k<num_fo_pss; k++) {
       if (max_val(k)<tmp_val)
         break;
     }
     int16 num_valid;
-    if (k==-1){
+    if (k==num_fo_pss){
       num_valid = num_fo_pss;
     }
     else {
-      num_valid = num_fo_pss - k - 1;
+      num_valid = k;
     }
 //    cout << num_valid << "\n";
     num_valid = num_valid>max_reserve?max_reserve:num_valid;
 
-    hit_pss_fo_set_idx.set_length(num_valid, false);
-    hit_time_idx.set_length(num_valid, false);
-    hit_corr_val.set_length(num_valid, false);
-    for (k=0; k<num_valid; k++) {
-      hit_pss_fo_set_idx(k) = sort_idx(num_fo_pss-1-k);
-      hit_corr_val(k) = max_val(num_fo_pss-1-k);
-      hit_time_idx(k) = last_idx - max_idx(hit_pss_fo_set_idx(k));
-    }
+    hit_pss_fo_set_idx = sort_idx(0,(num_valid-1));
+    hit_corr_val = max_val(0,(num_valid-1));
+    hit_time_idx = last_idx - max_idx.get(hit_pss_fo_set_idx);
+//    hit_pss_fo_set_idx.set_length(num_valid, false);
+//    hit_time_idx.set_length(num_valid, false);
+//    hit_corr_val.set_length(num_valid, false);
+//    for (k=0; k<num_valid; k++) {
+//      hit_pss_fo_set_idx(k) = sort_idx(num_fo_pss-1-k);
+//      hit_corr_val(k) = max_val(num_fo_pss-1-k);
+//      hit_time_idx(k) = last_idx - max_idx(hit_pss_fo_set_idx(k));
+//    }
 //    cout << hit_pss_fo_set_idx << "\n";
 //    cout << hit_corr_val << "\n";
 //    cout << hit_time_idx << "\n";
@@ -729,12 +735,22 @@ void sampling_ppm_f_search_set_by_pss(
     time_location.set_row(pss_count, hit_time_idx);
     hit_corr_val.set_row(pss_count, corr_val);
 
-    for (uint16 k=0; k<num_fo; k++){
-      if (corr_val(k)<(th*3.0/4.0)){
-        time_location(pss_count, k) = next_location(k);
-        time_location_invalid_record(pss_count, k) = 1;
-      }
-    }
+//    for (uint16 k=0; k<num_fo; k++){
+//      if (corr_val(k)<(th*3.0/4.0)){
+//        time_location(pss_count, k) = next_location(k);
+//        time_location_invalid_record(pss_count, k) = 1;
+//      }
+//    }
+    bvec tmp_bin_vec = ( corr_val < (th*3.0/4.0) ) ;
+    ivec tmp_logic_vec = to_ivec(tmp_bin_vec);
+    ivec tmp_logic_vec_inv = to_ivec(tmp_bin_vec+(bin)1);
+
+    ivec tmp_ivec = time_location.get_row(pss_count);
+    tmp_ivec = tmp_ivec*tmp_logic_vec_inv;
+    tmp_ivec = tmp_ivec + next_location*tmp_logic_vec;
+    time_location.set_row(pss_count,tmp_ivec);
+
+    time_location_invalid_record.set_row(pss_count, tmp_logic_vec);
   }
 //  cout << pss_count << "\n";
 
