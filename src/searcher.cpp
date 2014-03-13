@@ -754,6 +754,10 @@ void sampling_ppm_f_search_set_by_pss(
   }
 //  cout << pss_count << "\n";
 
+  time_location.set_size(pss_count+1, num_fo);
+  hit_corr_val.set_size(pss_count+1, num_fo);
+  time_location_invalid_record.set_size(pss_count+1, num_fo);
+
   vec ppm_store(num_fo);
   ivec valid_idx(num_fo);
   int32 min_dist = (int32)floor( ((double)len/(double)pss_period) * (1.0/2.0) );
@@ -814,7 +818,10 @@ void sampling_ppm_f_search_set_by_pss(
 
   uint16 num_drop_idx = 0;
   uint16 num_reserve_idx = 0;
-  ivec drop_idx(ppm_idx+1);
+  ivec drop_idx;
+  ivec reserve_idx;
+  bvec drop_idx_bin;
+  bvec reserve_idx_bin;
 
   if (ppm_idx==0){
     ppm = ppm_store(0);
@@ -843,7 +850,7 @@ void sampling_ppm_f_search_set_by_pss(
         idx_in_fo_search_set.set_length(1,true);
       }
 
-      vec f_set = fo_search_set.get( idx_in_fo_search_set - idx_in_fo_search_set/(int)num_fo_orig );
+      vec f_set = fo_search_set.get( idx_in_fo_search_set - pss_idx*(int)num_fo_orig );
       cout << "Period PPM " << ppm << "PPM; f_set " << f_set/1.0e3 << "kHz\n";
       fo_search_set = f_set;
       return;
@@ -853,8 +860,8 @@ void sampling_ppm_f_search_set_by_pss(
     vec tmp = abs(ppm_store-mean_ppm);
     int32 max_idx;
     max(tmp, max_idx);
-    bvec drop_idx_bin = (ppm_store == ppm_store(max_idx));
-    bvec reserve_idx_bin = drop_idx_bin+(bin)1;
+    drop_idx_bin = (ppm_store == ppm_store(max_idx));
+    reserve_idx_bin = drop_idx_bin+(bin)1;
     num_drop_idx = sum(to_ivec(drop_idx_bin));
     if ( ( (double)num_drop_idx ) >= ( ((double)ppm_idx+1.0)*3.0/8.0 ) ){
       cout << "Too many PPM drops. Will not do it.\n";
@@ -864,31 +871,30 @@ void sampling_ppm_f_search_set_by_pss(
 
       // delete dropped elements
       num_reserve_idx = 0;
-      ivec reserve_idx(ppm_idx+1-num_drop_idx);
+      reserve_idx.set_length(ppm_idx+1-num_drop_idx);
       for (uint16 i=0; i<=ppm_idx; i++) {
         if (reserve_idx_bin(i)==1){
           reserve_idx(num_reserve_idx) = i;
           num_reserve_idx++;
         }
       }
-      reserve_idx.set_length(num_reserve_idx, true);
 
-      vec tmp_ppm_store = ppm_store;
-      ivec tmp_valid_idx = valid_idx;
-      uint16 tmp_ppm_idx = 0;
-      for (uint16 i=0; i<=ppm_idx; i++) {
-        if (tmp_valid_idx(i) != -1) {
-          ppm_store(tmp_ppm_idx) = tmp_ppm_store(i);
-          valid_idx(tmp_ppm_idx) = tmp_valid_idx(i);
-          tmp_ppm_idx++;
-        }
-      }
+//      vec tmp_ppm_store = ppm_store;
+//      ivec tmp_valid_idx = valid_idx;
+//      uint16 tmp_ppm_idx = 0;
+//      for (uint16 i=0; i<=ppm_idx; i++) {
+//        if (tmp_valid_idx(i) != -1) {
+//          ppm_store(tmp_ppm_idx) = tmp_ppm_store(i);
+//          valid_idx(tmp_ppm_idx) = tmp_valid_idx(i);
+//          tmp_ppm_idx++;
+//        }
+//      }
       ppm_idx = ppm_idx - num_drop_idx;
       ppm_store = ppm_store.get(reserve_idx);
       valid_idx = valid_idx.get(reserve_idx);
     }
-    ppm = mean(ppm_store(0, ppm_idx));
-    cout << "Total " << (ppm_idx+1) << " freq. idx for PPM: " << valid_idx(0,ppm_idx) << "\n";
+    ppm = mean(ppm_store);
+    cout << "Total " << (ppm_idx+1) << " freq. idx for PPM: " << valid_idx << "\n";
     pss_idx = hit_pss_fo_set_idx.get(valid_idx)/(int)num_fo_orig;
     cout << "Total " << (ppm_idx+1) << "  pss. idx for PPM: " << pss_idx << "\n";
     cout << "Average PPM: " << ppm << "\n";
@@ -899,86 +905,118 @@ void sampling_ppm_f_search_set_by_pss(
 
   for (uint16 i=0; i<=ppm_idx; i++) {
     uint16 col_idx = valid_idx(i);
-    for (uint16 j=0; j<=pss_count; j++) {
-      sum_corr_val(i) = sum_corr_val(i) + (time_location_invalid_record(j,col_idx)==0?hit_corr_val(j,col_idx):0.0);
-    }
+    sum_corr_val(i) = sum( elem_mult( to_vec( to_bvec(time_location_invalid_record.get_col(col_idx))+(bin)1 ), hit_corr_val.get_col(col_idx) ) );
+//    for (uint16 j=0; j<=pss_count; j++) {
+//      sum_corr_val(i) = sum_corr_val(i) + (time_location_invalid_record(j,col_idx)==0?hit_corr_val(j,col_idx):0.0);
+//    }
   }
 
   int32 max_idx;
   max(sum_corr_val, max_idx);
   cout << "Freq. idx for f_set: " << valid_idx(max_idx) << "\n";
 
-  uint16 idx_in_fo_search_set = hit_pss_fo_set_idx(valid_idx(max_idx));
-  double tmp_f_set = fo_search_set( idx_in_fo_search_set%num_fo_orig );
+  ivec idx_in_fo_search_set(1);
+  idx_in_fo_search_set(0) = hit_pss_fo_set_idx(valid_idx(max_idx));
 
   if (extra_frequency_flag) {
-    ivec reserve_idx(ppm_idx+1-num_drop_idx);
-    ivec tmp(ppm_idx+1);
-    tmp.zeros();
-    for (uint16 i=0; i<num_drop_idx; i++) {
-      tmp(drop_idx(i)) = 1;
-    }
-    uint16 num_reserve_idx = 0;
+    ivec extra_valid_idx = valid_idx;
+
+    drop_idx.set_length(num_drop_idx);
+    num_drop_idx = 0;
     for (uint16 i=0; i<=ppm_idx; i++) {
-      if (tmp(i)==0) {
-        reserve_idx(num_reserve_idx) = i;
-        num_reserve_idx++;
+      if (drop_idx_bin(i)==1){
+        drop_idx(num_drop_idx) = i;
+        num_drop_idx++;
       }
     }
-    drop_idx.set_length(num_drop_idx, true);
 
-    ivec extra_drop_idx;
     if ( prod( abs(drop_idx - max_idx) ) == 0 ) {
-      extra_drop_idx = drop_idx;
+      // delete dropped elements
+      extra_valid_idx.get(reserve_idx);
     } else if ( prod( abs(reserve_idx - max_idx) ) == 0 ) {
-      extra_drop_idx = reserve_idx;
+      // delete dropped elements
+      extra_valid_idx.get(drop_idx);
     } else {
       cout << "Abnormal!\n";
       return;
     }
 
-    // delete dropped elements
-    for (uint16 i=0; i<length(extra_drop_idx); i++) {
-      valid_idx(extra_drop_idx(i)) = -1;
-    }
-    ivec tmp_valid_idx = valid_idx;
-    uint16 tmp_ppm_idx = 0;
-    for (uint16 i=0; i<=ppm_idx; i++) {
-      if (tmp_valid_idx(i) != -1) {
-        valid_idx(tmp_ppm_idx) = tmp_valid_idx(i);
-        tmp_ppm_idx++;
-      }
-    }
-    ppm_idx = ppm_idx - length(extra_drop_idx);
-    valid_idx.set_length(ppm_idx+1, true);
-    // end of delete
-
-    vec sum_corr_val(ppm_idx+1);
-    sum_corr_val.zeros();
-
-    for (uint16 i=0; i<=ppm_idx; i++) {
-      uint16 col_idx = valid_idx(i);
-      for (uint16 j=0; j<=pss_count; j++) {
-        sum_corr_val(i) = sum_corr_val(i) + (time_location_invalid_record(j,col_idx)==0?hit_corr_val(j,col_idx):0.0);
-      }
+    sum_corr_val.set_length(length(extra_valid_idx));
+    for (uint16 i=0; i<length(extra_valid_idx); i++) {
+      uint16 col_idx = extra_valid_idx(i);
+      sum_corr_val(i) = sum( elem_mult( to_vec( to_bvec(time_location_invalid_record.get_col(col_idx))+(bin)1 ), hit_corr_val.get_col(col_idx) ) );
     }
 
     int32 max_idx;
     max(sum_corr_val, max_idx);
     cout << "Extra Freq. idx for f_set: " << valid_idx(max_idx) << "\n";
+    pss_idx = hit_pss_fo_set_idx.get(extra_valid_idx(max_idx))/(int)num_fo_orig;
+    cout << "Extra  pss. idx for f_set: " << pss_idx << "\n";
 
-    uint16 idx_in_fo_search_set = hit_pss_fo_set_idx(valid_idx(max_idx));
-    double tmp_val = fo_search_set( idx_in_fo_search_set%num_fo_orig );
-    vec f_set(2);
-    f_set(0) = tmp_f_set;
-    f_set(1) = tmp_val;
-
-    fo_search_set.set_length(2, false);
-    fo_search_set = f_set;
-  } else {
-    fo_search_set.set_length(1, false);
-    fo_search_set = tmp_f_set;
+    idx_in_fo_search_set.set_length(2, true);
+    idx_in_fo_search_set(1) = hit_pss_fo_set_idx(extra_valid_idx(max_idx));
   }
+
+  //% add fo from other PSSs if there are
+  pss_idx = hit_pss_fo_set_idx/(int)num_fo_orig;
+  ivec extra_pss_set(3);
+  extra_pss_set.zeros();
+  for(uint16 idx=0; idx<3; idx++) {
+    if ( prod( abs(pss_idx - idx) ) == 0 ) {
+      extra_pss_set(idx) = 1;
+    }
+  }
+
+  if (sum(extra_pss_set) < 3) {
+    ivec exist_pss_idx = hit_pss_fo_set_idx.get(valid_idx_backup)/(int)num_fo_orig;
+    for (uint16 extra_pss_idx=0; extra_pss_idx<3; extra_pss_idx++) {
+      if (extra_pss_set(extra_pss_idx) == 0) {
+        uint16 len_col_set = sum( to_ivec(exist_pss_idx==extra_pss_idx) );
+        ivec col_set(len_col_set);
+
+        if (len_col_set > 0) {
+          len_col_set = 0;
+          for(uint16 i=0; i<length(exist_pss_idx); i++) {
+            if (exist_pss_idx(i)==extra_pss_idx){
+              col_set(len_col_set) = i;
+              len_col_set++;
+            }
+          }
+
+          sum_corr_val.set_length(len_col_set);
+          for (uint16 i=0; i<len_col_set; i++) {
+            uint16 col_idx = valid_idx_backup(col_set(i));
+            sum_corr_val(i) = sum( elem_mult( to_vec( to_bvec(time_location_invalid_record.get_col(col_idx))+(bin)1 ), hit_corr_val.get_col(col_idx) ) );
+          }
+
+          int32 max_idx;
+          max(sum_corr_val, max_idx);
+          cout << "Extra Freq. idx for f_set (multi-PSS): " << valid_idx_backup( col_set(max_idx) ) << "\n";
+          pss_idx = hit_pss_fo_set_idx.get(valid_idx_backup( col_set(max_idx) ))/(int)num_fo_orig;
+          cout << "Extra  pss. idx for f_set (multi-PSS): " << pss_idx << "\n";
+
+          idx_in_fo_search_set.set_length(3, true);
+          idx_in_fo_search_set(2) = hit_pss_fo_set_idx(valid_idx_backup( col_set(max_idx) ));
+        }
+      }
+    }
+  }
+
+  pss_idx = idx_in_fo_search_set/(int)num_fo_orig;
+  vec tmp_f_set = fo_search_set.get( idx_in_fo_search_set - pss_idx*(int)num_fo_orig );
+  sort(tmp_f_set);
+  fo_search_set(0) = tmp_f_set(0);
+  uint16 len_final_fo_set = 1;
+  for (uint16 i=1; i<length(tmp_f_set); i++ ) {
+    if (tmp_f_set(i) != fo_search_set(len_final_fo_set-1)) {
+      fo_search_set(len_final_fo_set) = tmp_f_set(i);
+      len_final_fo_set++;
+    } else {
+      cout << "Discard duplicated frequency (multi-PSS) " << tmp_f_set(i)/1.0e3 << "kHz\n";
+    }
+  }
+
+  fo_search_set.set_length(len_final_fo_set, true);
 
   cout << "Period PPM " << ppm << "PPM; f_set " << fo_search_set/1.0e3 << "kHz\n";
 }
