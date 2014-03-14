@@ -560,8 +560,8 @@ int main(
     f_search_set=to_vec(itpp_ext::matlab_range(-n_extra*5000,5000,n_extra*5000));
   } else {
     // since we have frequency step is 100e3, why not have sub search set limited by this regardless PPM?
-    f_search_set=to_vec(itpp_ext::matlab_range(-65000,5000,65000)); // 2*65kHz > 100kHz, overlap adjacent frequencies
-    //  vec f_search_set=to_vec(itpp_ext::matlab_range(-100000,5000,100000)); // align to matlab script
+//    f_search_set=to_vec(itpp_ext::matlab_range(-65000,5000,65000)); // 2*65kHz > 100kHz, overlap adjacent frequencies
+      f_search_set=to_vec(itpp_ext::matlab_range(-100000,5000,100000)); // align to matlab script
 
     pss_fo_set_gen(f_search_set, pss_fo_set);
   }

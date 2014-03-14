@@ -398,10 +398,11 @@ void normalize(
   cvec & s
 ) {
   uint32 len = length(s);
-  double acc = 0;
-  for( uint32 i=0; i<len; i++){
-    acc = acc + real(s(i)*conj(s(i)));
-  }
+//  double acc = 0;
+//  for( uint32 i=0; i<len; i++){
+//    acc = acc + real(s(i)*conj(s(i)));
+//  }
+  double acc = sum( real(elem_mult(s, conj(s))) );
   s = sqrt(len)*s/sqrt(acc);
 }
 
@@ -483,12 +484,14 @@ void pss_fix_location_corr(
 //    }
 
     tmp = abs(pss_fo_set.get_rows(hit_pss_fo_set_idx)*chn_tmp);
+    tmp = elem_mult( tmp,tmp );
 
     corr_store.set_row(i-start_position, tmp);
   }
   ivec max_idx(num_fo_pss);
   max_val = max(corr_store, max_idx, 1);
   hit_time_idx = start_position + max_idx;
+//  cout << hit_time_idx << "\n";
 }
 
 
@@ -538,6 +541,7 @@ void pss_moving_corr(
 //      tmp(j) = abs(acc);
 //    }
     tmp = abs(pss_fo_set*chn_tmp);
+    tmp = elem_mult( tmp,tmp );
 
     for (uint16 j=2*len_half_store; j>=1; j--) {
 //      for (uint16 k=0; k<num_fo_pss; k++){
@@ -550,6 +554,8 @@ void pss_moving_corr(
 //    }
     corr_store.set_row(0, tmp);
 
+//    if (i==0)
+//      cout << tmp << "\n";
 //    uint16 acc=0;
 //    for (uint16 k=0; k<num_fo_pss; k++){
 //      acc = acc + (tmp(k)>th?1:0);
@@ -582,6 +588,7 @@ void pss_moving_corr(
 //        tmp(j) = real( acc*conj(acc) );
 //      }
       tmp = abs(pss_fo_set*chn_tmp);
+      tmp = elem_mult( tmp,tmp );
 
       for (uint16 j=2*len_half_store; j>=1; j--) {
 //        for (uint16 k=0; k<num_fo_pss; k++){
@@ -600,7 +607,7 @@ void pss_moving_corr(
     ivec max_idx(num_fo_pss);
     max_val = max(corr_store, max_idx, 1);
     ivec sort_idx = sort_index(max_val);
-    reverse(sort_idx);
+    sort_idx = reverse(sort_idx);
     max_val = max_val.get(sort_idx);
 //    cout << sort_idx << "\n";
 //    cout << max_val << "\n";
@@ -746,13 +753,14 @@ void sampling_ppm_f_search_set_by_pss(
     ivec tmp_logic_vec_inv = to_ivec(tmp_bin_vec+(bin)1);
 
     ivec tmp_ivec = time_location.get_row(pss_count);
-    tmp_ivec = tmp_ivec*tmp_logic_vec_inv;
-    tmp_ivec = tmp_ivec + next_location*tmp_logic_vec;
+    tmp_ivec = elem_mult( tmp_ivec,tmp_logic_vec_inv );
+    tmp_ivec = tmp_ivec + elem_mult( next_location, tmp_logic_vec );
     time_location.set_row(pss_count,tmp_ivec);
 
     time_location_invalid_record.set_row(pss_count, tmp_logic_vec);
   }
 //  cout << pss_count << "\n";
+//  cout << num_fo << "\n";
 
   time_location.set_size(pss_count+1, num_fo);
   hit_corr_val.set_size(pss_count+1, num_fo);
@@ -807,6 +815,8 @@ void sampling_ppm_f_search_set_by_pss(
 
   ppm_store.set_length(ppm_idx+1, true);
   valid_idx.set_length(ppm_idx+1, true);
+//  cout << ppm_store << "\n";
+//  cout << valid_idx << "\n";
 
   ivec valid_idx_backup = valid_idx;
 
@@ -826,21 +836,28 @@ void sampling_ppm_f_search_set_by_pss(
   if (ppm_idx==0){
     ppm = ppm_store(0);
     cout << "Total " << (ppm_idx+1) << " freq. idx for PPM: " << valid_idx << "\n";
+
     pss_idx = hit_pss_fo_set_idx.get(valid_idx)/(int)num_fo_orig;
     cout << "Total " << (ppm_idx+1) << "  pss. idx for PPM: " << pss_idx << "\n";
+
     cout << "Average PPM: " << ppm << "\n";
+
     uint16 idx_in_fo_search_set = hit_pss_fo_set_idx(valid_idx(0));
     double f_set = fo_search_set( idx_in_fo_search_set%num_fo_orig );
     cout << "Period PPM " << ppm << "PPM; f_set " << f_set/1.0e3 << "kHz\n";
+
     fo_search_set.set_length(1, false);
     fo_search_set(0) = f_set;
     return;
   } else if (ppm_idx==1) {
     ppm = ( ppm_store(0) + ppm_store(1) )/2.0;
     cout << "Total " << (ppm_idx+1) << " freq. idx for PPM: " << valid_idx << "\n";
+
     pss_idx = hit_pss_fo_set_idx.get(valid_idx)/(int)num_fo_orig;
     cout << "Total " << (ppm_idx+1) << "  pss. idx for PPM: " << pss_idx << "\n";
+
     cout << "Average PPM: " << ppm << "\n";
+
     if ( ( abs(ppm_store(1)-ppm_store(0))/abs(ppm_store(0)) ) > (1.0/20.0) ){
       ivec idx_in_fo_search_set = hit_pss_fo_set_idx.get(valid_idx);
 
@@ -852,6 +869,7 @@ void sampling_ppm_f_search_set_by_pss(
 
       vec f_set = fo_search_set.get( idx_in_fo_search_set - pss_idx*(int)num_fo_orig );
       cout << "Period PPM " << ppm << "PPM; f_set " << f_set/1.0e3 << "kHz\n";
+
       fo_search_set = f_set;
       return;
     }
@@ -919,7 +937,7 @@ void sampling_ppm_f_search_set_by_pss(
   idx_in_fo_search_set(0) = hit_pss_fo_set_idx(valid_idx(max_idx));
 
   if (extra_frequency_flag) {
-    ivec extra_valid_idx = valid_idx;
+    ivec extra_valid_idx;
 
     drop_idx.set_length(num_drop_idx);
     num_drop_idx = 0;
@@ -930,12 +948,21 @@ void sampling_ppm_f_search_set_by_pss(
       }
     }
 
+    reserve_idx.set_length(ppm_idx+1-num_drop_idx);
+    num_reserve_idx = 0;
+    for (uint16 i=0; i<=ppm_idx; i++) {
+      if (reserve_idx_bin(i)==1){
+        reserve_idx(num_reserve_idx) = i;
+        num_reserve_idx++;
+      }
+    }
+
     if ( prod( abs(drop_idx - max_idx) ) == 0 ) {
       // delete dropped elements
-      extra_valid_idx.get(reserve_idx);
+      extra_valid_idx=valid_idx.get(reserve_idx);
     } else if ( prod( abs(reserve_idx - max_idx) ) == 0 ) {
       // delete dropped elements
-      extra_valid_idx.get(drop_idx);
+      extra_valid_idx=valid_idx.get(drop_idx);
     } else {
       cout << "Abnormal!\n";
       return;
@@ -949,16 +976,20 @@ void sampling_ppm_f_search_set_by_pss(
 
     int32 max_idx;
     max(sum_corr_val, max_idx);
-    cout << "Extra Freq. idx for f_set: " << valid_idx(max_idx) << "\n";
-    pss_idx = hit_pss_fo_set_idx.get(extra_valid_idx(max_idx))/(int)num_fo_orig;
+    cout << "Extra Freq. idx for f_set: " << extra_valid_idx(max_idx) << "\n";
+    pss_idx.set_length(1);
+//    cout << "Extra  pss. idx for f_set: " << pss_idx << "\n";
+    pss_idx = hit_pss_fo_set_idx(extra_valid_idx(max_idx))/(int)num_fo_orig;
     cout << "Extra  pss. idx for f_set: " << pss_idx << "\n";
+
+//    cout << hit_pss_fo_set_idx( extra_valid_idx(max_idx) )/(int)num_fo_orig << "\n";
 
     idx_in_fo_search_set.set_length(2, true);
     idx_in_fo_search_set(1) = hit_pss_fo_set_idx(extra_valid_idx(max_idx));
   }
 
   //% add fo from other PSSs if there are
-  pss_idx = hit_pss_fo_set_idx/(int)num_fo_orig;
+  pss_idx = idx_in_fo_search_set/(int)num_fo_orig;
   ivec extra_pss_set(3);
   extra_pss_set.zeros();
   for(uint16 idx=0; idx<3; idx++) {
@@ -967,12 +998,18 @@ void sampling_ppm_f_search_set_by_pss(
     }
   }
 
+//  cout << pss_idx << "\n";
+//  cout << extra_pss_set << "\n";
   if (sum(extra_pss_set) < 3) {
     ivec exist_pss_idx = hit_pss_fo_set_idx.get(valid_idx_backup)/(int)num_fo_orig;
     for (uint16 extra_pss_idx=0; extra_pss_idx<3; extra_pss_idx++) {
       if (extra_pss_set(extra_pss_idx) == 0) {
         uint16 len_col_set = sum( to_ivec(exist_pss_idx==extra_pss_idx) );
         ivec col_set(len_col_set);
+
+//        cout << exist_pss_idx << "\n";
+//        cout << extra_pss_idx << "\n";
+//        cout << len_col_set << "\n";
 
         if (len_col_set > 0) {
           len_col_set = 0;
@@ -983,11 +1020,16 @@ void sampling_ppm_f_search_set_by_pss(
             }
           }
 
+//          cout << col_set << "\n";
+//          cout << len_col_set << "\n";
+//          cout << valid_idx_backup << "\n";
+
           sum_corr_val.set_length(len_col_set);
           for (uint16 i=0; i<len_col_set; i++) {
             uint16 col_idx = valid_idx_backup(col_set(i));
             sum_corr_val(i) = sum( elem_mult( to_vec( to_bvec(time_location_invalid_record.get_col(col_idx))+(bin)1 ), hit_corr_val.get_col(col_idx) ) );
           }
+//          cout << sum_corr_val << "\n";
 
           int32 max_idx;
           max(sum_corr_val, max_idx);
@@ -995,16 +1037,20 @@ void sampling_ppm_f_search_set_by_pss(
           pss_idx = hit_pss_fo_set_idx.get(valid_idx_backup( col_set(max_idx) ))/(int)num_fo_orig;
           cout << "Extra  pss. idx for f_set (multi-PSS): " << pss_idx << "\n";
 
-          idx_in_fo_search_set.set_length(3, true);
-          idx_in_fo_search_set(2) = hit_pss_fo_set_idx(valid_idx_backup( col_set(max_idx) ));
+//          cout << hit_pss_fo_set_idx.get(valid_idx_backup( col_set(max_idx) )) << "\n";
+          idx_in_fo_search_set.set_length(length(idx_in_fo_search_set)+1, true);
+          idx_in_fo_search_set(length(idx_in_fo_search_set)-1) = hit_pss_fo_set_idx.get(valid_idx_backup( col_set(max_idx) ));
         }
       }
     }
   }
-
+//  cout << idx_in_fo_search_set << "\n";
   pss_idx = idx_in_fo_search_set/(int)num_fo_orig;
+//  cout << pss_idx << "\n";
   vec tmp_f_set = fo_search_set.get( idx_in_fo_search_set - pss_idx*(int)num_fo_orig );
+//  cout << tmp_f_set << "\n";
   sort(tmp_f_set);
+//  cout << tmp_f_set << "\n";
   fo_search_set(0) = tmp_f_set(0);
   uint16 len_final_fo_set = 1;
   for (uint16 i=1; i<length(tmp_f_set); i++ ) {
