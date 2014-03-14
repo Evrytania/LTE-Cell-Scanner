@@ -628,7 +628,7 @@ int main(
         dynamic_f_search_set = f_search_set;
         k_factor = 1.0;
         period_ppm = NAN;
-        cout << "No valid PSS is found at pre-proc phase! Please try again.\n";
+        if (verbosity>=2) cout << "No valid PSS is found at pre-proc phase! Please try again.\n";
         continue;
   //      cout << "Pre search failed. Back to original sampling-carrier-twisted mode.\n";
       }
