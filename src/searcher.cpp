@@ -51,6 +51,7 @@
 #include <algorithm>
 #include <vector>
 #include <boost/math/special_functions/gamma.hpp>
+#include <sys/time.h>
 #include "rtl-sdr.h"
 #include "common.h"
 #include "lte_lib.h"
@@ -105,6 +106,9 @@
 
 using namespace itpp;
 using namespace std;
+
+//#define DBG(CODE) CODE
+#define DBG(CODE)
 
 // Correlate the received data against various frequency shifted versions
 // of the three PSS sequences.
@@ -514,16 +518,15 @@ void pss_moving_corr(
   uint16 num_pss = 3;
   uint16 len_pss = length( ROM_TABLES.pss_td[0] );
   uint16 num_fo_pss = num_pss*length( f_search_set );
-  uint16 max_reserve = 8;
 
   uint32 len = length(s);
   uint32 len_half_store = 64;
   mat corr_store(2*len_half_store+1, num_fo_pss);
   corr_store.zeros();
 
-  hit_pss_fo_set_idx.set_length(0,false);
-  hit_time_idx.set_length(0,false);
-  hit_corr_val.set_length(0,false);
+//  hit_pss_fo_set_idx.set_length(0,false);
+//  hit_time_idx.set_length(0,false);
+//  hit_corr_val.set_length(0,false);
 
   int32 end_idx = -1;
   int32 current_idx = -1;
@@ -628,7 +631,6 @@ void pss_moving_corr(
 //      num_valid = k;
 //    }
 //    cout << num_valid << "\n";
-    num_valid = num_valid>max_reserve?max_reserve:num_valid;
 
     hit_pss_fo_set_idx = sort_idx(0,(num_valid-1));
     hit_corr_val = max_val(0,(num_valid-1));
@@ -685,8 +687,6 @@ void sampling_ppm_f_search_set_by_pss(
   // Outpus
   double & ppm
 ) {
-#define DBG(CODE) CODE
-//#define DBG(CODE)
   uint16 len_pss = length(ROM_TABLES.pss_td[0]);
   ppm = NAN;
 
@@ -706,7 +706,17 @@ void sampling_ppm_f_search_set_by_pss(
   ivec hit_pss_fo_set_idx;
   ivec hit_time_idx;
   vec corr_val;
+
+//  timeval tim;
+//  gettimeofday(&tim, NULL);
+//  double t1=tim.tv_sec+(tim.tv_usec/1000000.0);
+
   pss_moving_corr(s(0,(2*num_sample_per_radioframe-1)), fo_search_set, pss_fo_set, th, hit_pss_fo_set_idx, hit_time_idx, corr_val);
+
+//  gettimeofday(&tim, NULL);
+//  double t2=tim.tv_sec+(tim.tv_usec/1000000.0);
+//  printf("%.6lf seconds elapsed\n", t2-t1);
+
 //  cout << hit_pss_fo_set_idx << "\n";
 //  cout << hit_time_idx << "\n";
 //  cout << corr_val << "\n";
@@ -718,6 +728,56 @@ void sampling_ppm_f_search_set_by_pss(
   int32 pss_period = num_sample_per_radioframe/2;
 
   uint16 num_fo = length(hit_pss_fo_set_idx);
+  uint16 max_reserve_per_pss = 8;
+  ivec pss_idx = hit_pss_fo_set_idx/(int)num_fo_orig;
+  bmat pss_reserve_idx_bin(3, num_fo);
+  for (uint16 i=0; i<3; i++) {
+    pss_reserve_idx_bin.set_row(i, pss_idx==i);
+    uint16 tmp_num = sum(to_ivec( pss_reserve_idx_bin.get_row(i) ) );
+    if (tmp_num > max_reserve_per_pss){
+      uint16 num_discard = tmp_num - max_reserve_per_pss;
+      for ( int16 j=(num_fo-1); j>=0; j-- ) {
+        if ( pss_reserve_idx_bin(i,j) == (bin)1) {
+          pss_reserve_idx_bin(i,j) = (bin)0;
+          num_discard--;
+          if (num_discard==0) {
+            break;
+          }
+        }
+      }
+    }
+  }
+//  cout << pss_reserve_idx_bin << "\n";
+
+  uint16 num_drop_idx = 0;
+  uint16 num_reserve_idx = 0;
+  ivec drop_idx;
+  ivec reserve_idx;
+  bvec drop_idx_bin;
+  bvec reserve_idx_bin;
+
+  drop_idx.set_length(num_fo, false);
+  drop_idx = to_ivec( sum( pss_reserve_idx_bin, 1 ) );
+  num_drop_idx = sum(drop_idx);
+  reserve_idx.set_length(num_drop_idx, false);
+  num_reserve_idx = 0;
+  for (uint16 i=0; i<num_fo; i++){
+    if (drop_idx(i)==1) {
+      reserve_idx(num_reserve_idx) = i;
+      num_reserve_idx++;
+    }
+  }
+//  cout << hit_pss_fo_set_idx << "\n";
+//  cout << reserve_idx << "\n";
+  hit_pss_fo_set_idx = hit_pss_fo_set_idx.get(reserve_idx);
+  hit_pss_fo_set_idx.set_length(num_reserve_idx,true);
+  hit_time_idx = hit_time_idx.get(reserve_idx);
+  hit_time_idx.set_length(num_reserve_idx,true);
+  corr_val = corr_val.get(reserve_idx);
+  corr_val.set_length(num_reserve_idx,true);
+
+  num_fo = num_reserve_idx;
+
   uint16 max_num_hit = ceil((double)len/(double)pss_period);
   imat time_location(max_num_hit, num_fo);
   time_location.zeros();
@@ -828,15 +888,9 @@ void sampling_ppm_f_search_set_by_pss(
   bool extra_frequency_flag = false;
   DBG( cout << "PPM: " << ppm_store << "\n" );
 
-  ivec pss_idx = hit_pss_fo_set_idx.get(valid_idx)/(int)num_fo_orig;
+  pss_idx.set_length(ppm_idx+1, false);
+  pss_idx = hit_pss_fo_set_idx.get(valid_idx)/(int)num_fo_orig;
   DBG( cout << "PSS: " << pss_idx << "\n" );
-
-  uint16 num_drop_idx = 0;
-  uint16 num_reserve_idx = 0;
-  ivec drop_idx;
-  ivec reserve_idx;
-  bvec drop_idx_bin;
-  bvec reserve_idx_bin;
 
   if (ppm_idx==0){
     ppm = ppm_store(0);
@@ -850,6 +904,7 @@ void sampling_ppm_f_search_set_by_pss(
     uint16 idx_in_fo_search_set = hit_pss_fo_set_idx(valid_idx(0));
     double f_set = fo_search_set( idx_in_fo_search_set%num_fo_orig );
     DBG( cout << "Period PPM " << ppm << "PPM; f_set " << f_set/1.0e3 << "kHz\n" );
+    DBG( cout << "Final PSS idx " << pss_idx << "\n"; );
 
     fo_search_set.set_length(1, false);
     fo_search_set(0) = f_set;
@@ -874,6 +929,7 @@ void sampling_ppm_f_search_set_by_pss(
 
       vec f_set = fo_search_set.get( idx_in_fo_search_set - pss_idx*(int)num_fo_orig );
       DBG( cout << "Period PPM " << ppm << "PPM; f_set " << f_set/1.0e3 << "kHz\n" );
+      DBG( cout << "Final PSS idx " << pss_idx << "\n"; );
 
       fo_search_set = f_set;
       return;
@@ -1078,6 +1134,7 @@ void sampling_ppm_f_search_set_by_pss(
   fo_search_set.set_length(len_final_fo_set, true);
 
   DBG( cout << "Period PPM " << ppm << "PPM; f_set " << fo_search_set/1.0e3 << "kHz\n" );
+  DBG( cout << "Final PSS idx " << pss_idx << "\n"; );
 }
 
 // Correlate the received signal against all possible PSS and all possible

@@ -23,6 +23,7 @@
 #include <list>
 #include <sstream>
 #include <curses.h>
+#include <sys/time.h>
 #include "rtl-sdr.h"
 #include "common.h"
 #include "macros.h"
@@ -118,7 +119,7 @@ void parse_commandline(
   // Default values
   freq_start=-1;
   freq_end=-1;
-  num_try=10; // default number
+  num_try=1; // default number
   sampling_carrier_twist=false;
   ppm=120;
   correction=1;
@@ -560,8 +561,8 @@ int main(
     f_search_set=to_vec(itpp_ext::matlab_range(-n_extra*5000,5000,n_extra*5000));
   } else {
     // since we have frequency step is 100e3, why not have sub search set limited by this regardless PPM?
-//    f_search_set=to_vec(itpp_ext::matlab_range(-65000,5000,65000)); // 2*65kHz > 100kHz, overlap adjacent frequencies
-      f_search_set=to_vec(itpp_ext::matlab_range(-100000,5000,100000)); // align to matlab script
+    f_search_set=to_vec(itpp_ext::matlab_range(-65000,5000,65000)); // 2*65kHz > 100kHz, overlap adjacent frequencies
+//      f_search_set=to_vec(itpp_ext::matlab_range(-100000,5000,100000)); // align to matlab script
 
     pss_fo_set_gen(f_search_set, pss_fo_set);
   }
@@ -621,7 +622,16 @@ int main(
 
     vec dynamic_f_search_set = f_search_set; // don't touch the original
     if (!sampling_carrier_twist) {
+//      timeval tim;
+//      gettimeofday(&tim, NULL);
+//      double t1=tim.tv_sec+(tim.tv_usec/1000000.0);
+
       sampling_ppm_f_search_set_by_pss(capbuf, pss_fo_set, dynamic_f_search_set, period_ppm);
+
+//      gettimeofday(&tim, NULL);
+//      double t2=tim.tv_sec+(tim.tv_usec/1000000.0);
+//      printf("%.6lf seconds elapsed\n", t2-t1);
+
       if (length(dynamic_f_search_set)<length(f_search_set) && !isnan(period_ppm) ) {
         k_factor=(1+period_ppm*1e-6);
       } else { // recover original mode
@@ -723,6 +733,7 @@ int main(
         else
             cout << "  Detected a TDD cell! At freqeuncy " << fc_requested/1e6 << "MHz, try " << try_idx << endl;
         cout << "    cell ID: " << (*iterator).n_id_cell() << endl;
+        cout << "     PSS ID: " << (*iterator).n_id_2 << endl;
         cout << "    RX power level: " << db10((*iterator).pss_pow) << " dB" << endl;
         cout << "    residual frequency offset: " << (*iterator).freq_superfine << " Hz" << endl;
       }
