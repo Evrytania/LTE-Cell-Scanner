@@ -1,6 +1,6 @@
-Jiao Xianjun (putaoshu@gmail.com; putaoshu@msn.com).
+Jiao Xianjun (putaoshu@gmail.com).
 
-TDD support is added now! In the future this will be merged back to https://github.com/Evrytania/LTE-Cell-Scanner
+TDD, external-LNB, and fater pre-searcher are added now! In the future this will be merged back to https://github.com/Evrytania/LTE-Cell-Scanner
 
 ATTENTION!!! I find that LTE-Cell-Scanner only works with v0.5.2 librtlsdr (https://github.com/steve-m/librtlsdr). Not v0.5.3! (at least in my computer)
 
@@ -10,7 +10,22 @@ Introduction video(outside China): http://www.youtube.com/watch?v=4zRLgxzn4Pc
 
 I study and do experiments using MATLAB in this repo: https://github.com/JiaoXianjun/rtl-sdr-LTE
 
-You may find more information there.
+-----------------------------------------------------------------
+Some usages of new features
+-----------------------------------------------------------------
+
+"CellSearch --help" to see all options.
+
+"CellSearch --freq-start 1860e6 --recbin a.bin" to save signal in file a.bin while doing cell search at frequency 1.86GHz
+
+"CellSearch --loadbin test/f1890_s1.92_g0_0.16s.bin" to search LTE cell in captured bin file test/f1890_s1.92_g0_0.16s.bin
+
+"CellSearch --freq-start 1860e6 --num-try 10" to try to perform 10 tries of searching at frequency 1.86GHz (When signal is weak, only one try may not have you good luck)
+
+"CellSearch --freq-start 1860e6 -t" to use original carrier-sampling twisted mode. (My new developed mode is non-twisted mode (default mode), which supports external LNB and fast pre-search. See detailed explanation in https://github.com/JiaoXianjun/rtl-sdr-LTE)
+
+If you find different search results between two modes (twisted and non-twisted), please capture the signal into bin file and tell me.
+Thanks!
 
 --------------------------
 LTE Cell Scanner / Tracker

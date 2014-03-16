@@ -78,6 +78,36 @@ void searcher_thread(
   const double & fc_programmed=global_thread_data.fc_programmed;
   const double & fs_programmed=global_thread_data.fs_programmed;
 
+  // for PSS correlate
+  //cout << "DS_COMB_ARM override!!!" << endl;
+#define DS_COMB_ARM 2
+  mat xc_incoherent_collapsed_pow;
+  imat xc_incoherent_collapsed_frq;
+  vf3d xc_incoherent_single;
+  vf3d xc_incoherent;
+  vec sp_incoherent;
+  vcf3d xc;
+  vec sp;
+
+  // for SSS detection
+#define THRESH2_N_SIGMA 3
+  vec sss_h1_np_est_meas;
+  vec sss_h2_np_est_meas;
+  cvec sss_h1_nrm_est_meas;
+  cvec sss_h2_nrm_est_meas;
+  cvec sss_h1_ext_est_meas;
+  cvec sss_h2_ext_est_meas;
+  mat log_lik_nrm;
+  mat log_lik_ext;
+
+  // for time frequency grid
+  // Extract time and frequency grid
+  cmat tfg;
+  vec tfg_timestamp;
+  // Compensate for time and frequency offsets
+  cmat tfg_comp;
+  vec tfg_comp_timestamp;
+
   // Loop forever.
   Real_Timer tt;
   while (true) {
@@ -96,9 +126,9 @@ void searcher_thread(
     // Get the current frequency offset
     vec f_search_set(1);
     f_search_set(0)=global_thread_data.frequency_offset();
-    int sampling_carrier_twist = 1;
-    double k_factor=1.0;
-    if (sampling_carrier_twist==1){ //be careful ! if sampling_carrier_twist == 0?
+    const bool sampling_carrier_twist = global_thread_data.sampling_carrier_twist();
+    double k_factor = global_thread_data.k_factor();
+    if (sampling_carrier_twist){
         k_factor = (fc_requested-f_search_set(0))/fc_programmed;
     }
 
@@ -109,13 +139,13 @@ void searcher_thread(
     cvec &capbuf=capbuf_sync.capbuf;
 
     // Correlate
-    mat xc_incoherent_collapsed_pow;
-    imat xc_incoherent_collapsed_frq;
-    vf3d xc_incoherent_single;
-    vf3d xc_incoherent;
-    vec sp_incoherent;
-    vcf3d xc;
-    vec sp;
+//    mat xc_incoherent_collapsed_pow;
+//    imat xc_incoherent_collapsed_frq;
+//    vf3d xc_incoherent_single;
+//    vf3d xc_incoherent;
+//    vec sp_incoherent;
+//    vcf3d xc;
+//    vec sp;
     uint16 n_comb_xc;
     uint16 n_comb_sp;
     if (verbosity>=2) {
@@ -140,14 +170,14 @@ void searcher_thread(
     Cell cell_temp(*iterator);
     while (iterator!=detected_cells.end()) {
       // Detect SSS if possible
-      vec sss_h1_np_est_meas;
-      vec sss_h2_np_est_meas;
-      cvec sss_h1_nrm_est_meas;
-      cvec sss_h2_nrm_est_meas;
-      cvec sss_h1_ext_est_meas;
-      cvec sss_h2_ext_est_meas;
-      mat log_lik_nrm;
-      mat log_lik_ext;
+//      vec sss_h1_np_est_meas;
+//      vec sss_h2_np_est_meas;
+//      cvec sss_h1_nrm_est_meas;
+//      cvec sss_h2_nrm_est_meas;
+//      cvec sss_h1_ext_est_meas;
+//      cvec sss_h2_ext_est_meas;
+//      mat log_lik_nrm;
+//      mat log_lik_ext;
 #define THRESH2_N_SIGMA 3
       int tdd_flag = 0;
       cell_temp = (*iterator);
@@ -192,16 +222,16 @@ void searcher_thread(
       (*iterator)=pss_sss_foe((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,sampling_carrier_twist,k_factor,tdd_flag);
 
       // Extract time and frequency grid
-      cmat tfg;
-      vec tfg_timestamp;
+//      cmat tfg;
+//      vec tfg_timestamp;
       extract_tfg((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,tfg,tfg_timestamp,sampling_carrier_twist,k_factor);
 
       // Create object containing all RS
       RS_DL rs_dl((*iterator).n_id_cell(),6,(*iterator).cp_type);
 
       // Compensate for time and frequency offsets
-      cmat tfg_comp;
-      vec tfg_comp_timestamp;
+//      cmat tfg_comp;
+//      vec tfg_comp_timestamp;
       (*iterator)=tfoec((*iterator),tfg,tfg_timestamp,fc_requested,fc_programmed,rs_dl,tfg_comp,tfg_comp_timestamp,sampling_carrier_twist,k_factor);
 
       // Finally, attempt to decode the MIB

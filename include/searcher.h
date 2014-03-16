@@ -63,8 +63,8 @@ void xcorr_pss(
   itpp::vec & sp,
   uint16 & n_comb_xc,
   uint16 & n_comb_sp,
-  bool sampling_carrier_twist,
-  double k_facotr
+  const bool & sampling_carrier_twist,
+  double & k_facotr
 );
 
 // Search the correlations for peaks.
@@ -100,9 +100,9 @@ Cell sss_detect(
   itpp::cvec & sss_h2_ext_est,
   itpp::mat & log_lik_nrm,
   itpp::mat & log_lik_ext,
-  bool sampling_carrier_twist,
-  double k_factor,
-  int tdd_flag
+  const bool & sampling_carrier_twist,
+  double & k_factor,
+  const int & tdd_flag
 );
 
 // Perform FOE based only on the PSS and SSS
@@ -112,9 +112,9 @@ Cell pss_sss_foe(
   const double & fc_requested,
   const double & fc_programmed,
   const double & fs_programmed,
-  bool sampling_carrier_twist,
-  double k_factor,
-  int tdd_flag
+  const bool & sampling_carrier_twist,
+  double & k_factor,
+  const int & tdd_flag
 );
 
 // Extract the time and frequency grid.
@@ -128,8 +128,8 @@ void extract_tfg(
   // Outputs
   itpp::cmat & tfg,
   itpp::vec & tfg_timestamp,
-  bool sampling_carrier_twist,
-  double k_factor
+  const bool & sampling_carrier_twist,
+  double & k_factor
 );
 
 // Perform TOE/FOE/TOC/FOC on the time/ frequency grid.
@@ -144,8 +144,8 @@ Cell tfoec(
   // Outputs
   itpp::cmat & tfg_comp,
   itpp::vec & tfg_comp_timestamp,
-  bool sampling_carrier_twist,
-  double k_factor
+  const bool & sampling_carrier_twist,
+  double & k_factor
 );
 
 // Attempt to decode the MIB.

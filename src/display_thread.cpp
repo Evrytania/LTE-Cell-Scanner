@@ -535,7 +535,7 @@ void display_thread(
       // Header and footer
       {
         stringstream ss;
-        ss << "LTE-Tracker v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " -- www.evrytania.com; 1.0.0-->1.1.0: TDD support is added by Jiao Xianjun(putaoshu@gmail.com).";
+        ss << "LTE-Tracker v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " -- www.evrytania.com; 1.0 to 1.1: TDD/ext-LNB/faster added by Jiao Xianjun(putaoshu@gmail.com).";
         move(0,0);
         attron(COLOR_PAIR(CYAN));
         print_center(ss.str());

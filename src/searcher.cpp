@@ -15,6 +15,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+// Improved by Jiao Xianjun (putaoshu@gmail.com):
+// 1. TD-LTE support
+// 2. fast pre-search frequencies (external mixer/LNB support)
+// 3. multiple tries at one frequency
+// 4. .bin file recording and replaying
+
 // Relationships between the various frequencies, correction factors, etc.
 //
 // Fixed relationships:
@@ -121,8 +127,8 @@ void xc_correlate(
   const double & fc_requested,
   const double & fc_programmed,
   const double & fs_programmed,
-  bool sampling_carrier_twist,
-  double k_factor,
+  const bool & sampling_carrier_twist,
+  double & k_factor,
   // Outputs
   vcf3d & xc
 ) {
@@ -280,8 +286,8 @@ void xc_combine(
   // Outputs
   vf3d & xc_incoherent_single,
   uint16 & n_comb_xc,
-  bool sampling_carrier_twist,
-  double k_factor
+  const bool & sampling_carrier_twist,
+  double & k_factor
 ) {
   const uint16 n_f=f_search_set.length();
   n_comb_xc=floor_i((xc[0].size()-100)/9600);
@@ -1160,11 +1166,12 @@ void xcorr_pss(
   vec & sp,
   uint16 & n_comb_xc,
   uint16 & n_comb_sp,
-  bool sampling_carrier_twist,
-  double k_factor
+  const bool & sampling_carrier_twist,
+  double & k_factor
 ) {
   // Perform correlations
   xc_correlate(capbuf,f_search_set,fc_requested,fc_programmed,fs_programmed,sampling_carrier_twist,k_factor,xc);
+
   // Incoherently combine correlations
   xc_combine(capbuf,xc,fc_requested,fc_programmed,fs_programmed,f_search_set,xc_incoherent_single,n_comb_xc,sampling_carrier_twist,k_factor);
   // Combine according to delay spread
@@ -1301,9 +1308,9 @@ void sss_detect_getce_sss(
   cvec & sss_h2_nrm_est,
   cvec & sss_h1_ext_est,
   cvec & sss_h2_ext_est,
-  bool sampling_carrier_twist,
-  double k_factor,
-  int tdd_flag
+  const bool & sampling_carrier_twist,
+  double & k_factor,
+  const int & tdd_flag
 ) {
   // Local copies
   double peak_loc=cell.ind;
@@ -1489,9 +1496,9 @@ Cell sss_detect(
   cvec & sss_h2_ext_est,
   mat & log_lik_nrm,
   mat & log_lik_ext,
-  bool sampling_carrier_twist,
-  double k_factor,
-  int tdd_flag
+  const bool & sampling_carrier_twist,
+  double & k_factor,
+  const int & tdd_flag
 ) {
   // Get the channel estimates and extract the raw SSS subcarriers
   sss_detect_getce_sss(cell,capbuf,fc_requested,fc_programmed,fs_programmed,sss_h1_np_est,sss_h2_np_est,sss_h1_nrm_est,sss_h2_nrm_est,sss_h1_ext_est,sss_h2_ext_est,sampling_carrier_twist,k_factor,tdd_flag);
@@ -1569,9 +1576,9 @@ Cell pss_sss_foe(
   const double & fc_requested,
   const double & fc_programmed,
   const double & fs_programmed,
-  bool sampling_carrier_twist,
-  double k_factor,
-  int tdd_flag
+  const bool & sampling_carrier_twist,
+  double & k_factor,
+  const int & tdd_flag
 ) {
   if (sampling_carrier_twist){
     k_factor=(fc_requested-cell_in.freq)/fc_programmed;
@@ -1684,8 +1691,8 @@ void extract_tfg(
   // Outputs
   cmat & tfg,
   vec & tfg_timestamp,
-  bool sampling_carrier_twist,
-  double k_factor
+  const bool & sampling_carrier_twist,
+  double & k_factor
 ) {
   // Local shortcuts
   const double frame_start=cell.frame_start;
@@ -1784,8 +1791,8 @@ Cell tfoec(
   // Outputs
   cmat & tfg_comp,
   vec & tfg_comp_timestamp,
-  bool sampling_carrier_twist,
-  double k_factor_residual
+  const bool & sampling_carrier_twist,
+  double & k_factor_residual
 ) {
   // Local shortcuts
   const int8 n_symb_dl=cell.n_symb_dl();

@@ -96,7 +96,11 @@ void producer_thread(
   while (true) {
     // Each iteration of this loop processes one block of data.
     const double frequency_offset=global_thread_data.frequency_offset();
-    const double k_factor=(global_thread_data.fc_requested-frequency_offset)/global_thread_data.fc_programmed;
+    const bool sampling_carrier_twist = global_thread_data.sampling_carrier_twist();
+    double k_factor = 1.0; // if not twisted, make k_factor useless
+    if (sampling_carrier_twist){
+      k_factor=(global_thread_data.fc_requested-frequency_offset)/global_thread_data.fc_programmed;
+    }
     //const double k_factor_inv=1/k_factor;
     const double & fs_programmed=global_thread_data.fs_programmed;
 
@@ -124,9 +128,9 @@ void producer_thread(
           n_samples=t;
           break;
         }
-        sample_temp.real()=(sampbuf_sync.fifo.front()-127.0)/128.0;
+        sample_temp.real()=(sampbuf_sync.fifo.front()-128.0)/128.0; // 127 should be 128?
         sampbuf_sync.fifo.pop_front();
-        sample_temp.imag()=(sampbuf_sync.fifo.front()-127.0)/128.0;
+        sample_temp.imag()=(sampbuf_sync.fifo.front()-128.0)/128.0; // 127 should be 128?
         sampbuf_sync.fifo.pop_front();
         samples(t)=sample_temp;
         sample_time+=(FS_LTE/16)/(fs_programmed*k_factor);

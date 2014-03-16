@@ -78,27 +78,35 @@ double compute_fc_programmed(const double & fosc,const double & intended_flo);
 // previously captured data.
 // Also, optionally, this function can save each set of captured data
 // to a file.
-void capture_data(
+int capture_data(
   // Inputs
   const double & fc_requested,
   const double & correction,
   const bool & save_cap,
-  char * record_bin_filename,
+  const char * record_bin_filename,
   const bool & use_recorded_data,
-  char * load_bin_filename,
+  const char * load_bin_filename,
   const string & data_dir,
   rtlsdr_dev_t * & dev,
   // Output
   cvec & capbuf,
-  double & fc_programmed
+  double & fc_programmed,
+  const bool & read_all_in_bin // only for .bin file! if it is true, all data in bin file will be read in one time.
 ) {
   // Filename used for recording or loading captured data.
   static uint32 capture_number=0;
   stringstream filename;
   filename << data_dir << "/capbuf_" << setw(4) << setfill('0') << capture_number << ".it";
 
+//  cout << use_recorded_data << "\n";
+//  cout << load_bin_filename << "\n";
+
   bool record_bin_flag = (strlen(record_bin_filename)>4);
   bool load_bin_flag = (strlen(load_bin_filename)>4);
+
+//  cout << load_bin_flag << "\n";
+
+  int run_out_of_data = 0;
 
   if (use_recorded_data) {
     // Read data from a file. Do not use live data.
@@ -121,29 +129,65 @@ void capture_data(
   } else if (load_bin_flag) {
     // Read data from load_bin_filename. Do not use live data.
     // Convert to complex
-    capbuf.set_size(CAPLENGTH);
     unsigned char *capbuf_raw = new unsigned char[2*CAPLENGTH];
-    FILE *fp = fopen(load_bin_filename, "rb");
-    if (fp == NULL)
-    {
-      cerr << "Error: unable to open file: " << load_bin_filename << endl;
-      ABORT(-1);
-    }
-    for(uint16 i=0; i<(capture_number+1); i++) {
-      int read_count = fread(capbuf_raw, sizeof(unsigned char), 2*CAPLENGTH, fp);
-      if (read_count != (2*CAPLENGTH))
+    if (read_all_in_bin) {
+      capbuf.set_size(0);
+
+      FILE *fp = fopen(load_bin_filename, "rb");
+      if (fp == NULL)
       {
-        fclose(fp);
-        cerr << "Error: file " << load_bin_filename << " size is not sufficient" << endl;
+        cerr << "Error: unable to open file: " << load_bin_filename << endl;
         ABORT(-1);
       }
+
+      uint32 len_capbuf = 0;
+      while(true) { // read until run out of data
+        int read_count = fread(capbuf_raw, sizeof(unsigned char), 2*CAPLENGTH, fp);
+        len_capbuf = len_capbuf + CAPLENGTH;
+        capbuf.set_size(len_capbuf, true);
+        for (uint32 t=0;t<CAPLENGTH;t++) {
+          uint32 i = len_capbuf-CAPLENGTH+t;
+          capbuf(i)=complex<double>((((double)capbuf_raw[(t<<1)])-128.0)/128.0,(((double)capbuf_raw[(t<<1)+1])-128.0)/128.0);
+        }
+        if (read_count != (2*CAPLENGTH))
+        {
+//          cerr << "Run of recorded file data.\n";
+          break;
+//          ABORT(-1);
+        }
+      }
+
+      fclose(fp);
+    } else {
+      capbuf.set_size(CAPLENGTH);
+      unsigned char *capbuf_raw = new unsigned char[2*CAPLENGTH];
+      FILE *fp = fopen(load_bin_filename, "rb");
+      if (fp == NULL)
+      {
+        cerr << "Error: unable to open file: " << load_bin_filename << endl;
+        ABORT(-1);
+      }
+      for(uint16 i=0; i<(capture_number+1); i++) {
+        int read_count = fread(capbuf_raw, sizeof(unsigned char), 2*CAPLENGTH, fp);
+        if (read_count != (2*CAPLENGTH))
+        {
+//          fclose(fp);
+//          cerr << "Error: file " << load_bin_filename << " size is not sufficient" << endl;
+          cerr << "Run of recorded file data.\n";
+          run_out_of_data = 1;
+          break;
+//          ABORT(-1);
+        }
+      }
+      fclose(fp);
+      for (uint32 t=0;t<CAPLENGTH;t++) {
+        capbuf(t)=complex<double>((((double)capbuf_raw[(t<<1)])-128.0)/128.0,(((double)capbuf_raw[(t<<1)+1])-128.0)/128.0);
+        // 127 --> 128.
+      }
     }
-    fclose(fp);
-    for (uint32 t=0;t<CAPLENGTH;t++) {
-      capbuf(t)=complex<double>((((double)capbuf_raw[(t<<1)])-128.0)/128.0,(((double)capbuf_raw[(t<<1)+1])-128.0)/128.0);
-      // 127 --> 128.
-    }
+
     delete[] capbuf_raw;
+
     fc_programmed=fc_requested; // be careful about this!
     //cout << capbuf(0).real() << " " << capbuf(0).imag() << " "<< capbuf(1).real() << " " << capbuf(1).imag() << " "<< capbuf(2).real() << " " << capbuf(2).imag() << " "<< capbuf(3).real() << " " << capbuf(3).imag() << " "<< capbuf(4).real() << " " << capbuf(4).imag() << " "<< capbuf(5).real() << " " << capbuf(5).imag() << " "<< capbuf(6).real() << " " << capbuf(6).imag() << " "<<"\n";
   } else {
@@ -257,5 +301,6 @@ void capture_data(
   }
 
   capture_number++;
+  return(run_out_of_data);
 }
 

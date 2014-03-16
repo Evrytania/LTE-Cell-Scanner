@@ -20,19 +20,20 @@
 
 // Returns a capture buffer either from a file or from live data read
 // from the dongle.
-void capture_data(
+int capture_data(
   // Inputs
   const double & fc_requested,
   const double & correction,
   const bool & save_cap,
-  char * record_bin_filename,
+  const char * record_bin_filename,
   const bool & use_recorded_data,
-  char * load_bin_filename,
+  const char * load_bin_filename,
   const std::string & str,
   rtlsdr_dev_t * & dev,
   // Output
   itpp::cvec & capbuf,
-  double & fc_programmed
+  double & fc_programmed,
+  const bool & read_all_in_bin
 );
 
 #endif

@@ -178,9 +178,27 @@ class global_thread_data_t {
     const double fc_requested;
     const double fc_programmed;
     const double fs_programmed;
-    // Read/write frequency offset (via mutex).
+    // Read/write frequency offset, k_factor, sampling_carrier_twist (via mutex).
     // Mutex makes sure that no read or write is interrupted when
     // only part of the data has been read.
+    inline double sampling_carrier_twist() {
+      boost::mutex::scoped_lock lock(sampling_carrier_twist_mutex);
+      double r=sampling_carrier_twist_private;
+      return r;
+    }
+    inline void sampling_carrier_twist(const double & f) {
+      boost::mutex::scoped_lock lock(sampling_carrier_twist_mutex);
+      sampling_carrier_twist_private=f;
+    }
+    inline double k_factor() {
+      boost::mutex::scoped_lock lock(k_factor_mutex);
+      double r=k_factor_private;
+      return r;
+    }
+    inline void k_factor(const double & f) {
+      boost::mutex::scoped_lock lock(k_factor_mutex);
+      k_factor_private=f;
+    }
     inline double frequency_offset() {
       boost::mutex::scoped_lock lock(frequency_offset_mutex);
       double r=frequency_offset_private;
@@ -227,6 +245,10 @@ class global_thread_data_t {
   private:
     // The frequency offset of the dongle. This value will be updated
     // continuously.
+    boost::mutex sampling_carrier_twist_mutex;
+    bool sampling_carrier_twist_private;
+    boost::mutex k_factor_mutex;
+    double k_factor_private;
     boost::mutex frequency_offset_mutex;
     double frequency_offset_private;
     boost::mutex searcher_cycle_time_mutex;

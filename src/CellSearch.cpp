@@ -15,6 +15,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+// Improved by Jiao Xianjun (putaoshu@gmail.com):
+// 1. TD-LTE support
+// 2. fast pre-search frequencies (external mixer/LNB support)
+// 3. multiple tries at one frequency
+// 4. .bin file recording and replaying
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <getopt.h>
@@ -62,13 +68,13 @@ void print_usage() {
   cout << "      number of tries at each frequency/file" << endl;
   cout << "  Dongle LO correction options:" << endl;
   cout << "    -t --twisted" << endl;
-  cout << "      enable original sampling-carrier-twisted mode (default is disable and using pre-search/calculated sampling PPM)" << endl;
+  cout << "      enable original sampling-carrier-twisted mode (default is disable and using carrier&sampling isolated pre-search to support external mixer/LNB)" << endl;
   cout << "    -p --ppm ppm" << endl;
   cout << "      crystal remaining PPM error" << endl;
   cout << "    -c --correction c" << endl;
   cout << "      crystal correction factor" << endl;
   cout << "  Capture buffer save/ load options:" << endl;
-  cout << "    -x --recbin" << endl;
+  cout << "    -z --recbin" << endl;
   cout << "      save captured data in the bin file" << endl;
   cout << "    -y --loadbin" << endl;
   cout << "      used data in captured bin file" << endl;
@@ -139,7 +145,7 @@ void parse_commandline(
       {"twisted",      no_argument,       0, 't'},
       {"ppm",          required_argument, 0, 'p'},
       {"correction",   required_argument, 0, 'c'},
-      {"recbin",       required_argument, 0, 'x'},
+      {"recbin",       required_argument, 0, 'z'},
       {"loadbin",      required_argument, 0, 'y'},
       {"record",       no_argument,       0, 'r'},
       {"load",         no_argument,       0, 'l'},
@@ -149,7 +155,7 @@ void parse_commandline(
     };
     /* getopt_long stores the option index here. */
     int option_index = 0;
-    int c = getopt_long (argc, argv, "hvbs:e:n:tp:c:x:y:rld:i:",
+    int c = getopt_long (argc, argv, "hvbs:e:n:tp:c:z:y:rld:i:",
                      long_options, &option_index);
 
     /* Detect the end of the options. */
@@ -218,7 +224,7 @@ void parse_commandline(
       case 'l':
         use_recorded_data=true;
         break;
-      case 'x':
+      case 'z':
         {
           int len_str = strlen(optarg);
           if (len_str<5)
@@ -345,7 +351,7 @@ void parse_commandline(
   }
 
   if (verbosity>=1) {
-    cout << "LTE CellSearch v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " (" << BUILD_TYPE << ") beginning" << endl;
+    cout << "LTE CellSearch v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " (" << BUILD_TYPE << ") beginning. 1.0 to 1.1: TDD/ext-LNB/faster added by Jiao Xianjun(putaoshu@gmail.com)" << endl;
     if (freq_start==freq_end) {
       cout << "  Search frequency: " << freq_start/1e6 << " MHz" << endl;
     } else {
@@ -593,6 +599,40 @@ int main(
   1.423981657254563e-03    -3.219586065044259e-03     1.264224526451337e-03     1.042805860697287e-03    -1.453429245341695e-03 \
   3.535548569572820e-04     8.193313185354206e-04";
 
+  double k_factor = 1.0; // need to be decided further together with sampling_carrier_twist
+  double period_ppm = NAN;
+
+  cvec capbuf;
+  // for PSS correlate
+  //cout << "DS_COMB_ARM override!!!" << endl;
+#define DS_COMB_ARM 2
+  mat xc_incoherent_collapsed_pow;
+  imat xc_incoherent_collapsed_frq;
+  vf3d xc_incoherent_single;
+  vf3d xc_incoherent;
+  vec sp_incoherent;
+  vcf3d xc;
+  vec sp;
+
+  // for SSS detection
+#define THRESH2_N_SIGMA 3
+  vec sss_h1_np_est_meas;
+  vec sss_h2_np_est_meas;
+  cvec sss_h1_nrm_est_meas;
+  cvec sss_h2_nrm_est_meas;
+  cvec sss_h1_ext_est_meas;
+  cvec sss_h2_ext_est_meas;
+  mat log_lik_nrm;
+  mat log_lik_ext;
+
+  // for time frequency grid
+  // Extract time and frequency grid
+  cmat tfg;
+  vec tfg_timestamp;
+  // Compensate for time and frequency offsets
+  cmat tfg_comp;
+  vec tfg_comp_timestamp;
+
   // Each center frequency is searched independently. Results are stored in
   // this vector.
   vector < list<Cell> > detected_cells(n_fc);
@@ -607,18 +647,19 @@ int main(
     }
 
     // Fill capture buffer
-    cvec capbuf;
+//    cvec capbuf;
     double fc_programmed;
-    capture_data(fc_requested,correction,save_cap,record_bin_filename,use_recorded_data,load_bin_filename,data_dir,dev,capbuf,fc_programmed);
+    int run_out_of_data = capture_data(fc_requested,correction,save_cap,record_bin_filename,use_recorded_data,load_bin_filename,data_dir,dev,capbuf,fc_programmed, false);
+    if (run_out_of_data){
+      fci = n_fc_multi_try; // end of loop
+      continue;
+    }
 
     // 6RB filter to improve SNR
     filter_my(coef, capbuf);
 //    cout << capbuf(0, 24) << "\n";
 //    cout << capbuf(100000, 100010) << "\n";
 //    cout << capbuf(153590, 153599) << "\n";
-
-    double k_factor = 1.0; // need to be decided further together with sampling_carrier_twist
-    double period_ppm = NAN;
 
     vec dynamic_f_search_set = f_search_set; // don't touch the original
     if (!sampling_carrier_twist) {
@@ -644,14 +685,14 @@ int main(
       }
     }
     // Correlate
-#define DS_COMB_ARM 2
-    mat xc_incoherent_collapsed_pow;
-    imat xc_incoherent_collapsed_frq;
-    vf3d xc_incoherent_single;
-    vf3d xc_incoherent;
-    vec sp_incoherent;
-    vcf3d xc;
-    vec sp;
+//#define DS_COMB_ARM 2
+//    mat xc_incoherent_collapsed_pow;
+//    imat xc_incoherent_collapsed_frq;
+//    vf3d xc_incoherent_single;
+//    vf3d xc_incoherent;
+//    vec sp_incoherent;
+//    vcf3d xc;
+//    vec sp;
     uint16 n_comb_xc;
     uint16 n_comb_sp;
     if (verbosity>=2) {
@@ -681,14 +722,14 @@ int main(
       //cout << (*iterator) << endl << endl;
 
       // Detect SSS if possible
-      vec sss_h1_np_est_meas;
-      vec sss_h2_np_est_meas;
-      cvec sss_h1_nrm_est_meas;
-      cvec sss_h2_nrm_est_meas;
-      cvec sss_h1_ext_est_meas;
-      cvec sss_h2_ext_est_meas;
-      mat log_lik_nrm;
-      mat log_lik_ext;
+//      vec sss_h1_np_est_meas;
+//      vec sss_h2_np_est_meas;
+//      cvec sss_h1_nrm_est_meas;
+//      cvec sss_h2_nrm_est_meas;
+//      cvec sss_h1_ext_est_meas;
+//      cvec sss_h2_ext_est_meas;
+//      mat log_lik_nrm;
+//      mat log_lik_ext;
 #define THRESH2_N_SIGMA 3
       int tdd_flag = 0;
       cell_temp = (*iterator);
@@ -707,16 +748,16 @@ int main(
       (*iterator)=pss_sss_foe((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,sampling_carrier_twist,k_factor,tdd_flag);
 
       // Extract time and frequency grid
-      cmat tfg;
-      vec tfg_timestamp;
+//      cmat tfg;
+//      vec tfg_timestamp;
       extract_tfg((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,tfg,tfg_timestamp,sampling_carrier_twist,k_factor);
 
       // Create object containing all RS
       RS_DL rs_dl((*iterator).n_id_cell(),6,(*iterator).cp_type);
 
       // Compensate for time and frequency offsets
-      cmat tfg_comp;
-      vec tfg_comp_timestamp;
+//      cmat tfg_comp;
+//      vec tfg_comp_timestamp;
       (*iterator)=tfoec((*iterator),tfg,tfg_timestamp,fc_requested,fc_programmed,rs_dl,tfg_comp,tfg_comp_timestamp,sampling_carrier_twist,k_factor);
 
       // Finally, attempt to decode the MIB
@@ -736,6 +777,7 @@ int main(
         cout << "     PSS ID: " << (*iterator).n_id_2 << endl;
         cout << "    RX power level: " << db10((*iterator).pss_pow) << " dB" << endl;
         cout << "    residual frequency offset: " << (*iterator).freq_superfine << " Hz" << endl;
+        cout << "                     k_factor: " << k_factor << endl;
       }
 
       ++iterator;
@@ -789,7 +831,7 @@ int main(
       const double correction_residual=true_location/crystal_freq_actual;
       double correction_new=correction*correction_residual;
       if (!sampling_carrier_twist) {
-        correction_new = NAN;
+        correction_new = k_factor;
       }
       ss << " " << setprecision(20) << correction_new;
       cout << ss.str() << endl;

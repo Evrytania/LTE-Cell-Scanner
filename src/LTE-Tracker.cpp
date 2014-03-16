@@ -15,6 +15,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+// Improved by Jiao Xianjun (putaoshu@gmail.com):
+// 1. TD-LTE support
+// 2. fast pre-search frequencies (external mixer/LNB support)
+// 3. multiple tries at one frequency
+// 4. .bin file recording and replaying
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <getopt.h>
@@ -76,6 +82,8 @@ void print_usage() {
   cout << "    -f --freq fc" << endl;
   cout << "      frequency where cells are located" << endl;
   cout << "  Dongle LO correction options:" << endl;
+  cout << "    -t --twisted" << endl;
+  cout << "      enable original sampling-carrier-twisted mode (default is disable and using carrier&sampling isolated pre-search to support external mixer/LNB)" << endl;
   cout << "    -p --ppm ppm" << endl;
   cout << "      crystal remaining PPM error" << endl;
   cout << "    -c --correction c" << endl;
@@ -85,6 +93,10 @@ void print_usage() {
   //cout << "      enable expert mode display" << endl;
   // Hidden options. Only useful for debugging.
   //cout << "  Capture buffer options:" << endl;
+//  cout << "    -z --recbin" << endl;
+//  cout << "      save captured data in the bin file" << endl;
+//  cout << "    -y --loadbin" << endl;
+//  cout << "      used data in captured bin file" << endl;
   //cout << "    -l --load filename" << endl;
   //cout << "      read data from file instead of using live data" << endl;
   //cout << "    -r --repeat" << endl;
@@ -126,10 +138,14 @@ void parse_commandline(
   bool & repeat,
   double & drop_secs,
   bool & rtl_sdr_format,
-  double & noise_power
+  double & noise_power,
+  bool & sampling_carrier_twist,
+  char * record_bin_filename,
+  char * load_bin_filename
 ) {
   // Default values
   fc=-1;
+  sampling_carrier_twist=false;
   ppm=120;
   correction=1;
   device_index=-1;
@@ -146,10 +162,13 @@ void parse_commandline(
       {"verbose",      no_argument,       0, 'v'},
       {"brief",        no_argument,       0, 'b'},
       {"freq",         required_argument, 0, 'f'},
+      {"twisted",      no_argument,       0, 't'},
       {"ppm",          required_argument, 0, 'p'},
       {"correction",   required_argument, 0, 'c'},
       {"device-index", required_argument, 0, 'i'},
       {"expert",       no_argument,       0, 'x'},
+      {"recbin",       required_argument, 0, 'z'},
+      {"loadbin",      required_argument, 0, 'y'},
       {"load",         required_argument, 0, 'l'},
       {"repeat",       no_argument,       0, 'r'},
       {"drop",         required_argument, 0, 'd'},
@@ -168,7 +187,7 @@ void parse_commandline(
     };
     /* getopt_long stores the option index here. */
     int option_index = 0;
-    int c = getopt_long (argc, argv, "hvbf:p:c:i:xl:rd:sn:1:2:3:4:5:6:7:8:9:",
+    int c = getopt_long (argc, argv, "hvbf:tp:c:i:xz:y:l:rd:sn:1:2:3:4:5:6:7:8:9:",
                      long_options, &option_index);
 
     /* Detect the end of the options. */
@@ -199,6 +218,9 @@ void parse_commandline(
           cerr << "Error: could not parse frequency" << endl;
           ABORT(-1);
         }
+        break;
+      case 't':
+        sampling_carrier_twist=true;
         break;
       case 'p':
         ppm=strtod(optarg,&endp);
@@ -234,6 +256,45 @@ void parse_commandline(
         break;
       case 'r':
         repeat=true;
+        break;
+      case 'z':
+        {
+          int len_str = strlen(optarg);
+          if (len_str<5)
+          {
+            cerr << "Error: record bin filename too short" << endl;
+            ABORT(-1);
+          }
+          if ( (len_str<1) || (strcmp(optarg+len_str-4, ".bin")) )
+          {
+            cerr << "Error: could not parse record bin filename (must be .bin file)" << endl;
+            ABORT(-1);
+          }
+          else
+          {
+            strcpy(record_bin_filename, optarg);
+          }
+        }
+        break;
+      case 'y':
+        {
+          int len_str = strlen(optarg);
+          if (len_str<5)
+          {
+            cerr << "Error: load bin filename too short" << endl;
+            ABORT(-1);
+          }
+          if ( (len_str<1) || (strcmp(optarg+len_str-4, ".bin")) )
+          {
+            cerr << "Error: could not parse load bin filename (must be .bin file)" << endl;
+            ABORT(-1);
+          }
+          else
+          {
+            strcpy(load_bin_filename, optarg);
+            //freq_start=9999e6; // fake
+          }
+        }
         break;
       case 'd':
         drop_secs=strtod(optarg,&endp);
@@ -333,8 +394,13 @@ void parse_commandline(
   // Second order command line checking. Ensure that command line options
   // are consistent.
   if (fc==-1) {
-    cerr << "Error: must specify a frequency. (Try --help)" << endl;
-    ABORT(-1);
+    if (!sampling_carrier_twist) {
+      fc=9999e6; // fake
+      cout << "Warning: Frequency not specified. Make sure you are working on captured file.\n";
+    } else {
+      cerr << "Error: must specify a start frequency. (Try --help)" << endl;
+      ABORT(-1);
+    }
   }
   // Start and end frequencies should be on a 100kHz raster.
   if (fc<1e6) {
@@ -361,14 +427,30 @@ void parse_commandline(
   if ((drop_secs!=0)&&(repeat)) {
     cout << "Warning: --drop and --repeat were both requested" << endl;
   }
+// Should never both read and write captured data from a file
+//  if (save_cap&&use_recorded_data) {
+//    cerr << "Error: cannot read and write captured data at the same time!" << endl;
+//    ABORT(-1);
+//  }
+  // Should never both read from .it and read from .bin file.
+  if ( use_recorded_data && (strlen(load_bin_filename)>4) ) {
+    cerr << "Error: cannot read from .it and .bin file at the same time!" << endl;
+    ABORT(-1);
+  }
 
   if (verbosity>=1) {
-    cout << "LTE Tracker v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " (" << BUILD_TYPE << ") beginning" << endl;
+    cout << "LTE Tracker v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " (" << BUILD_TYPE << ") beginning. 1.0 to 1.1: TDD/ext-LNB/faster added by Jiao Xianjun(putaoshu@gmail.com)" << endl;
     cout << "  Search frequency: " << fc/1e6 << " MHz" << endl;
-    cout << "  PPM: " << ppm << endl;
-    stringstream temp;
-    temp << setprecision(20) << correction;
-    cout << "  correction: " << temp.str() << endl;
+    if (sampling_carrier_twist) {
+      cout << "  PPM: " << ppm << endl;
+      stringstream temp;
+      temp << setprecision(20) << correction;
+      cout << "  correction: " << temp.str() << endl;
+    }
+//    if (save_cap)
+//      cout << "  Captured data will be saved in capbufXXXX.it files" << endl;
+    if (use_recorded_data)
+      cout << "  Captured data will be read from capbufXXXX.it files" << endl;
   }
 }
 
@@ -574,7 +656,11 @@ double kalibrate(
   const double & drop_secs,
   const bool & repeat,
   rtlsdr_dev_t * & dev,
-  double & fc_programmed
+  double & fc_programmed,
+  const bool & sampling_carrier_twist,
+  double & k_factor,
+  const char * record_bin_filename,
+  const char * load_bin_filename
 ) {
   if (verbosity>=1) {
     cout << "Calibrating local oscillator." << endl;
@@ -582,56 +668,130 @@ double kalibrate(
 
   // Generate a list of frequency offsets that should be searched for each
   // center frequency.
-  const uint16 n_extra=floor_i((fc_requested*ppm/1e6+2.5e3)/5e3);
-  const vec f_search_set=(fc_requested*correction-fc_requested)+to_vec(itpp_ext::matlab_range(-n_extra*5000,5000,n_extra*5000));
-  //cout << f_search_set << endl;
+  cmat pss_fo_set;// pre-generate frequencies offseted pss time domain sequence
+  vec f_search_set;
+  if (sampling_carrier_twist) { // original mode
+    const uint16 n_extra=floor_i((fc_requested*ppm/1e6+2.5e3)/5e3);
+    f_search_set=(fc_requested*correction-fc_requested)+to_vec(itpp_ext::matlab_range(-n_extra*5000,5000,n_extra*5000));
+  } else {
+    // since we have frequency step is 100e3, why not have sub search set limited by this regardless PPM?
+    f_search_set=to_vec(itpp_ext::matlab_range(-65000,5000,65000)); // 2*65kHz > 100kHz, overlap adjacent frequencies
+//      f_search_set=to_vec(itpp_ext::matlab_range(-100000,5000,100000)); // align to matlab script
+
+    pss_fo_set_gen(f_search_set, pss_fo_set);
+  }
+
+  // 6RB filter to improve SNR
+  vec coef = "8.193313185354206e-04     3.535548569572820e-04    -1.453429245341695e-03     1.042805860697287e-03     1.264224526451337e-03 \
+  -3.219586065044259e-03     1.423981657254563e-03     3.859884310477692e-03    -6.552708013395765e-03     8.590509694961493e-04 \
+  9.363722386299336e-03    -1.120357391780316e-02    -2.423088424232164e-03     1.927528718829535e-02    -1.646405738285926e-02 \
+  -1.143040384534755e-02     3.652830082843752e-02    -2.132986170036144e-02    -3.396829121834471e-02     7.273086636811442e-02 \
+  -2.476823886110626e-02    -1.207789042999466e-01     2.861583432079335e-01     6.398255789896659e-01     2.861583432079335e-01 \
+  -1.207789042999466e-01    -2.476823886110626e-02     7.273086636811442e-02    -3.396829121834471e-02    -2.132986170036144e-02 \
+  3.652830082843752e-02    -1.143040384534755e-02    -1.646405738285926e-02     1.927528718829535e-02    -2.423088424232164e-03 \
+  -1.120357391780316e-02     9.363722386299336e-03     8.590509694961493e-04    -6.552708013395765e-03     3.859884310477692e-03 \
+  1.423981657254563e-03    -3.219586065044259e-03     1.264224526451337e-03     1.042805860697287e-03    -1.453429245341695e-03 \
+  3.535548569572820e-04     8.193313185354206e-04";
+
+  cvec capbuf;
+  // for PSS correlate
+  //cout << "DS_COMB_ARM override!!!" << endl;
+#define DS_COMB_ARM 2
+  mat xc_incoherent_collapsed_pow;
+  imat xc_incoherent_collapsed_frq;
+  vf3d xc_incoherent_single;
+  vf3d xc_incoherent;
+  vec sp_incoherent;
+  vcf3d xc;
+  vec sp;
+
+  // for SSS detection
+#define THRESH2_N_SIGMA 3
+  vec sss_h1_np_est_meas;
+  vec sss_h2_np_est_meas;
+  cvec sss_h1_nrm_est_meas;
+  cvec sss_h2_nrm_est_meas;
+  cvec sss_h1_ext_est_meas;
+  cvec sss_h2_ext_est_meas;
+  mat log_lik_nrm;
+  mat log_lik_ext;
+
+  // for time frequency grid
+  // Extract time and frequency grid
+  cmat tfg;
+  vec tfg_timestamp;
+  // Compensate for time and frequency offsets
+  cmat tfg_comp;
+  vec tfg_comp_timestamp;
+
+   //cout << f_search_set << endl;
   // Results are stored in this vector.
   list <Cell> detected_cells;
   // Loop until a cell is found
   while (detected_cells.size()<1) {
-    cvec capbuf;
-    // Fill capture buffer either from a file or from live data.
-    if (use_recorded_data) {
-      capbuf.set_size(153600);
-      cvec cbload;
-      read_datafile(filename,rtl_sdr_format,drop_secs,cbload);
-      if (length(cbload)>=length(capbuf)) {
-        capbuf=cbload(0,length(capbuf)-1);
-      } else {
-        if (!repeat) {
-          cerr << "Error: not enough data in file!" << endl;
-          ABORT(-1);
-        }
-        for (int32 t=0;t<length(capbuf);t++) {
-          capbuf(t)=cbload(mod(t,length(cbload)));
-        }
-      }
-      fc_programmed=fc_requested;
-    } else {
-      capture_data(fc_requested,1.0,false,"no",false,"no",".",dev,capbuf,fc_programmed);
-    }
+   // Fill capture buffer either from a file or from live data.
+//    if (use_recorded_data) {
+//      capbuf.set_size(153600);
+//      cvec cbload;
+//      read_datafile(filename,rtl_sdr_format,drop_secs,cbload);
+//      if (length(cbload)>=length(capbuf)) {
+//        capbuf=cbload(0,length(capbuf)-1);
+//      } else {
+//        if (!repeat) {
+//          cerr << "Error: not enough data in file!" << endl;
+//          ABORT(-1);
+//        }
+//        for (int32 t=0;t<length(capbuf);t++) {
+//          capbuf(t)=cbload(mod(t,length(cbload)));
+//        }
+//      }
+//      fc_programmed=fc_requested;
+//    } else {
+//      capture_data(fc_requested,1.0,false,"no",false,"no",".",dev,capbuf,fc_programmed);
+//    }
+    capture_data(fc_requested,correction,false,record_bin_filename,use_recorded_data,load_bin_filename,".",dev,capbuf,fc_programmed,false);
+
     //cout << "Capbuf power: " << db10(sigpower(capbuf)) << " dB" << endl;
     if (noise_power)
       capbuf+=blnoise(length(capbuf))*sqrt(noise_power);
 
-    int sampling_carrier_twist = 1;
-    double k_factor = 1.0; // need to be decided further together with sampling_carrier_twist
+    filter_my(coef, capbuf);
+
+//    double k_factor = 1.0; // need to be decided further together with sampling_carrier_twist
+    double period_ppm = NAN;
+
+    vec dynamic_f_search_set = f_search_set; // don't touch the original
+    if (!sampling_carrier_twist) {
+//      timeval tim;
+//      gettimeofday(&tim, NULL);
+//      double t1=tim.tv_sec+(tim.tv_usec/1000000.0);
+
+      sampling_ppm_f_search_set_by_pss(capbuf, pss_fo_set, dynamic_f_search_set, period_ppm);
+
+//      gettimeofday(&tim, NULL);
+//      double t2=tim.tv_sec+(tim.tv_usec/1000000.0);
+//      printf("%.6lf seconds elapsed\n", t2-t1);
+
+      if (length(dynamic_f_search_set)<length(f_search_set) && !isnan(period_ppm) ) {
+        k_factor=(1+period_ppm*1e-6);
+      } else { // recover original mode
+        dynamic_f_search_set = f_search_set;
+        k_factor = 1.0;
+        period_ppm = NAN;
+        cout << "Calibration failed (no cells detected). Trying again..." << endl;
+        if (verbosity>=2) cout << "No valid PSS is found at pre-proc phase! Please try again.\n";
+        continue;
+  //      cout << "Pre search failed. Back to original sampling-carrier-twisted mode.\n";
+      }
+    }
+
     // Correlate
-    //cout << "DS_COMB_ARM override!!!" << endl;
-#define DS_COMB_ARM 2
-    mat xc_incoherent_collapsed_pow;
-    imat xc_incoherent_collapsed_frq;
-    vf3d xc_incoherent_single;
-    vf3d xc_incoherent;
-    vec sp_incoherent;
-    vcf3d xc;
-    vec sp;
     uint16 n_comb_xc;
     uint16 n_comb_sp;
     if (verbosity>=2) {
       cout << "  Calculating PSS correlations" << endl;
     }
-    xcorr_pss(capbuf,f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,xc,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist,k_factor);
+    xcorr_pss(capbuf,dynamic_f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,xc,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist,k_factor);
 
     // Calculate the threshold vector
     const uint8 thresh1_n_nines=12;
@@ -643,22 +803,13 @@ double kalibrate(
     if (verbosity>=2) {
       cout << "  Searching for and examining correlation peaks..." << endl;
     }
-    peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,f_search_set,fc_requested,fc_programmed,xc_incoherent_single,DS_COMB_ARM,detected_cells);
+    peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,dynamic_f_search_set,fc_requested,fc_programmed,xc_incoherent_single,DS_COMB_ARM,detected_cells);
 
     // Loop and check each peak
     list<Cell>::iterator iterator=detected_cells.begin();
     Cell cell_temp(*iterator);
     while (iterator!=detected_cells.end()) {
       // Detect SSS if possible
-      vec sss_h1_np_est_meas;
-      vec sss_h2_np_est_meas;
-      cvec sss_h1_nrm_est_meas;
-      cvec sss_h2_nrm_est_meas;
-      cvec sss_h1_ext_est_meas;
-      cvec sss_h2_ext_est_meas;
-      mat log_lik_nrm;
-      mat log_lik_ext;
-#define THRESH2_N_SIGMA 3
       int tdd_flag = 0;
       cell_temp = (*iterator);
       for(tdd_flag=0;tdd_flag<2;tdd_flag++)
@@ -677,16 +828,12 @@ double kalibrate(
       (*iterator)=pss_sss_foe((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,sampling_carrier_twist,k_factor,tdd_flag);
 
       // Extract time and frequency grid
-      cmat tfg;
-      vec tfg_timestamp;
       extract_tfg((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,tfg,tfg_timestamp,sampling_carrier_twist,k_factor);
 
       // Create object containing all RS
       RS_DL rs_dl((*iterator).n_id_cell(),6,(*iterator).cp_type);
 
       // Compensate for time and frequency offsets
-      cmat tfg_comp;
-      vec tfg_comp_timestamp;
       (*iterator)=tfoec((*iterator),tfg,tfg_timestamp,fc_requested,fc_programmed,rs_dl,tfg_comp,tfg_comp_timestamp,sampling_carrier_twist,k_factor);
 
       // Finally, attempt to decode the MIB
@@ -704,8 +851,10 @@ double kalibrate(
         else
             cout << "  Detected a TDD cell!" << endl;
         cout << "    cell ID: " << (*iterator).n_id_cell() << endl;
+        cout << "     PSS ID: " << (*iterator).n_id_2 << endl;
         cout << "    RX power level: " << db10((*iterator).pss_pow) << " dB" << endl;
         cout << "    residual frequency offset: " << (*iterator).freq_superfine << " Hz" << endl;
+        cout << "                     k_factor: " << k_factor << endl;
       }
 
       ++iterator;
@@ -738,9 +887,12 @@ double kalibrate(
   // We can calculate the RTLSDR's actual frequency
   const double crystal_freq_actual=fc_programmed-best.freq_superfine;
   // Calculate correction factors
-  const double correction_residual=(true_location/fc_requested*fc_programmed)/crystal_freq_actual;
+  double correction_residual=(true_location/fc_requested*fc_programmed)/crystal_freq_actual;
   //const double correction_new=correction*correction_residual;
 
+  if (!sampling_carrier_twist) {
+    correction_residual = k_factor;
+  }
   if (verbosity>=1) {
     cout << "Calibration succeeded!" << endl;
     cout << "   Residual frequency offset: " << best.freq_superfine << " Hz" << endl;
@@ -792,13 +944,16 @@ int main(
   double drop_secs;
   bool rtl_sdr_format;
   double noise_power;
+  bool initial_sampling_carrier_twist;
+  char record_bin_filename[256] = {0};
+  char load_bin_filename[256] = {0};
   // Get search parameters from the user
-  parse_commandline(argc,argv,fc_requested,ppm,correction,device_index,expert_mode,use_recorded_data,filename,repeat,drop_secs,rtl_sdr_format,noise_power);
-
+  parse_commandline(argc,argv,fc_requested,ppm,correction,device_index,expert_mode,use_recorded_data,filename,repeat,drop_secs,rtl_sdr_format,noise_power,initial_sampling_carrier_twist,record_bin_filename,load_bin_filename);
+//  cout << load_bin_filename << "\n";
   // Open the USB device.
   rtlsdr_dev_t * dev=NULL;
   double fs_programmed;
-  if (!use_recorded_data) {
+  if ( (!use_recorded_data) && (strlen(load_bin_filename)==0) ) {
     config_usb(device_index,fc_requested,dev,fs_programmed);
   } else {
     fs_programmed=correction*1.92e6;
@@ -808,7 +963,8 @@ int main(
   // program CellSearch with only one center frequency. All information
   // is discarded except for the frequency offset.
   double fc_programmed;
-  double initial_freq_offset=kalibrate(fc_requested,fs_programmed,ppm,correction,use_recorded_data,filename,rtl_sdr_format,noise_power,drop_secs,repeat,dev,fc_programmed);
+  double initial_k_factor = 1;
+  double initial_freq_offset=kalibrate(fc_requested,fs_programmed,ppm,correction,use_recorded_data,filename,rtl_sdr_format,noise_power,drop_secs,repeat,dev,fc_programmed,initial_sampling_carrier_twist,initial_k_factor,record_bin_filename,load_bin_filename);
 
   // Data shared between threads
   sampbuf_sync_t sampbuf_sync;
@@ -824,6 +980,8 @@ int main(
   */
   global_thread_data.main_thread_id=syscall(SYS_gettid);
   global_thread_data.frequency_offset(initial_freq_offset);
+  global_thread_data.k_factor(initial_k_factor);
+  global_thread_data.sampling_carrier_twist(initial_sampling_carrier_twist);
 
   // Start the cell searcher thread.
   // Now that the oscillator has been calibrated, we can perform
@@ -843,10 +1001,13 @@ int main(
   // The remainder of this thread simply copies data received from the USB
   // device (or a file!) to the producer thread. This can be considered
   // the pre_producer thread.
-  if (use_recorded_data) {
+//  bool record_bin_flag = (strlen(record_bin_filename)>4);
+  bool load_bin_flag = (strlen(load_bin_filename)>4);
+  if (use_recorded_data || load_bin_flag) {
     cvec file_data;
-    read_datafile(filename,rtl_sdr_format,drop_secs,file_data);
-    //cout << db10(sigpower(file_data)) << endl;
+//    read_datafile(filename,rtl_sdr_format,drop_secs,file_data);
+//    //cout << db10(sigpower(file_data)) << endl;
+    capture_data(fc_requested,correction,false,record_bin_filename,use_recorded_data,load_bin_filename,".",dev,file_data,fc_programmed,true);
 
     uint32 offset=0;
     while (true) {
@@ -854,13 +1015,14 @@ int main(
         boost::mutex::scoped_lock lock(sampbuf_sync.mutex);
         for (uint32 t=0;t<192000;t++) {
           complex <double> samp=file_data[offset]+randn_c()*sqrt(noise_power);
-          uint8 samp_real=RAIL(round_i(real(samp)*128.0+127.0),0,255);
-          uint8 samp_imag=RAIL(round_i(imag(samp)*128.0+127.0),0,255);
+          uint8 samp_real=RAIL(round_i(real(samp)*128.0+128.0),0,255); // 127 should be 128?
+          uint8 samp_imag=RAIL(round_i(imag(samp)*128.0+128.0),0,255); // 127 should be 128?
           sampbuf_sync.fifo.push_back(samp_real);
           sampbuf_sync.fifo.push_back(samp_imag);
           offset++;
           if (offset==(unsigned)file_data.length()) {
             if (!repeat) {
+//              cout << "1\n";
               break;
             }
             offset=0;
