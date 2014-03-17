@@ -669,10 +669,14 @@ double kalibrate(
   // Generate a list of frequency offsets that should be searched for each
   // center frequency.
   cmat pss_fo_set;// pre-generate frequencies offseted pss time domain sequence
+  cmat pss_fo_set_for_xcorr_pss;// pre-generate frequencies offseted pss time domain sequence
   vec f_search_set;
   if (sampling_carrier_twist) { // original mode
     const uint16 n_extra=floor_i((fc_requested*ppm/1e6+2.5e3)/5e3);
     f_search_set=(fc_requested*correction-fc_requested)+to_vec(itpp_ext::matlab_range(-n_extra*5000,5000,n_extra*5000));
+
+    fc_programmed = calculate_fc_programmed_in_context(fc_requested, use_recorded_data, load_bin_filename, dev);
+    pss_fo_set_gen_twist(f_search_set, fc_requested, fc_programmed, fs_programmed, pss_fo_set_for_xcorr_pss);
   } else {
     // since we have frequency step is 100e3, why not have sub search set limited by this regardless PPM?
     f_search_set=to_vec(itpp_ext::matlab_range(-65000,5000,65000)); // 2*65kHz > 100kHz, overlap adjacent frequencies
@@ -724,7 +728,7 @@ double kalibrate(
   cmat tfg_comp;
   vec tfg_comp_timestamp;
 
-   //cout << f_search_set << endl;
+  //cout << f_search_set << endl;
   // Results are stored in this vector.
   list <Cell> detected_cells;
   // Loop until a cell is found
@@ -761,7 +765,7 @@ double kalibrate(
     double period_ppm = NAN;
 
     vec dynamic_f_search_set = f_search_set; // don't touch the original
-    if (!sampling_carrier_twist) {
+    if (!sampling_carrier_twist){
 //      timeval tim;
 //      gettimeofday(&tim, NULL);
 //      double t1=tim.tv_sec+(tim.tv_usec/1000000.0);
@@ -783,6 +787,7 @@ double kalibrate(
         continue;
   //      cout << "Pre search failed. Back to original sampling-carrier-twisted mode.\n";
       }
+      pss_fo_set_gen_non_twist(dynamic_f_search_set, fs_programmed, k_factor, pss_fo_set_for_xcorr_pss);
     }
 
     // Correlate
@@ -791,7 +796,7 @@ double kalibrate(
     if (verbosity>=2) {
       cout << "  Calculating PSS correlations" << endl;
     }
-    xcorr_pss(capbuf,dynamic_f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,xc,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist,k_factor);
+    xcorr_pss(capbuf,dynamic_f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,pss_fo_set_for_xcorr_pss,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,xc,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist,k_factor);
 
     // Calculate the threshold vector
     const uint8 thresh1_n_nines=12;

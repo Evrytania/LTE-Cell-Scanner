@@ -561,6 +561,7 @@ int main(
   const vec fc_search_set=itpp_ext::matlab_range(freq_start,100e3,freq_end);
 
   cmat pss_fo_set;// pre-generate frequencies offseted pss time domain sequence
+  cmat pss_fo_set_for_xcorr_pss;// pre-generate frequencies offseted pss time domain sequence
   vec f_search_set;
   if (sampling_carrier_twist) { // original mode
     const uint16 n_extra=floor_i((freq_start*ppm/1e6+2.5e3)/5e3);
@@ -662,7 +663,11 @@ int main(
 //    cout << capbuf(153590, 153599) << "\n";
 
     vec dynamic_f_search_set = f_search_set; // don't touch the original
-    if (!sampling_carrier_twist) {
+    if (sampling_carrier_twist) {
+      if (try_idx==0) {
+        pss_fo_set_gen_twist(dynamic_f_search_set, fc_requested, fc_programmed, fs_programmed, pss_fo_set_for_xcorr_pss);
+      }
+    } else {
 //      timeval tim;
 //      gettimeofday(&tim, NULL);
 //      double t1=tim.tv_sec+(tim.tv_usec/1000000.0);
@@ -683,7 +688,9 @@ int main(
         continue;
   //      cout << "Pre search failed. Back to original sampling-carrier-twisted mode.\n";
       }
+      pss_fo_set_gen_non_twist(dynamic_f_search_set, fs_programmed, k_factor, pss_fo_set_for_xcorr_pss);
     }
+
     // Correlate
 //#define DS_COMB_ARM 2
 //    mat xc_incoherent_collapsed_pow;
@@ -698,7 +705,7 @@ int main(
     if (verbosity>=2) {
       cout << "  Calculating PSS correlations" << endl;
     }
-    xcorr_pss(capbuf,dynamic_f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,xc,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist,k_factor);
+    xcorr_pss(capbuf,dynamic_f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,pss_fo_set_for_xcorr_pss,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,xc,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist,k_factor);
 
     // Calculate the threshold vector
     const uint8 thresh1_n_nines=12;

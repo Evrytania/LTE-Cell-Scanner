@@ -108,6 +108,22 @@ void searcher_thread(
   cmat tfg_comp;
   vec tfg_comp_timestamp;
 
+  // Get the current frequency offset (because it won't change anymore after main thread launches this thread, so move it outside loop)
+  vec f_search_set(1);
+  f_search_set(0)=global_thread_data.frequency_offset();
+  const bool sampling_carrier_twist = global_thread_data.sampling_carrier_twist();
+  double k_factor = global_thread_data.k_factor();
+//  if (sampling_carrier_twist){
+//      k_factor = (fc_requested-f_search_set(0))/fc_programmed;
+//  }
+
+  cmat pss_fo_set_for_xcorr_pss;
+  if (sampling_carrier_twist) {
+    pss_fo_set_gen_twist(f_search_set, fc_requested, fc_programmed, fs_programmed, pss_fo_set_for_xcorr_pss);
+  } else {
+    pss_fo_set_gen_non_twist(f_search_set, fs_programmed, k_factor, pss_fo_set_for_xcorr_pss);
+  }
+
   // Loop forever.
   Real_Timer tt;
   while (true) {
@@ -121,15 +137,6 @@ void searcher_thread(
 
       // Wait for data to become ready.
       capbuf_sync.condition.wait(lock);
-    }
-
-    // Get the current frequency offset
-    vec f_search_set(1);
-    f_search_set(0)=global_thread_data.frequency_offset();
-    const bool sampling_carrier_twist = global_thread_data.sampling_carrier_twist();
-    double k_factor = global_thread_data.k_factor();
-    if (sampling_carrier_twist){
-        k_factor = (fc_requested-f_search_set(0))/fc_programmed;
     }
 
     // Results are stored in this vector.
@@ -151,7 +158,7 @@ void searcher_thread(
     if (verbosity>=2) {
       cout << "  Calculating PSS correlations" << endl;
     }
-    xcorr_pss(capbuf,f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,xc,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist,k_factor);
+    xcorr_pss(capbuf,f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,pss_fo_set_for_xcorr_pss,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,xc,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist,k_factor);
 
     // Calculate the threshold vector
     const uint8 thresh1_n_nines=12;

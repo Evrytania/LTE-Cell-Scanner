@@ -18,6 +18,14 @@
 #ifndef HAVE_CAPBUF_H
 #define HAVE_CAPBUF_H
 
+double calculate_fc_programmed_in_context(
+  // Inputs
+  const double & fc_requested,
+  const bool & use_recorded_data,
+  const char * load_bin_filename,
+  rtlsdr_dev_t * & dev
+);
+
 // Returns a capture buffer either from a file or from live data read
 // from the dongle.
 int capture_data(

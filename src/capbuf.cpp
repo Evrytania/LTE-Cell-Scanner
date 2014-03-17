@@ -73,6 +73,40 @@ static void capbuf_rtlsdr_callback(
 // Declared in from_osmocom.cpp
 double compute_fc_programmed(const double & fosc,const double & intended_flo);
 
+double calculate_fc_programmed_in_context(
+  // Inputs
+  const double & fc_requested,
+  const bool & use_recorded_data,
+  const char * load_bin_filename,
+  rtlsdr_dev_t * & dev
+) {
+  double fc_programmed;
+  bool load_bin_flag = (strlen(load_bin_filename)>4);
+  if (use_recorded_data) {
+    fc_programmed=fc_requested; // be careful about this!
+  }
+  else if (load_bin_flag) {
+    fc_programmed=fc_requested; // be careful about this!
+  } else {
+    if (rtlsdr_get_tuner_type(dev)==RTLSDR_TUNER_E4000) {
+      // This does not return the true center frequency, only the requested
+      // center frequency.
+      //fc_programmed=(double)rtlsdr_get_center_freq(dev);
+      // Directly call some rtlsdr frequency calculation routines.
+      fc_programmed=compute_fc_programmed(28.8e6,fc_requested);
+      // For some reason, this will tame the slow time offset drift.
+      // I don't know if this is a problem caused by the hardware or a problem
+      // with the tracking algorithm.
+      fc_programmed=fc_programmed+58;
+      //MARK;
+      //fc_programmed=fc_requested;
+    } else {
+      // Unsupported tuner...
+      fc_programmed=fc_requested;
+    }
+  }
+  return(fc_programmed);
+}
 // This function produces a vector of captured data. The data can either
 // come from live data received by the RTLSDR, or from a file containing
 // previously captured data.

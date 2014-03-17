@@ -116,6 +116,16 @@ using namespace std;
 //#define DBG(CODE) CODE
 #define DBG(CODE)
 
+void xc_correlate_new(
+  // Inputs
+  const cvec & capbuf,
+  const vec & f_search_set,
+  const cmat & pss_fo_set,
+  // Outputs
+  vcf3d & xc
+) {
+
+}
 // Correlate the received data against various frequency shifted versions
 // of the three PSS sequences.
 // This is likely to be the slowest routine since it needs to process so
@@ -589,7 +599,6 @@ void pss_moving_corr(
 
     for (uint32 i=(current_idx+1); i<(last_idx+1); i++ ){
       chn_tmp = s(i, (i+len_pss-1));
-
       normalize(chn_tmp);
 
 //      for (uint16 j=0; j<num_fo_pss; j++){
@@ -655,7 +664,68 @@ void pss_moving_corr(
   }
 }
 
-// pre-generate td-pss of all frequencies offsets
+// pre-generate td-pss of all frequencies offsets for non twisted mode
+void pss_fo_set_gen_non_twist(
+  // Input
+  const vec & fo_search_set,
+  const double & fs_programmed,
+  const double & k_factor,
+  // Output
+  cmat & pss_fo_set
+){
+  uint16 num_pss = 3;
+  uint16 len_pss = length(ROM_TABLES.pss_td[0]);
+
+  uint16 num_fo = length(fo_search_set);
+  uint32 num_fo_pss = num_fo*num_pss;
+  cvec temp(len_pss);
+
+  pss_fo_set.set_size(num_fo_pss, len_pss, false);
+  for (uint32 fo_pss_i=0; fo_pss_i<num_fo_pss; fo_pss_i++) {
+    uint32 pssi = fo_pss_i/num_fo;
+    uint32 foi = fo_pss_i - pssi*num_fo;
+
+    double f_off = fo_search_set(foi);
+    temp = ROM_TABLES.pss_td[pssi];
+    temp = fshift(temp,f_off,fs_programmed*k_factor);
+    temp = conj(temp)/137;
+    pss_fo_set.set_row(fo_pss_i, temp);
+  }
+}
+
+// pre-generate td-pss of all frequencies offsets for twisted mode
+void pss_fo_set_gen_twist(
+  // Input
+  const vec & fo_search_set,
+  const double & fc_requested,
+  const double & fc_programmed,
+  const double & fs_programmed,
+  // Output
+  cmat & pss_fo_set
+){
+  uint16 num_pss = 3;
+  uint16 len_pss = length(ROM_TABLES.pss_td[0]);
+
+  uint16 num_fo = length(fo_search_set);
+  uint32 num_fo_pss = num_fo*num_pss;
+  cvec temp(len_pss);
+
+  pss_fo_set.set_size(num_fo_pss, len_pss, false);
+  for (uint32 fo_pss_i=0; fo_pss_i<num_fo_pss; fo_pss_i++) {
+    uint32 pssi = fo_pss_i/num_fo;
+    uint32 foi = fo_pss_i - pssi*num_fo;
+
+    double f_off = fo_search_set(foi);
+    double k_factor=(fc_requested-f_off)/fc_programmed;
+    temp = ROM_TABLES.pss_td[pssi];
+    temp = fshift(temp,f_off,fs_programmed*k_factor);
+    temp = conj(temp)/137;
+    pss_fo_set.set_row(fo_pss_i, temp);
+  }
+}
+
+
+// pre-generate td-pss of all frequencies offsets for non-twisted mode
 void pss_fo_set_gen(
   // Input
   const vec & fo_search_set,
@@ -683,6 +753,7 @@ void pss_fo_set_gen(
     pss_fo_set.set_row(fo_pss_i, temp);
   }
 }
+
 // pre-processing before xcorr_pss
 void sampling_ppm_f_search_set_by_pss(
   // Inputs
@@ -1155,6 +1226,7 @@ void xcorr_pss(
   const double & fc_requested,
   const double & fc_programmed,
   const double & fs_programmed,
+  const cmat & pss_fo_set,
   // Outputs
   mat & xc_incoherent_collapsed_pow,
   imat & xc_incoherent_collapsed_frq,
@@ -1171,7 +1243,7 @@ void xcorr_pss(
 ) {
   // Perform correlations
   xc_correlate(capbuf,f_search_set,fc_requested,fc_programmed,fs_programmed,sampling_carrier_twist,k_factor,xc);
-
+//  xc_correlate_new(capbuf,f_search_set,pss_fo_set,xc);
   // Incoherently combine correlations
   xc_combine(capbuf,xc,fc_requested,fc_programmed,fs_programmed,f_search_set,xc_incoherent_single,n_comb_xc,sampling_carrier_twist,k_factor);
   // Combine according to delay spread

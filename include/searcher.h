@@ -26,6 +26,25 @@ void filter_my(
   itpp::cvec & capbuf
 );
 
+void pss_fo_set_gen_non_twist(
+  // Input
+  const itpp::vec & fo_search_set,
+  const double & fs_programmed,
+  const double & k_factor,
+  // Output
+  itpp::cmat & pss_fo_set
+);
+
+void pss_fo_set_gen_twist(
+  // Input
+  const itpp::vec & fo_search_set,
+  const double & fc_requested,
+  const double & fc_programmed,
+  const double & fs_programmed,
+  // Output
+  itpp::cmat & pss_fo_set
+);
+
 void pss_fo_set_gen(
   // Input
   const itpp::vec & fo_search_set,
@@ -52,6 +71,7 @@ void xcorr_pss(
   const double & fc_requested,
   const double & fc_programmed,
   const double & fs_programmed,
+  const itpp::cmat & pss_fo_set,
   // Outputs
   itpp::mat & xc_incoherent_collapsed_pow,
   itpp::imat & xc_incoherent_collapsed_frq,
