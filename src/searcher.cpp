@@ -124,7 +124,29 @@ void xc_correlate_new(
   // Outputs
   vcf3d & xc
 ) {
+  uint32 len = length(capbuf);
+  uint16 len_pss = length( ROM_TABLES.pss_td[0] );
+  uint16 len_f_search_set = length( f_search_set );
+  // Set aside space for the vector and initialize with NAN's.
+#ifndef NDEBUG
+  xc=vector < vector < vector < complex < float > > > > (3,vector< vector < complex < float > > >(len-(len_pss-1), vector < complex < float > > (len_f_search_set,NAN)));
+#else
+  xc=vector < vector < vector < complex < float > > > > (3,vector< vector < complex < float > > >(len-(len_pss-1), vector < complex < float > > (len_f_search_set)));
+#endif
 
+  uint16 num_fo_pss = 3*len_f_search_set;
+
+  cvec chn_tmp(len_pss);
+  cvec tmp(num_fo_pss);
+  for(uint32 i=0; i<(len - (len_pss-1)); i++) {
+    chn_tmp = capbuf(i, (i+len_pss-1));
+    tmp = pss_fo_set*chn_tmp;
+    for(uint16 j=0; j<len_f_search_set; j++){
+      xc[0][i][j]=tmp(j);
+      xc[1][i][j]=tmp(j + len_f_search_set);
+      xc[2][i][j]=tmp(j + 2*len_f_search_set);
+    }
+  }
 }
 // Correlate the received data against various frequency shifted versions
 // of the three PSS sequences.
@@ -1242,8 +1264,8 @@ void xcorr_pss(
   double & k_factor
 ) {
   // Perform correlations
-  xc_correlate(capbuf,f_search_set,fc_requested,fc_programmed,fs_programmed,sampling_carrier_twist,k_factor,xc);
-//  xc_correlate_new(capbuf,f_search_set,pss_fo_set,xc);
+//  xc_correlate(capbuf,f_search_set,fc_requested,fc_programmed,fs_programmed,sampling_carrier_twist,k_factor,xc);
+  xc_correlate_new(capbuf,f_search_set,pss_fo_set,xc);
   // Incoherently combine correlations
   xc_combine(capbuf,xc,fc_requested,fc_programmed,fs_programmed,f_search_set,xc_incoherent_single,n_comb_xc,sampling_carrier_twist,k_factor);
   // Combine according to delay spread
