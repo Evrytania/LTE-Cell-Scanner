@@ -668,15 +668,7 @@ int main(
         pss_fo_set_gen_twist(dynamic_f_search_set, fc_requested, fc_programmed, fs_programmed, pss_fo_set_for_xcorr_pss);
       }
     } else {
-//      timeval tim;
-//      gettimeofday(&tim, NULL);
-//      double t1=tim.tv_sec+(tim.tv_usec/1000000.0);
-
       sampling_ppm_f_search_set_by_pss(capbuf, pss_fo_set, dynamic_f_search_set, period_ppm);
-
-//      gettimeofday(&tim, NULL);
-//      double t2=tim.tv_sec+(tim.tv_usec/1000000.0);
-//      printf("%.6lf seconds elapsed\n", t2-t1);
 
       if (length(dynamic_f_search_set)<length(f_search_set) && !isnan(period_ppm) ) {
         k_factor=(1+period_ppm*1e-6);

@@ -1,0 +1,52 @@
+# - Find OpenCL
+# Find the native OpenCL includes and library
+# This module defines
+#  OPENCL_INCLUDE_DIR, where to find cl.h, etc.
+#  OPENCL_LIBRARIES, the libraries needed to use OpenCL.
+#  OPENCL_FOUND, If false, do not try to use OpenCL.
+
+FIND_PATH(OPENCL_INCLUDE_DIR
+  NAMES OpenCL/cl.h CL/cl.h CL/cl.hpp
+  PATHS
+  /usr/include
+  /usr/local/include
+  /opt/AMDAPP/include/
+  /usr/local/cuda/include/
+)
+
+FIND_LIBRARY(OPENCL_LIBRARIES
+  NAMES libOpenCL
+  PATHS
+  /usr/lib
+  /usr/local/lib
+  /usr/lib64
+  /opt/AMDAPP/lib/x86/lib
+  /opt/AMDAPP/lib/x86_64/lib
+  NO_DEFAULT_PATH
+)
+
+IF (OPENCL_LIBRARIES AND OPENCL_INCLUDE_DIR)
+  SET(OPENCL_LIBRARIES ${OPENCL_LIBRARIES})
+  SET(OPENCL_FOUND "YES")
+ELSE (OPENCL_LIBRARIES AND OPENCL_INCLUDE_DIR)
+  SET(OPENCL_FOUND "NO")
+ENDIF (OPENCL_LIBRARIES AND OPENCL_INCLUDE_DIR)
+
+IF (OPENCL_FOUND)
+  IF (NOT OPENCL_FIND_QUIETLY)
+    MESSAGE(STATUS "Found OpenCL: ${OPENCL_LIBRARIES}")
+  ENDIF (NOT OPENCL_FIND_QUIETLY)
+ELSE (OPENCL_FOUND)
+  IF (OPENCL_FIND_REQUIRED)
+    MESSAGE(FATAL_ERROR "Could not find OpenCL library")
+  ENDIF (OPENCL_FIND_REQUIRED)
+ENDIF (OPENCL_FOUND)
+
+# Deprecated declarations.
+GET_FILENAME_COMPONENT (NATIVE_OPENCL_LIB_PATH ${OPENCL_LIBRARIES} PATH)
+
+MARK_AS_ADVANCED(
+  OPENCL_LIBRARY
+  OPENCL_INCLUDE_DIR
+)
+

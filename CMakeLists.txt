@@ -17,6 +17,10 @@ IF( NOT CMAKE_BUILD_TYPE )
 ENDIF()
 
 # Find needed packages.
+FIND_PACKAGE( OpenCL )
+if (OPENCL_FOUND)
+  MESSAGE("OPENCL_DIR set to ${OPENCL_DIR}" )
+endif()
 FIND_PACKAGE( OpenMP )
 if (OPENMP_FOUND)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
