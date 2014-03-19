@@ -29,17 +29,13 @@ class lte_opencl_t {
   public:
     // Initializer
     lte_opencl_t(
-//      const uint16 & n_id_cell,
       const int & platform_id,
       const int & device_id
-    ) :
-//      n_id_1(floor(n_id_cell/3.0)),
-      platform_id(platform_id),
-      device_id(device_id)
-    {
-//      frame_timing_private=ft;
-    }
-//    double frame_timing_private;
+    );
+
+    // de-Initializer
+    virtual ~lte_opencl_t();
+
     int platform_id;
     int device_id;
   private:

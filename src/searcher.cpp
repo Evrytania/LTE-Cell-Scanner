@@ -116,6 +116,19 @@ using namespace std;
 //#define DBG(CODE) CODE
 #define DBG(CODE)
 
+lte_opencl_t::lte_opencl_t(
+      const int & platform_id,
+      const int & device_id
+)
+{
+
+}
+
+lte_opencl_t::~lte_opencl_t()
+{
+
+}
+
 void xc_correlate_new(
   // Inputs
   const cvec & capbuf,
