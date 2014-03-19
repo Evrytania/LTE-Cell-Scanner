@@ -10,6 +10,7 @@ FIND_PATH(OPENCL_INCLUDE_DIR CL/cl.h
   /opt/AMDAPP/include/
   /usr/local/include
   /usr/local/cuda/include/
+  NO_DEFAULT_PATH
 )
 
 FIND_LIBRARY(OPENCL_LIBRARY libOpenCL.so

@@ -14,6 +14,8 @@ I study and do experiments using MATLAB in this repo: https://github.com/JiaoXia
 Some usages of new features
 -----------------------------------------------------------------
 
+"cmake .. -DNO_OPENCL=1" to force not to use OpenCL. (It will try to find OpenCL and use it in default mode.)
+
 "CellSearch --help" to see all options.
 
 "CellSearch --freq-start 1860e6 --recbin a.bin" to save signal in file a.bin while doing cell search at frequency 1.86GHz

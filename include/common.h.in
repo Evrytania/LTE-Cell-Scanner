@@ -1,6 +1,8 @@
 #ifndef HAVE_COMMON_H
 #define HAVE_COMMON_H
 
+#define @USE_OPENCL@
+
 // This is filled in by cmake
 #define MAJOR_VERSION @CellSearch_MAJOR_VERSION@
 #define MINOR_VERSION @CellSearch_MINOR_VERSION@
