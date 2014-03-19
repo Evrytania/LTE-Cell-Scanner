@@ -15,8 +15,36 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+// Improved by Jiao Xianjun (putaoshu@gmail.com):
+// 1. TD-LTE support
+// 2. fast pre-search frequencies (external mixer/LNB support)
+// 3. multiple tries at one frequency
+// 4. .bin file recording and replaying
+
 #ifndef HAVE_SEARCHER_H
 #define HAVE_SEARCHER_H
+
+// Class related to OpenCL
+class lte_opencl_t {
+  public:
+    // Initializer
+    lte_opencl_t(
+//      const uint16 & n_id_cell,
+      const int & platform_id,
+      const int & device_id
+    ) :
+//      n_id_1(floor(n_id_cell/3.0)),
+      platform_id(platform_id),
+      device_id(device_id)
+    {
+//      frame_timing_private=ft;
+    }
+//    double frame_timing_private;
+    int platform_id;
+    int device_id;
+  private:
+
+};
 
 // FIR 6RB filter
 void filter_my(

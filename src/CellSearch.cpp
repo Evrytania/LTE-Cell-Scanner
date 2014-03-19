@@ -59,6 +59,10 @@ void print_usage() {
   cout << "      reduce status messages from program" << endl;
   cout << "    -i --device-index N" << endl;
   cout << "      specify which attached RTLSDR dongle to use" << endl;
+  cout << "    -a --opencl-platform N" << endl;
+  cout << "      specify which OpenCL platform to use (index start with 0)" << endl;
+  cout << "    -j --opencl-device N" << endl;
+  cout << "      specify which OpenCL device of selected platform to use (index start with 0)" << endl;
   cout << "  Frequency search options:" << endl;
   cout << "    -s --freq-start fs" << endl;
   cout << "      frequency where cell search should start" << endl;
@@ -120,7 +124,9 @@ void parse_commandline(
   string & data_dir,
   int & device_index,
   char * record_bin_filename,
-  char * load_bin_filename
+  char * load_bin_filename,
+  int & opencl_platform,
+  int & opencl_device
 ) {
   // Default values
   freq_start=-1;
@@ -133,6 +139,8 @@ void parse_commandline(
   use_recorded_data=false;
   data_dir=".";
   device_index=-1;
+  opencl_platform = 0;
+  opencl_device = 0;
 
   while (1) {
     static struct option long_options[] = {
@@ -151,11 +159,13 @@ void parse_commandline(
       {"load",         no_argument,       0, 'l'},
       {"data-dir",     required_argument, 0, 'd'},
       {"device-index", required_argument, 0, 'i'},
+      {"opencl-platform", required_argument, 0, 'a'},
+      {"opencl-device", required_argument, 0, 'j'},
       {0, 0, 0, 0}
     };
     /* getopt_long stores the option index here. */
     int option_index = 0;
-    int c = getopt_long (argc, argv, "hvbs:e:n:tp:c:z:y:rld:i:",
+    int c = getopt_long (argc, argv, "hvbs:e:n:tp:c:z:y:rld:i:a:j:",
                      long_options, &option_index);
 
     /* Detect the end of the options. */
@@ -276,6 +286,12 @@ void parse_commandline(
           cerr << "Error: device index cannot be negative" << endl;
           ABORT(-1);
         }
+        break;
+      case 'a':
+        opencl_platform=strtol(optarg,&endp,10);
+        break;
+      case 'j':
+        opencl_device=strtol(optarg,&endp,10);
         break;
       case '?':
         /* getopt_long already printed an error message. */
@@ -542,9 +558,11 @@ int main(
   int32 device_index;
   char record_bin_filename[256] = {0};
   char load_bin_filename[256] = {0};
+  int opencl_platform;
+  int opencl_device;
 
   // Get search parameters from user
-  parse_commandline(argc,argv,freq_start,freq_end,num_try,sampling_carrier_twist,ppm,correction,save_cap,use_recorded_data,data_dir,device_index, record_bin_filename, load_bin_filename);
+  parse_commandline(argc,argv,freq_start,freq_end,num_try,sampling_carrier_twist,ppm,correction,save_cap,use_recorded_data,data_dir,device_index, record_bin_filename, load_bin_filename,opencl_platform,opencl_device);
 
   // Open the USB device (if necessary).
   rtlsdr_dev_t * dev=NULL;
