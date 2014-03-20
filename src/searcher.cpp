@@ -58,6 +58,7 @@
 #include <vector>
 #include <boost/math/special_functions/gamma.hpp>
 #include <sys/time.h>
+#include <CL/cl.h>
 #include "rtl-sdr.h"
 #include "common.h"
 #include "lte_lib.h"
@@ -117,16 +118,249 @@ using namespace std;
 #define DBG(CODE)
 
 lte_opencl_t::lte_opencl_t(
-      const int & platform_id,
-      const int & device_id
+      const uint & platform_id,
+      const uint & device_id
 )
 {
+  context = 0;
+  cmdQueue = 0;
+  setup_opencl(platform_id, device_id, num_platform, platforms, num_device, devices, context, cmdQueue);
+}
 
+int lte_opencl_t::setup_opencl(const uint & platform_id, const uint & device_id, cl_uint & num_platform, cl_platform_id *platforms, cl_uint & num_device, cl_device_id *devices, cl_context & context, cl_command_queue & cmdQueue)
+{
+  int ret;
+  ret = clGetPlatformIDs(0, NULL, &num_platform);
+  if (ret!=0) {
+    cout << "clGetPlatformIDs " << ret << "\n";
+    return(ret);
+  }
+//  cout << "num_platform " << num_platform << "\n";
+
+  if ( num_platform > MAX_NUM_PLATFORM ) {
+    cout << "Warning! num_platform > MAX_NUM_PLATFORM! set num_platform to MAX_NUM_PLATFORM\n";
+    num_platform = MAX_NUM_PLATFORM;
+  }
+
+  ret = clGetPlatformIDs(num_platform, platforms, NULL);
+  if (ret!=0) {
+    cout << "clGetPlatformIDs " << ret << "\n";
+    return(ret);
+  }
+
+  char info_return[1024];
+  cl_device_id tmp_devices[MAX_NUM_DEVICE];
+
+  for (uint pidx=0; pidx<num_platform; pidx++) {
+    ret = clGetPlatformInfo( platforms[pidx], CL_PLATFORM_NAME, 1024, info_return, NULL);
+    if (ret!=0) {
+      cout << "clGetPlatformInfo CL_PLATFORM_NAME " << ret << "\n";
+      return(ret);
+    }
+    cout << "Platform " << pidx << " NAME: " << info_return << "\n";
+
+    ret = clGetPlatformInfo( platforms[pidx], CL_PLATFORM_VENDOR, 1024, info_return, NULL);
+    if (ret!=0) {
+      cout << "clGetPlatformInfo CL_PLATFORM_VENDOR " << ret << "\n";
+      return(ret);
+    }
+    cout << "Platform " << pidx << " VENDOR: " << info_return << "\n";
+
+    ret = clGetPlatformInfo( platforms[pidx], CL_PLATFORM_VERSION, 1024, info_return, NULL);
+    if (ret!=0) {
+      cout << "clGetPlatformInfo CL_PLATFORM_VERSION " << ret << "\n";
+      return(ret);
+    }
+    cout << "Platform " << pidx << " VERSION: " << info_return << "\n";
+
+    ret = clGetPlatformInfo( platforms[pidx], CL_PLATFORM_PROFILE, 1024, info_return, NULL);
+    if (ret!=0) {
+      cout << "clGetPlatformInfo CL_PLATFORM_PROFILE " << ret << "\n";
+      return(ret);
+    }
+    cout << "Platform " << pidx << " PROFILE: " << info_return << "\n";
+
+    ret = clGetPlatformInfo( platforms[pidx], CL_PLATFORM_EXTENSIONS, 1024, info_return, NULL);
+    if (ret!=0) {
+      cout << "clGetPlatformInfo CL_PLATFORM_EXTENSIONS " << ret << "\n";
+      return(ret);
+    }
+    cout << "Platform " << pidx << " EXTENSIONS: " << info_return << "\n";
+
+    cl_uint numDevices;
+    ret = clGetDeviceIDs(platforms[pidx], CL_DEVICE_TYPE_ALL, 0, NULL, &numDevices);
+    if (ret!=0) {
+      cout << "clGetDeviceIDs " << ret << "\n";
+      return(ret);
+    }
+
+    ret = clGetDeviceIDs(platforms[pidx], CL_DEVICE_TYPE_ALL, numDevices, tmp_devices, NULL);
+    if (ret!=0) {
+      cout << "clGetDeviceIDs " << ret << "\n";
+      return(ret);
+    }
+
+    if (pidx == platform_id) {
+      context = clCreateContext(NULL, numDevices, tmp_devices, NULL, NULL, &ret);
+      if (ret!=0) {
+        cout << "clCreateContext " << ret << "\n";
+        return(ret);
+      }
+
+      for (uint didx=0; didx<numDevices; didx++) {
+        devices[didx] = tmp_devices[didx];
+        if (didx == device_id) {
+          cmdQueue = clCreateCommandQueue(context, tmp_devices[didx], CL_QUEUE_PROFILING_ENABLE, &ret);
+          if (ret!=0) {
+            cout << "clCreateCommandQueue " << ret << "\n";
+            return(ret);
+          }
+        }
+      }
+    }
+
+    // display devices info of all platforms
+    for (uint didx=0; didx<numDevices; didx++) {
+      ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_NAME,	1024, info_return, NULL);
+      if (ret!=0) {
+        cout << "clGetDeviceInfo CL_DEVICE_NAME " << ret << "\n";
+        return(ret);
+      }
+      cout << "Platform " << pidx<< " Device " << didx << " NAME: " << info_return << "\n";
+
+      ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_VENDOR,	1024, info_return, NULL);
+      if (ret!=0) {
+        cout << "clGetDeviceInfo CL_DEVICE_VENDOR " << ret << "\n";
+        return(ret);
+      }
+      cout << "Platform " << pidx << " Device " << didx << " VENDOR: " << info_return << "\n";
+
+      ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_VERSION,	1024, info_return, NULL);
+      if (ret!=0) {
+        cout << "clGetDeviceInfo CL_DEVICE_VERSION " << ret << "\n";
+        return(ret);
+      }
+      cout << "Platform " << pidx << " Device " << didx << " VERSION: " << info_return << "\n";
+
+      ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_PROFILE,	1024, info_return, NULL);
+      if (ret!=0) {
+        cout << "clGetDeviceInfo CL_DEVICE_PROFILE " << ret << "\n";
+        return(ret);
+      }
+      cout << "Platform " << pidx << " Device " << didx << " PROFILE: " << info_return << "\n";
+
+      cl_bool ava_flag;
+      ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_AVAILABLE,	sizeof(cl_bool), &ava_flag, NULL);
+      if (ret!=0) {
+        cout << "clGetDeviceInfo CL_DEVICE_AVAILABLE " << ret << "\n";
+        return(ret);
+      }
+      if (!ava_flag) {
+        cout << "clGetDeviceInfo CL_DEVICE_AVAILABLE " << ava_flag << "\n";
+        return(ava_flag);
+      }
+      cout << "Platform " << pidx << " Device " << didx << " AVAILABLE: " << ava_flag << "\n";
+
+      ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_COMPILER_AVAILABLE,	sizeof(cl_bool), &ava_flag, NULL);
+      if (ret!=0) {
+        cout << "clGetDeviceInfo CL_DEVICE_COMPILER_AVAILABLE " << ret << "\n";
+        return(ret);
+      }
+      if (!ava_flag) {
+        cout << "clGetDeviceInfo CL_COMPILER_AVAILABLE " << ava_flag << "\n";
+        return(ava_flag);
+      }
+      cout << "Platform " << pidx << " Device " << didx << " COMPILER_AVAILABLE: " << ava_flag << "\n";
+
+
+      ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_ENDIAN_LITTLE,	sizeof(cl_bool), &ava_flag, NULL);
+      if (ret!=0) {
+        cout << "clGetDeviceInfo CL_DEVICE_ENDIAN_LITTLE " << ret << "\n";
+        return(ret);
+      }
+      cout << "Platform " << pidx << " Device " << didx << " ENDIAN_LITTLE: " << ava_flag << "\n";
+
+      cl_ulong mem_size;
+      ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_LOCAL_MEM_SIZE,	sizeof(cl_ulong), &mem_size, NULL);
+      if (ret!=0) {
+        cout << "clGetDeviceInfo CL_DEVICE_LOCAL_MEM_SIZE " << ret << "\n";
+        return(ret);
+      }
+      cout << "Platform " << pidx << " Device " << didx << " LOCAL_MEM_SIZE: " << mem_size << "\n";
+
+      cl_device_local_mem_type mem_type;
+      ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_LOCAL_MEM_TYPE,	sizeof(cl_device_local_mem_type), &mem_type, NULL);
+      if (ret!=0) {
+        cout << "clGetDeviceInfo CL_DEVICE_LOCAL_MEM_TYPE " << ret << "\n";
+        return(ret);
+      }
+      cout << "Platform " << pidx << " Device " << didx << " LOCAL_MEM_TYPE: " << mem_type << "\n";
+
+      cl_uint max_freq;
+      ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_MAX_CLOCK_FREQUENCY,	sizeof(cl_uint), &max_freq, NULL);
+      if (ret!=0) {
+        cout << "clGetDeviceInfo CL_DEVICE_MAX_CLOCK_FREQUENCY " << ret << "\n";
+        return(ret);
+      }
+      cout << "Platform " << pidx << " Device " << didx << " MAX_CLOCK_FREQUENCY: " << max_freq << "\n";
+
+      ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_MAX_COMPUTE_UNITS,	sizeof(cl_uint), &max_freq, NULL);
+      if (ret!=0) {
+        cout << "clGetDeviceInfo CL_DEVICE_MAX_COMPUTE_UNITS " << ret << "\n";
+        return(ret);
+      }
+      cout << "Platform " << pidx << " Device " << didx << " MAX_COMPUTE_UNITS: " << max_freq << "\n";
+
+      size_t wg_size;
+      ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_MAX_WORK_GROUP_SIZE,	sizeof(size_t), &wg_size, NULL);
+      if (ret!=0) {
+        cout << "clGetDeviceInfo CL_DEVICE_MAX_WORK_GROUP_SIZE " << ret << "\n";
+        return(ret);
+      }
+      cout << "Platform " << pidx  << " Device " << didx << " MAX_WORK_GROUP_SIZE: " << wg_size << "\n";
+
+      size_t wi_size[3] = {0,0,0};
+      ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_MAX_WORK_ITEM_SIZES,	3*sizeof(size_t), wi_size, NULL);
+      if (ret!=0) {
+        cout << "clGetDeviceInfo CL_DEVICE_MAX_WORK_ITEM_SIZES " << ret << "\n";
+        return(ret);
+      }
+      cout << "Platform " << pidx << " Device " << didx << " MAX_WORK_ITEM_SIZES: " << wi_size[0] << " " << wi_size[1] <<  " " << wi_size[2] << "\n";
+
+      ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_PREFERRED_VECTOR_WIDTH_FLOAT,	sizeof(cl_uint), &max_freq, NULL);
+      if (ret!=0) {
+        cout << "clGetDeviceInfo CL_DEVICE_PREFERRED_VECTOR_WIDTH_FLOAT " << ret << "\n";
+        return(ret);
+      }
+      cout << "Platform " << pidx << " Device " << didx << " PREFERRED_VECTOR_WIDTH_FLOAT: " << max_freq << "\n";
+
+
+      ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_EXTENSIONS,	1024, info_return, NULL);
+      if (ret!=0) {
+        cout << "clGetDeviceInfo CL_DEVICE_EXTENSIONS " << ret << "\n";
+        return(ret);
+      }
+      cout << "Platform " << pidx << " Device " << didx << " EXTENSIONS: " << info_return << "\n";
+    }
+    cout << "\n";
+  }
+
+  return(ret);
 }
 
 lte_opencl_t::~lte_opencl_t()
 {
+  if (0!=cmdQueue)
+  {
+    clReleaseCommandQueue(cmdQueue);
+    cmdQueue=0;
+  }
 
+  if (0!=context)
+  {
+    clReleaseContext(context);
+    context=0;
+  }
 }
 
 void xc_correlate_new(

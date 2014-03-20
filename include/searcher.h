@@ -24,17 +24,30 @@
 #ifndef HAVE_SEARCHER_H
 #define HAVE_SEARCHER_H
 
+#include <CL/cl.h>
+#define MAX_NUM_PLATFORM 8
+#define MAX_NUM_DEVICE 8
 // Class related to OpenCL
 class lte_opencl_t {
   public:
     // Initializer
     lte_opencl_t(
-      const int & platform_id,
-      const int & device_id
+      const uint & platform_id,
+      const uint & device_id
     );
 
     // de-Initializer
     virtual ~lte_opencl_t();
+
+    cl_uint num_platform;
+    cl_platform_id platforms[MAX_NUM_PLATFORM];
+    cl_uint num_device;
+    cl_device_id devices[MAX_NUM_DEVICE];
+    cl_context context;
+    cl_command_queue cmdQueue;
+
+    // setup OpenCL environment
+    int setup_opencl(const uint & platform_id, const uint & device_id, cl_uint & num_platform, cl_platform_id *platforms, cl_uint & num_device, cl_device_id *devices, cl_context & context, cl_command_queue & cmdQueue);
 
     int platform_id;
     int device_id;

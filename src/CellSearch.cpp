@@ -125,8 +125,8 @@ void parse_commandline(
   int & device_index,
   char * record_bin_filename,
   char * load_bin_filename,
-  int & opencl_platform,
-  int & opencl_device
+  uint & opencl_platform,
+  uint & opencl_device
 ) {
   // Default values
   freq_start=-1;
@@ -558,12 +558,15 @@ int main(
   int32 device_index;
   char record_bin_filename[256] = {0};
   char load_bin_filename[256] = {0};
-  int opencl_platform;
-  int opencl_device;
+  uint opencl_platform;
+  uint opencl_device;
 
   // Get search parameters from user
   parse_commandline(argc,argv,freq_start,freq_end,num_try,sampling_carrier_twist,ppm,correction,save_cap,use_recorded_data,data_dir,device_index, record_bin_filename, load_bin_filename,opencl_platform,opencl_device);
 
+  #ifdef USE_OPENCL
+  lte_opencl_t lte_ocl(opencl_platform, opencl_device);
+  #endif
   // Open the USB device (if necessary).
   rtlsdr_dev_t * dev=NULL;
   double fs_programmed = 1920000; // in case not initialized by config_usb
