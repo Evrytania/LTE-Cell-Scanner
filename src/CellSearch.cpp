@@ -613,15 +613,17 @@ int main(
     coef(i) = chn_6RB_filter_coef[i];
   }
 
+  cvec capbuf;
+
   #ifdef USE_OPENCL
   lte_opencl_t lte_ocl(opencl_platform, opencl_device, CAPLENGTH, length(coef) );
-  lte_ocl.setup_filter_my((string &)"filter_my_kernels.cl");
+  lte_ocl.setup_filter_my((string)"filter_my_kernels.cl");
+  lte_ocl.filter_my(capbuf);
   #endif
 
   double k_factor = 1.0; // need to be decided further together with sampling_carrier_twist
   double period_ppm = NAN;
 
-  cvec capbuf;
   // for PSS correlate
   //cout << "DS_COMB_ARM override!!!" << endl;
 #define DS_COMB_ARM 2

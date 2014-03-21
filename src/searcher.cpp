@@ -150,7 +150,46 @@ filter_length(filter_length)
   filter_my_buf_out_len = filter_my_buf_in_len;
 }
 
-int lte_opencl_t::setup_filter_my(std::string & filter_my_kernels_filename)
+int lte_opencl_t::filter_my(cvec & capbuf)
+{
+  int ret = 0;
+
+  size_t global_work_size[3] = {filter_my_buf_num_wi, 1, 1};
+  size_t local_work_size[3] = {1, 1, 1};
+
+  float test_out[128];
+
+  ret = clEnqueueNDRangeKernel(cmdQueue, filter_my_kernel1, 1, NULL, global_work_size, local_work_size, 0, NULL, NULL);
+  if (ret!=0) {
+    cout << "clEnqueueNDRangeKernel filter1 " << ret << "\n";
+    return(ret);
+  }
+  clFinish(cmdQueue);
+
+  ret = clEnqueueReadBuffer(cmdQueue, filter_my_buf_mid, CL_TRUE, 0, sizeof(test_out), test_out, 0, NULL, NULL);
+  if (ret!=0) {
+    cout << "clEnqueueReadBuffer filter1 filter_my_buf_out" << ret << "\n";
+    return(ret);
+  }
+  cout << test_out[0]  << " " << test_out[1] << " " << test_out[2] << " " << test_out[3]<< "\n";
+
+  ret = clEnqueueNDRangeKernel(cmdQueue, filter_my_kernel2, 1, NULL, global_work_size, local_work_size, 0, NULL, NULL);
+  if (ret!=0) {
+    cout << "clEnqueueNDRangeKernel filter2 " << ret << "\n";
+    return(ret);
+  }
+  clFinish(cmdQueue);
+
+  ret = clEnqueueReadBuffer(cmdQueue, filter_my_buf_out, CL_TRUE, 0, sizeof(test_out), test_out, 0, NULL, NULL);
+  if (ret!=0) {
+    cout << "clEnqueueReadBuffer filter2 filter_my_buf_out" << ret << "\n";
+    return(ret);
+  }
+  cout << test_out[0]  << " " << test_out[1] << " " << test_out[2] << " " << test_out[3]<< "\n";
+
+  return(ret);
+}
+int lte_opencl_t::setup_filter_my(std::string filter_my_kernels_filename)
 {
   int ret = 0;
   std::ifstream kernel_file;
@@ -159,7 +198,8 @@ int lte_opencl_t::setup_filter_my(std::string & filter_my_kernels_filename)
   kernel_file.open(filter_my_kernels_filename.c_str());
   if (!kernel_file.is_open())
   {
-    cout << "setup_filter_my: open filter_my_kernels_filename failed!\n";
+    cout << "setup_filter_my: open file failed!\n";
+    cout << filter_my_kernels_filename << "\n";
     return(-1);
   }
   std::filebuf* pbuf = kernel_file.rdbuf();
@@ -183,6 +223,9 @@ int lte_opencl_t::setup_filter_my(std::string & filter_my_kernels_filename)
   ret = clBuildProgram(program, num_device, devices, NULL, NULL, NULL);
   if (ret!=0) {
     cout << "clBuildProgram " << ret << "\n";
+    char tmp_info[8192];
+    ret =  clGetProgramBuildInfo(program, devices[0], CL_PROGRAM_BUILD_LOG, 8192, tmp_info, NULL);
+    cout << tmp_info << "\n";
     return(ret);
   }
 
@@ -346,6 +389,7 @@ int lte_opencl_t::setup_opencl()
           }
         }
       }
+      num_device = numDevices;
     }
 
     // display devices info of all platforms

@@ -67,7 +67,9 @@ class lte_opencl_t {
     cl_kernel filter_my_kernel2;
     size_t filter_my_buf_num_wi;
 
-    int setup_filter_my(std::string & filter_my_kernels_filename);
+    int setup_filter_my(std::string filter_my_kernels_filename);
+
+    int filter_my(itpp::cvec & capbuf);
 
   private:
 
