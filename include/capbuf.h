@@ -18,6 +18,9 @@
 #ifndef HAVE_CAPBUF_H
 #define HAVE_CAPBUF_H
 
+// Number of complex samples to capture.
+#define CAPLENGTH 153600
+
 double calculate_fc_programmed_in_context(
   // Inputs
   const double & fc_requested,

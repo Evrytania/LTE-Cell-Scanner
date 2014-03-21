@@ -33,11 +33,19 @@ class lte_opencl_t {
     // Initializer
     lte_opencl_t(
       const uint & platform_id,
-      const uint & device_id
+      const uint & device_id,
+      const size_t & capbuf_length,
+      const size_t & filter_length
     );
 
     // de-Initializer
     virtual ~lte_opencl_t();
+
+    uint platform_id;
+    uint device_id;
+
+    size_t capbuf_length;
+    size_t filter_length;
 
     cl_uint num_platform;
     cl_platform_id platforms[MAX_NUM_PLATFORM];
@@ -47,10 +55,20 @@ class lte_opencl_t {
     cl_command_queue cmdQueue;
 
     // setup OpenCL environment
-    int setup_opencl(const uint & platform_id, const uint & device_id, cl_uint & num_platform, cl_platform_id *platforms, cl_uint & num_device, cl_device_id *devices, cl_context & context, cl_command_queue & cmdQueue);
+    int setup_opencl();
 
-    int platform_id;
-    int device_id;
+    cl_mem filter_my_buf_in;
+    cl_mem filter_my_buf_mid;
+    cl_mem filter_my_buf_out;
+    size_t filter_my_buf_in_len;
+    size_t filter_my_buf_mid_len;
+    size_t filter_my_buf_out_len;
+    cl_kernel filter_my_kernel1;
+    cl_kernel filter_my_kernel2;
+    size_t filter_my_buf_num_wi;
+
+    int setup_filter_my(std::string & filter_my_kernels_filename);
+
   private:
 
 };

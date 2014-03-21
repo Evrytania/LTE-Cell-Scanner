@@ -67,6 +67,7 @@
 #include "itpp_ext.h"
 #include "dsp.h"
 #include "searcher.h"
+#include "capbuf.h"
 
 // This LTE cell search algorithm was designed under the following guidelines:
 //
@@ -119,15 +120,144 @@ using namespace std;
 
 lte_opencl_t::lte_opencl_t(
       const uint & platform_id,
-      const uint & device_id
-)
+      const uint & device_id,
+      const size_t & capbuf_length,
+      const size_t & filter_length
+):platform_id(platform_id),
+device_id(device_id),
+capbuf_length(capbuf_length),
+filter_length(filter_length)
 {
   context = 0;
   cmdQueue = 0;
-  setup_opencl(platform_id, device_id, num_platform, platforms, num_device, devices, context, cmdQueue);
+
+  filter_my_buf_in = 0;
+  filter_my_buf_mid = 0;
+  filter_my_buf_out = 0;
+
+  filter_my_kernel1 = 0;
+  filter_my_kernel2 = 0;
+
+  setup_opencl();
+
+  filter_my_buf_num_wi = 128;
+  filter_my_buf_in_len = capbuf_length + 2*(filter_length-1); // pre&post padding
+  filter_my_buf_in_len = filter_my_buf_in_len + ( filter_my_buf_num_wi-(filter_my_buf_in_len%filter_my_buf_num_wi) );
+
+  uint len_in_subbuf = filter_my_buf_in_len/filter_my_buf_num_wi;
+  filter_my_buf_mid_len = (filter_my_buf_num_wi+1) * (len_in_subbuf + filter_length-1);
+
+  filter_my_buf_out_len = filter_my_buf_in_len;
 }
 
-int lte_opencl_t::setup_opencl(const uint & platform_id, const uint & device_id, cl_uint & num_platform, cl_platform_id *platforms, cl_uint & num_device, cl_device_id *devices, cl_context & context, cl_command_queue & cmdQueue)
+int lte_opencl_t::setup_filter_my(std::string & filter_my_kernels_filename)
+{
+  int ret = 0;
+  std::ifstream kernel_file;
+
+  // ---------------------------------------gen kernel 1
+  kernel_file.open(filter_my_kernels_filename.c_str());
+  if (!kernel_file.is_open())
+  {
+    cout << "setup_filter_my: open filter_my_kernels_filename failed!\n";
+    return(-1);
+  }
+  std::filebuf* pbuf = kernel_file.rdbuf();
+
+  std::size_t size = pbuf->pubseekoff (0,kernel_file.end,kernel_file.in);
+  pbuf->pubseekpos (0,kernel_file.in);
+
+  char* buffer=new char[size];
+
+  // get file data
+  pbuf->sgetn(buffer,size);
+  kernel_file.close();
+
+  const char* kernel_string[1] = {buffer};
+  cl_program program = clCreateProgramWithSource(context, 1, kernel_string, NULL, &ret);
+  if (ret!=0) {
+    cout << "clCreateProgramWithSource " << ret << "\n";
+    return(ret);
+  }
+
+  ret = clBuildProgram(program, num_device, devices, NULL, NULL, NULL);
+  if (ret!=0) {
+    cout << "clBuildProgram " << ret << "\n";
+    return(ret);
+  }
+
+  filter_my_kernel1 = clCreateKernel(program, "filter1", &ret);
+  if (ret!=0) {
+    cout << "clCreateKernel " << ret << "\n";
+    return(ret);
+  }
+
+  filter_my_kernel2 = clCreateKernel(program, "filter2", &ret);
+  if (ret!=0) {
+    cout << "clCreateKernel " << ret << "\n";
+    return(ret);
+  }
+
+  delete [] buffer;
+
+  // -------------------------------------------------------gen buffers
+  filter_my_buf_in = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(float)*filter_my_buf_in_len, NULL, &ret);
+  if (ret!=0) {
+    cout << "clCreateBuffer filter_my_buf_in " << ret << "\n";
+    return(ret);
+  }
+
+  filter_my_buf_mid = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float)*filter_my_buf_mid_len, NULL, &ret);
+  if (ret!=0) {
+    cout << "clCreateBuffer filter_my_buf_mid " << ret << "\n";
+    return(ret);
+  }
+
+  filter_my_buf_out = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(float)*filter_my_buf_out_len, NULL, &ret);
+  if (ret!=0) {
+    cout << "clCreateBuffer filter_my_buf_out " << ret << "\n";
+    return(ret);
+  }
+
+  ret = clSetKernelArg(filter_my_kernel1, 0, sizeof(cl_mem), &filter_my_buf_in);
+  if (ret!=0) {
+    cout << "clSetKernelArg filter_my_kernel1 0 " << ret << "\n";
+    return(ret);
+  }
+
+  ret = clSetKernelArg(filter_my_kernel1, 1, sizeof(cl_mem), &filter_my_buf_mid);
+  if (ret!=0) {
+    cout << "clSetKernelArg filter_my_kernel1 1 " << ret << "\n";
+    return(ret);
+  }
+
+  ret = clSetKernelArg(filter_my_kernel1, 2, sizeof(size_t), &filter_my_buf_in_len);
+  if (ret!=0) {
+    cout << "clSetKernelArg filter_my_kernel1 2 " << ret << "\n";
+    return(ret);
+  }
+
+  ret = clSetKernelArg(filter_my_kernel2, 0, sizeof(cl_mem), &filter_my_buf_mid);
+  if (ret!=0) {
+    cout << "clSetKernelArg filter_my_kernel2 0 " << ret << "\n";
+    return(ret);
+  }
+
+  ret = clSetKernelArg(filter_my_kernel2, 1, sizeof(cl_mem), &filter_my_buf_out);
+  if (ret!=0) {
+    cout << "clSetKernelArg filter_my_kernel2 1 " << ret << "\n";
+    return(ret);
+  }
+
+  ret = clSetKernelArg(filter_my_kernel2, 2, sizeof(size_t), &filter_my_buf_out_len);
+  if (ret!=0) {
+    cout << "clSetKernelArg filter_my_kernel2 2 " << ret << "\n";
+    return(ret);
+  }
+
+  return(ret);
+}
+int lte_opencl_t::setup_opencl()
 {
   int ret;
   ret = clGetPlatformIDs(0, NULL, &num_platform);
@@ -135,7 +265,6 @@ int lte_opencl_t::setup_opencl(const uint & platform_id, const uint & device_id,
     cout << "clGetPlatformIDs " << ret << "\n";
     return(ret);
   }
-//  cout << "num_platform " << num_platform << "\n";
 
   if ( num_platform > MAX_NUM_PLATFORM ) {
     cout << "Warning! num_platform > MAX_NUM_PLATFORM! set num_platform to MAX_NUM_PLATFORM\n";
@@ -157,35 +286,35 @@ int lte_opencl_t::setup_opencl(const uint & platform_id, const uint & device_id,
       cout << "clGetPlatformInfo CL_PLATFORM_NAME " << ret << "\n";
       return(ret);
     }
-    cout << "Platform " << pidx << " NAME: " << info_return << "\n";
+    DBG( cout << "Platform " << pidx << " NAME: " << info_return << "\n"; )
 
     ret = clGetPlatformInfo( platforms[pidx], CL_PLATFORM_VENDOR, 1024, info_return, NULL);
     if (ret!=0) {
       cout << "clGetPlatformInfo CL_PLATFORM_VENDOR " << ret << "\n";
       return(ret);
     }
-    cout << "Platform " << pidx << " VENDOR: " << info_return << "\n";
+    DBG( cout << "Platform " << pidx << " VENDOR: " << info_return << "\n"; )
 
     ret = clGetPlatformInfo( platforms[pidx], CL_PLATFORM_VERSION, 1024, info_return, NULL);
     if (ret!=0) {
       cout << "clGetPlatformInfo CL_PLATFORM_VERSION " << ret << "\n";
       return(ret);
     }
-    cout << "Platform " << pidx << " VERSION: " << info_return << "\n";
+    DBG( cout << "Platform " << pidx << " VERSION: " << info_return << "\n"; )
 
     ret = clGetPlatformInfo( platforms[pidx], CL_PLATFORM_PROFILE, 1024, info_return, NULL);
     if (ret!=0) {
       cout << "clGetPlatformInfo CL_PLATFORM_PROFILE " << ret << "\n";
       return(ret);
     }
-    cout << "Platform " << pidx << " PROFILE: " << info_return << "\n";
+    DBG( cout << "Platform " << pidx << " PROFILE: " << info_return << "\n"; )
 
     ret = clGetPlatformInfo( platforms[pidx], CL_PLATFORM_EXTENSIONS, 1024, info_return, NULL);
     if (ret!=0) {
       cout << "clGetPlatformInfo CL_PLATFORM_EXTENSIONS " << ret << "\n";
       return(ret);
     }
-    cout << "Platform " << pidx << " EXTENSIONS: " << info_return << "\n";
+    DBG( cout << "Platform " << pidx << " EXTENSIONS: " << info_return << "\n"; )
 
     cl_uint numDevices;
     ret = clGetDeviceIDs(platforms[pidx], CL_DEVICE_TYPE_ALL, 0, NULL, &numDevices);
@@ -226,28 +355,28 @@ int lte_opencl_t::setup_opencl(const uint & platform_id, const uint & device_id,
         cout << "clGetDeviceInfo CL_DEVICE_NAME " << ret << "\n";
         return(ret);
       }
-      cout << "Platform " << pidx<< " Device " << didx << " NAME: " << info_return << "\n";
+      DBG( cout << "Platform " << pidx<< " Device " << didx << " NAME: " << info_return << "\n"; )
 
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_VENDOR,	1024, info_return, NULL);
       if (ret!=0) {
         cout << "clGetDeviceInfo CL_DEVICE_VENDOR " << ret << "\n";
         return(ret);
       }
-      cout << "Platform " << pidx << " Device " << didx << " VENDOR: " << info_return << "\n";
+      DBG( cout << "Platform " << pidx << " Device " << didx << " VENDOR: " << info_return << "\n"; )
 
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_VERSION,	1024, info_return, NULL);
       if (ret!=0) {
         cout << "clGetDeviceInfo CL_DEVICE_VERSION " << ret << "\n";
         return(ret);
       }
-      cout << "Platform " << pidx << " Device " << didx << " VERSION: " << info_return << "\n";
+      DBG( cout << "Platform " << pidx << " Device " << didx << " VERSION: " << info_return << "\n"; )
 
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_PROFILE,	1024, info_return, NULL);
       if (ret!=0) {
         cout << "clGetDeviceInfo CL_DEVICE_PROFILE " << ret << "\n";
         return(ret);
       }
-      cout << "Platform " << pidx << " Device " << didx << " PROFILE: " << info_return << "\n";
+      DBG( cout << "Platform " << pidx << " Device " << didx << " PROFILE: " << info_return << "\n"; )
 
       cl_bool ava_flag;
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_AVAILABLE,	sizeof(cl_bool), &ava_flag, NULL);
@@ -259,7 +388,7 @@ int lte_opencl_t::setup_opencl(const uint & platform_id, const uint & device_id,
         cout << "clGetDeviceInfo CL_DEVICE_AVAILABLE " << ava_flag << "\n";
         return(ava_flag);
       }
-      cout << "Platform " << pidx << " Device " << didx << " AVAILABLE: " << ava_flag << "\n";
+      DBG( cout << "Platform " << pidx << " Device " << didx << " AVAILABLE: " << ava_flag << "\n"; )
 
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_COMPILER_AVAILABLE,	sizeof(cl_bool), &ava_flag, NULL);
       if (ret!=0) {
@@ -270,15 +399,15 @@ int lte_opencl_t::setup_opencl(const uint & platform_id, const uint & device_id,
         cout << "clGetDeviceInfo CL_COMPILER_AVAILABLE " << ava_flag << "\n";
         return(ava_flag);
       }
-      cout << "Platform " << pidx << " Device " << didx << " COMPILER_AVAILABLE: " << ava_flag << "\n";
+      DBG( cout << "Platform " << pidx << " Device " << didx << " COMPILER_AVAILABLE: " << ava_flag << "\n"; )
 
-
-      ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_ENDIAN_LITTLE,	sizeof(cl_bool), &ava_flag, NULL);
+      cl_bool endian_flag;
+      ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_ENDIAN_LITTLE,	sizeof(cl_bool), &endian_flag, NULL);
       if (ret!=0) {
         cout << "clGetDeviceInfo CL_DEVICE_ENDIAN_LITTLE " << ret << "\n";
         return(ret);
       }
-      cout << "Platform " << pidx << " Device " << didx << " ENDIAN_LITTLE: " << ava_flag << "\n";
+      DBG( cout << "Platform " << pidx << " Device " << didx << " ENDIAN_LITTLE: " << endian_flag << "\n"; )
 
       cl_ulong mem_size;
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_LOCAL_MEM_SIZE,	sizeof(cl_ulong), &mem_size, NULL);
@@ -286,7 +415,7 @@ int lte_opencl_t::setup_opencl(const uint & platform_id, const uint & device_id,
         cout << "clGetDeviceInfo CL_DEVICE_LOCAL_MEM_SIZE " << ret << "\n";
         return(ret);
       }
-      cout << "Platform " << pidx << " Device " << didx << " LOCAL_MEM_SIZE: " << mem_size << "\n";
+      DBG( cout << "Platform " << pidx << " Device " << didx << " LOCAL_MEM_SIZE: " << mem_size << "\n"; )
 
       cl_device_local_mem_type mem_type;
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_LOCAL_MEM_TYPE,	sizeof(cl_device_local_mem_type), &mem_type, NULL);
@@ -294,7 +423,7 @@ int lte_opencl_t::setup_opencl(const uint & platform_id, const uint & device_id,
         cout << "clGetDeviceInfo CL_DEVICE_LOCAL_MEM_TYPE " << ret << "\n";
         return(ret);
       }
-      cout << "Platform " << pidx << " Device " << didx << " LOCAL_MEM_TYPE: " << mem_type << "\n";
+      DBG( cout << "Platform " << pidx << " Device " << didx << " LOCAL_MEM_TYPE: " << mem_type << "\n"; )
 
       cl_uint max_freq;
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_MAX_CLOCK_FREQUENCY,	sizeof(cl_uint), &max_freq, NULL);
@@ -302,14 +431,15 @@ int lte_opencl_t::setup_opencl(const uint & platform_id, const uint & device_id,
         cout << "clGetDeviceInfo CL_DEVICE_MAX_CLOCK_FREQUENCY " << ret << "\n";
         return(ret);
       }
-      cout << "Platform " << pidx << " Device " << didx << " MAX_CLOCK_FREQUENCY: " << max_freq << "\n";
+      DBG( cout << "Platform " << pidx << " Device " << didx << " MAX_CLOCK_FREQUENCY: " << max_freq << "\n"; )
 
-      ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_MAX_COMPUTE_UNITS,	sizeof(cl_uint), &max_freq, NULL);
+      cl_uint max_num_cu;
+      ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_MAX_COMPUTE_UNITS,	sizeof(cl_uint), &max_num_cu, NULL);
       if (ret!=0) {
         cout << "clGetDeviceInfo CL_DEVICE_MAX_COMPUTE_UNITS " << ret << "\n";
         return(ret);
       }
-      cout << "Platform " << pidx << " Device " << didx << " MAX_COMPUTE_UNITS: " << max_freq << "\n";
+      DBG( cout << "Platform " << pidx << " Device " << didx << " MAX_COMPUTE_UNITS: " << max_num_cu << "\n"; )
 
       size_t wg_size;
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_MAX_WORK_GROUP_SIZE,	sizeof(size_t), &wg_size, NULL);
@@ -317,7 +447,7 @@ int lte_opencl_t::setup_opencl(const uint & platform_id, const uint & device_id,
         cout << "clGetDeviceInfo CL_DEVICE_MAX_WORK_GROUP_SIZE " << ret << "\n";
         return(ret);
       }
-      cout << "Platform " << pidx  << " Device " << didx << " MAX_WORK_GROUP_SIZE: " << wg_size << "\n";
+      DBG( cout << "Platform " << pidx  << " Device " << didx << " MAX_WORK_GROUP_SIZE: " << wg_size << "\n"; )
 
       size_t wi_size[3] = {0,0,0};
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_MAX_WORK_ITEM_SIZES,	3*sizeof(size_t), wi_size, NULL);
@@ -325,14 +455,15 @@ int lte_opencl_t::setup_opencl(const uint & platform_id, const uint & device_id,
         cout << "clGetDeviceInfo CL_DEVICE_MAX_WORK_ITEM_SIZES " << ret << "\n";
         return(ret);
       }
-      cout << "Platform " << pidx << " Device " << didx << " MAX_WORK_ITEM_SIZES: " << wi_size[0] << " " << wi_size[1] <<  " " << wi_size[2] << "\n";
+      DBG( cout << "Platform " << pidx << " Device " << didx << " MAX_WORK_ITEM_SIZES: " << wi_size[0] << " " << wi_size[1] <<  " " << wi_size[2] << "\n"; )
 
-      ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_PREFERRED_VECTOR_WIDTH_FLOAT,	sizeof(cl_uint), &max_freq, NULL);
+      cl_uint float_vec_size;
+      ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_PREFERRED_VECTOR_WIDTH_FLOAT,	sizeof(cl_uint), &float_vec_size, NULL);
       if (ret!=0) {
         cout << "clGetDeviceInfo CL_DEVICE_PREFERRED_VECTOR_WIDTH_FLOAT " << ret << "\n";
         return(ret);
       }
-      cout << "Platform " << pidx << " Device " << didx << " PREFERRED_VECTOR_WIDTH_FLOAT: " << max_freq << "\n";
+      DBG( cout << "Platform " << pidx << " Device " << didx << " PREFERRED_VECTOR_WIDTH_FLOAT: " << float_vec_size << "\n"; )
 
 
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_EXTENSIONS,	1024, info_return, NULL);
@@ -340,9 +471,9 @@ int lte_opencl_t::setup_opencl(const uint & platform_id, const uint & device_id,
         cout << "clGetDeviceInfo CL_DEVICE_EXTENSIONS " << ret << "\n";
         return(ret);
       }
-      cout << "Platform " << pidx << " Device " << didx << " EXTENSIONS: " << info_return << "\n";
+      DBG( cout << "Platform " << pidx << " Device " << didx << " EXTENSIONS: " << info_return << "\n"; )
     }
-    cout << "\n";
+    DBG( cout << "\n"; )
   }
 
   return(ret);
@@ -350,6 +481,33 @@ int lte_opencl_t::setup_opencl(const uint & platform_id, const uint & device_id,
 
 lte_opencl_t::~lte_opencl_t()
 {
+  if (filter_my_kernel1 != 0)
+  {
+    clReleaseKernel(filter_my_kernel1);
+    filter_my_kernel1 = 0;
+  }
+
+  if (filter_my_kernel2 != 0)
+  {
+    clReleaseKernel(filter_my_kernel2);
+    filter_my_kernel2 = 0;
+  }
+
+  if (filter_my_buf_in != 0) {
+     clReleaseMemObject(filter_my_buf_in);
+     filter_my_buf_in = 0;
+  }
+
+  if (filter_my_buf_out != 0) {
+     clReleaseMemObject(filter_my_buf_out);
+     filter_my_buf_out = 0;
+  }
+
+  if (filter_my_buf_mid != 0) {
+     clReleaseMemObject(filter_my_buf_mid);
+     filter_my_buf_mid = 0;
+  }
+
   if (0!=cmdQueue)
   {
     clReleaseCommandQueue(cmdQueue);

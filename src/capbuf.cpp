@@ -31,9 +31,6 @@
 using namespace itpp;
 using namespace std;
 
-// Number of complex samples to capture.
-#define CAPLENGTH 153600
-
 typedef struct {
   vector <unsigned char> * buf;
   rtlsdr_dev_t * dev;

@@ -36,6 +36,7 @@
 #include "lte_lib.h"
 #include "constants.h"
 #include "capbuf.h"
+#include "filter_coef.h"
 #include "itpp_ext.h"
 #include "searcher.h"
 #include "dsp.h"
@@ -564,9 +565,6 @@ int main(
   // Get search parameters from user
   parse_commandline(argc,argv,freq_start,freq_end,num_try,sampling_carrier_twist,ppm,correction,save_cap,use_recorded_data,data_dir,device_index, record_bin_filename, load_bin_filename,opencl_platform,opencl_device);
 
-  #ifdef USE_OPENCL
-  lte_opencl_t lte_ocl(opencl_platform, opencl_device);
-  #endif
   // Open the USB device (if necessary).
   rtlsdr_dev_t * dev=NULL;
   double fs_programmed = 1920000; // in case not initialized by config_usb
@@ -610,16 +608,15 @@ int main(
 
   // get coefficients of 6 RB filter (to improve SNR)
   // coef = fir1(46, (0.18e6*6+150e3)/sampling_rate);
-  vec coef = "8.193313185354206e-04     3.535548569572820e-04    -1.453429245341695e-03     1.042805860697287e-03     1.264224526451337e-03 \
-  -3.219586065044259e-03     1.423981657254563e-03     3.859884310477692e-03    -6.552708013395765e-03     8.590509694961493e-04 \
-  9.363722386299336e-03    -1.120357391780316e-02    -2.423088424232164e-03     1.927528718829535e-02    -1.646405738285926e-02 \
-  -1.143040384534755e-02     3.652830082843752e-02    -2.132986170036144e-02    -3.396829121834471e-02     7.273086636811442e-02 \
-  -2.476823886110626e-02    -1.207789042999466e-01     2.861583432079335e-01     6.398255789896659e-01     2.861583432079335e-01 \
-  -1.207789042999466e-01    -2.476823886110626e-02     7.273086636811442e-02    -3.396829121834471e-02    -2.132986170036144e-02 \
-  3.652830082843752e-02    -1.143040384534755e-02    -1.646405738285926e-02     1.927528718829535e-02    -2.423088424232164e-03 \
-  -1.120357391780316e-02     9.363722386299336e-03     8.590509694961493e-04    -6.552708013395765e-03     3.859884310477692e-03 \
-  1.423981657254563e-03    -3.219586065044259e-03     1.264224526451337e-03     1.042805860697287e-03    -1.453429245341695e-03 \
-  3.535548569572820e-04     8.193313185354206e-04";
+  vec coef( sizeof( chn_6RB_filter_coef )/sizeof(float) );
+  for (uint16 i=0; i<length(coef); i++) {
+    coef(i) = chn_6RB_filter_coef[i];
+  }
+
+  #ifdef USE_OPENCL
+  lte_opencl_t lte_ocl(opencl_platform, opencl_device, CAPLENGTH, length(coef) );
+  lte_ocl.setup_filter_my((string &)"filter_my_kernels.cl");
+  #endif
 
   double k_factor = 1.0; // need to be decided further together with sampling_carrier_twist
   double period_ppm = NAN;
