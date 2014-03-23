@@ -61,9 +61,11 @@ void print_usage() {
   cout << "    -i --device-index N" << endl;
   cout << "      specify which attached RTLSDR dongle to use" << endl;
   cout << "    -a --opencl-platform N" << endl;
-  cout << "      specify which OpenCL platform to use (index start with 0)" << endl;
+  cout << "      specify which OpenCL platform to use (default 0; index start with 0)" << endl;
   cout << "    -j --opencl-device N" << endl;
-  cout << "      specify which OpenCL device of selected platform to use (index start with 0)" << endl;
+  cout << "      specify which OpenCL device of selected platform to use (default 0; index start with 0)" << endl;
+  cout << "    -w --num-workitem N" << endl;
+  cout << "      specify how many OpenCL workitems are used (you'd better use values like 2^n)" << endl;
   cout << "  Frequency search options:" << endl;
   cout << "    -s --freq-start fs" << endl;
   cout << "      frequency where cell search should start" << endl;
@@ -616,9 +618,8 @@ int main(
   cvec capbuf;
 
   #ifdef USE_OPENCL
-  lte_opencl_t lte_ocl(opencl_platform, opencl_device, CAPLENGTH, length(coef) );
+  lte_opencl_t lte_ocl(opencl_platform, opencl_device, CAPLENGTH);
   lte_ocl.setup_filter_my((string)"filter_my_kernels.cl");
-  lte_ocl.filter_my(capbuf);
   #endif
 
   double k_factor = 1.0; // need to be decided further together with sampling_carrier_twist
@@ -658,6 +659,7 @@ int main(
   // this vector.
   vector < list<Cell> > detected_cells(n_fc);
   // Loop for each center frequency.
+  Real_Timer tt;
   for (uint32 fci=0;fci<n_fc_multi_try;fci++) {
     double fc_requested=fc_search_set_multi_try(fci);
     uint32 fc_idx = fci/num_try;
@@ -677,7 +679,30 @@ int main(
     }
 
     // 6RB filter to improve SNR
-    filter_my(coef, capbuf);
+    #ifdef USE_OPENCL
+      cvec tmp = capbuf;
+      tt.tic();
+      lte_ocl.filter_my(tmp);
+      tt.toc_print();
+//      it_file itf("tmp.it",true);
+//      itf << Name("capbuf") << tmp;
+//      itf.close();
+
+      tmp = capbuf;
+      tt.tic();
+      filter_my(coef, tmp);
+      tt.toc_print();
+//      it_file itf1("tmp_opencl.it",true);
+//      itf1 << Name("capbuf_opencl") << tmp;
+//      itf1.close();
+//
+//      return(-1);
+
+      lte_ocl.filter_my(capbuf);
+      capbuf.zeros();
+    #else
+      filter_my(coef, capbuf);
+    #endif
 //    cout << capbuf(0, 24) << "\n";
 //    cout << capbuf(100000, 100010) << "\n";
 //    cout << capbuf(153590, 153599) << "\n";

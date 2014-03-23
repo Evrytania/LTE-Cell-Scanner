@@ -34,8 +34,7 @@ class lte_opencl_t {
     lte_opencl_t(
       const uint & platform_id,
       const uint & device_id,
-      const size_t & capbuf_length,
-      const size_t & filter_length
+      const size_t & capbuf_length
     );
 
     // de-Initializer
@@ -57,14 +56,27 @@ class lte_opencl_t {
     // setup OpenCL environment
     int setup_opencl();
 
-    cl_mem filter_my_buf_in;
-    cl_mem filter_my_buf_mid;
-    cl_mem filter_my_buf_out;
-    size_t filter_my_buf_in_len;
-    size_t filter_my_buf_mid_len;
-    size_t filter_my_buf_out_len;
-    cl_kernel filter_my_kernel1;
-    cl_kernel filter_my_kernel2;
+    float *filter_my_in_i_host;
+    float *filter_my_in_q_host;
+    float *filter_my_out_i_host;
+    float *filter_my_out_q_host;
+
+    cl_mem filter_my_orig_i;
+    cl_mem filter_my_orig_q;
+    cl_mem filter_my_in_i;
+    cl_mem filter_my_in_q;
+    cl_mem filter_my_mid_i;
+    cl_mem filter_my_mid_q;
+    cl_mem filter_my_out_i;
+    cl_mem filter_my_out_q;
+
+    uint filter_my_buf_in_len;
+    uint filter_my_buf_mid_len;
+    uint filter_my_buf_out_len;
+
+    cl_kernel filter_my_skip2cols;
+    cl_kernel filter_my_multi_filter;
+    cl_kernel filter_my_result_combine;
     size_t filter_my_buf_num_wi;
 
     int setup_filter_my(std::string filter_my_kernels_filename);

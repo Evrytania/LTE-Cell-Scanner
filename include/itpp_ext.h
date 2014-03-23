@@ -20,6 +20,11 @@
 
 namespace itpp_ext {
 
+typedef itpp::Vec< float > 	fvec;
+typedef itpp::Vec< std::complex < float > > 	fcvec;
+typedef itpp::Mat< float > 	fmat;
+typedef itpp::Mat< std::complex < double > > 	fcmat;
+
 // Implement the matlab range notation a:b:c. Ex, 1:2:6 is [1 3 5].
 itpp::vec matlab_range(const double first, const double incr, const double last);
 // Implement the matlab range notation a:b. Ex, 1:6 is [1 2 3 4 5 6].
