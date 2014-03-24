@@ -34,7 +34,9 @@ class lte_opencl_t {
     lte_opencl_t(
       const uint & platform_id,
       const uint & device_id,
-      const size_t & capbuf_length
+      const size_t & capbuf_length,
+      const uint & filter_workitem,
+      const uint & xcorr_workitem
     );
 
     // de-Initializer
@@ -77,7 +79,8 @@ class lte_opencl_t {
     cl_kernel filter_my_skip2cols;
     cl_kernel filter_my_multi_filter;
     cl_kernel filter_my_result_combine;
-    size_t filter_my_buf_num_wi;
+    uint filter_workitem;
+    uint xcorr_workitem;
 
     int setup_filter_my(std::string filter_my_kernels_filename);
 

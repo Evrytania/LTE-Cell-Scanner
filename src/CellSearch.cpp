@@ -64,8 +64,10 @@ void print_usage() {
   cout << "      specify which OpenCL platform to use (default 0; index start with 0)" << endl;
   cout << "    -j --opencl-device N" << endl;
   cout << "      specify which OpenCL device of selected platform to use (default 0; index start with 0)" << endl;
-  cout << "    -w --num-workitem N" << endl;
-  cout << "      specify how many OpenCL workitems are used (you'd better use values like 2^n)" << endl;
+  cout << "    -w --filter-workitem N" << endl;
+  cout << "      specify how many OpenCL workitems are used for the 1st dim of 6RB filter (you'd better use values like 2^n)" << endl;
+  cout << "    -u --xcorr-workitem N" << endl;
+  cout << "      specify how many OpenCL workitems are used for the PSS xcorr (you'd better use values like 2^n)" << endl;
   cout << "  Frequency search options:" << endl;
   cout << "    -s --freq-start fs" << endl;
   cout << "      frequency where cell search should start" << endl;
@@ -129,7 +131,9 @@ void parse_commandline(
   char * record_bin_filename,
   char * load_bin_filename,
   uint & opencl_platform,
-  uint & opencl_device
+  uint & opencl_device,
+  uint & filter_workitem,
+  uint & xcorr_workitem
 ) {
   // Default values
   freq_start=-1;
@@ -144,6 +148,8 @@ void parse_commandline(
   device_index=-1;
   opencl_platform = 0;
   opencl_device = 0;
+  filter_workitem = 32;
+  xcorr_workitem = 32;
 
   while (1) {
     static struct option long_options[] = {
@@ -164,11 +170,13 @@ void parse_commandline(
       {"device-index", required_argument, 0, 'i'},
       {"opencl-platform", required_argument, 0, 'a'},
       {"opencl-device", required_argument, 0, 'j'},
+      {"filter-workitem", required_argument, 0, 'w'},
+      {"xcorr-workitem", required_argument, 0, 'u'},
       {0, 0, 0, 0}
     };
     /* getopt_long stores the option index here. */
     int option_index = 0;
-    int c = getopt_long (argc, argv, "hvbs:e:n:tp:c:z:y:rld:i:a:j:",
+    int c = getopt_long (argc, argv, "hvbs:e:n:tp:c:z:y:rld:i:a:j:w:",
                      long_options, &option_index);
 
     /* Detect the end of the options. */
@@ -295,6 +303,11 @@ void parse_commandline(
         break;
       case 'j':
         opencl_device=strtol(optarg,&endp,10);
+        break;
+      case 'w':
+        filter_workitem=strtol(optarg,&endp,10);
+      case 'u':
+        xcorr_workitem=strtol(optarg,&endp,10);
         break;
       case '?':
         /* getopt_long already printed an error message. */
@@ -563,9 +576,11 @@ int main(
   char load_bin_filename[256] = {0};
   uint opencl_platform;
   uint opencl_device;
+  uint filter_workitem;
+  uint xcorr_workitem;
 
   // Get search parameters from user
-  parse_commandline(argc,argv,freq_start,freq_end,num_try,sampling_carrier_twist,ppm,correction,save_cap,use_recorded_data,data_dir,device_index, record_bin_filename, load_bin_filename,opencl_platform,opencl_device);
+  parse_commandline(argc,argv,freq_start,freq_end,num_try,sampling_carrier_twist,ppm,correction,save_cap,use_recorded_data,data_dir,device_index, record_bin_filename, load_bin_filename,opencl_platform,opencl_device,filter_workitem,xcorr_workitem);
 
   // Open the USB device (if necessary).
   rtlsdr_dev_t * dev=NULL;
@@ -589,11 +604,12 @@ int main(
     f_search_set=to_vec(itpp_ext::matlab_range(-n_extra*5000,5000,n_extra*5000));
   } else {
     // since we have frequency step is 100e3, why not have sub search set limited by this regardless PPM?
-    f_search_set=to_vec(itpp_ext::matlab_range(-65000,5000,65000)); // 2*65kHz > 100kHz, overlap adjacent frequencies
-//      f_search_set=to_vec(itpp_ext::matlab_range(-100000,5000,100000)); // align to matlab script
-
-    pss_fo_set_gen(f_search_set, pss_fo_set);
+//    f_search_set=to_vec(itpp_ext::matlab_range(-65000,5000,65000)); // 2*65kHz > 100kHz, overlap adjacent frequencies
+      f_search_set=to_vec(itpp_ext::matlab_range(-100000,5000,100000)); // align to matlab script
   }
+
+  pss_fo_set_gen(f_search_set, pss_fo_set);
+
   const uint16 n_fc=length(fc_search_set);
 
   // construct data for multiple tries
@@ -603,9 +619,7 @@ int main(
   for(uint32 i=0; i<n_fc; i++) {
     uint32 sp = i*num_try;
     uint32 ep = sp + num_try;
-    for(uint32 j=sp; j<ep; j++){
-      fc_search_set_multi_try(j) = fc_search_set(i);
-    }
+    fc_search_set_multi_try.set_subvector(sp, ep, fc_search_set(i));
   }
 
   // get coefficients of 6 RB filter (to improve SNR)
@@ -618,7 +632,7 @@ int main(
   cvec capbuf;
 
   #ifdef USE_OPENCL
-  lte_opencl_t lte_ocl(opencl_platform, opencl_device, CAPLENGTH);
+  lte_opencl_t lte_ocl(opencl_platform, opencl_device, CAPLENGTH, filter_workitem, xcorr_workitem);
   lte_ocl.setup_filter_my((string)"filter_my_kernels.cl");
   #endif
 
@@ -655,8 +669,7 @@ int main(
   cmat tfg_comp;
   vec tfg_comp_timestamp;
 
-  // Each center frequency is searched independently. Results are stored in
-  // this vector.
+  // Each center frequency is searched independently. Results are stored in this vector.
   vector < list<Cell> > detected_cells(n_fc);
   // Loop for each center frequency.
   Real_Timer tt;
@@ -670,7 +683,6 @@ int main(
     }
 
     // Fill capture buffer
-//    cvec capbuf;
     double fc_programmed;
     int run_out_of_data = capture_data(fc_requested,correction,save_cap,record_bin_filename,use_recorded_data,load_bin_filename,data_dir,dev,capbuf,fc_programmed, false);
     if (run_out_of_data){
@@ -679,33 +691,13 @@ int main(
     }
 
     // 6RB filter to improve SNR
+//    tt.tic();
     #ifdef USE_OPENCL
-      cvec tmp = capbuf;
-      tt.tic();
-      lte_ocl.filter_my(tmp);
-      tt.toc_print();
-//      it_file itf("tmp.it",true);
-//      itf << Name("capbuf") << tmp;
-//      itf.close();
-
-      tmp = capbuf;
-      tt.tic();
-      filter_my(coef, tmp);
-      tt.toc_print();
-//      it_file itf1("tmp_opencl.it",true);
-//      itf1 << Name("capbuf_opencl") << tmp;
-//      itf1.close();
-//
-//      return(-1);
-
-      lte_ocl.filter_my(capbuf);
-      capbuf.zeros();
+      lte_ocl.filter_my(capbuf); // be careful! capbuf.zeros() will slow down the xcorr part pretty much!
     #else
       filter_my(coef, capbuf);
     #endif
-//    cout << capbuf(0, 24) << "\n";
-//    cout << capbuf(100000, 100010) << "\n";
-//    cout << capbuf(153590, 153599) << "\n";
+//    tt.toc_print();
 
     vec dynamic_f_search_set = f_search_set; // don't touch the original
     if (sampling_carrier_twist) {
@@ -723,20 +715,11 @@ int main(
         period_ppm = NAN;
         if (verbosity>=2) cout << "No valid PSS is found at pre-proc phase! Please try again.\n";
         continue;
-  //      cout << "Pre search failed. Back to original sampling-carrier-twisted mode.\n";
       }
       pss_fo_set_gen_non_twist(dynamic_f_search_set, fs_programmed, k_factor, pss_fo_set_for_xcorr_pss);
     }
 
     // Correlate
-//#define DS_COMB_ARM 2
-//    mat xc_incoherent_collapsed_pow;
-//    imat xc_incoherent_collapsed_frq;
-//    vf3d xc_incoherent_single;
-//    vf3d xc_incoherent;
-//    vec sp_incoherent;
-//    vcf3d xc;
-//    vec sp;
     uint16 n_comb_xc;
     uint16 n_comb_sp;
     if (verbosity>=2) {
@@ -766,15 +749,7 @@ int main(
       //cout << (*iterator) << endl << endl;
 
       // Detect SSS if possible
-//      vec sss_h1_np_est_meas;
-//      vec sss_h2_np_est_meas;
-//      cvec sss_h1_nrm_est_meas;
-//      cvec sss_h2_nrm_est_meas;
-//      cvec sss_h1_ext_est_meas;
-//      cvec sss_h2_ext_est_meas;
-//      mat log_lik_nrm;
-//      mat log_lik_ext;
-#define THRESH2_N_SIGMA 3
+      #define THRESH2_N_SIGMA 3
       int tdd_flag = 0;
       cell_temp = (*iterator);
       for(tdd_flag=0;tdd_flag<2;tdd_flag++)
@@ -792,16 +767,12 @@ int main(
       (*iterator)=pss_sss_foe((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,sampling_carrier_twist,k_factor,tdd_flag);
 
       // Extract time and frequency grid
-//      cmat tfg;
-//      vec tfg_timestamp;
       extract_tfg((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,tfg,tfg_timestamp,sampling_carrier_twist,k_factor);
 
       // Create object containing all RS
       RS_DL rs_dl((*iterator).n_id_cell(),6,(*iterator).cp_type);
 
       // Compensate for time and frequency offsets
-//      cmat tfg_comp;
-//      vec tfg_comp_timestamp;
       (*iterator)=tfoec((*iterator),tfg,tfg_timestamp,fc_requested,fc_programmed,rs_dl,tfg_comp,tfg_comp_timestamp,sampling_carrier_twist,k_factor);
 
       // Finally, attempt to decode the MIB

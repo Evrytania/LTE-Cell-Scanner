@@ -122,10 +122,14 @@ using namespace std;
 lte_opencl_t::lte_opencl_t(
       const uint & platform_id,
       const uint & device_id,
-      const size_t & capbuf_length
+      const size_t & capbuf_length,
+      const uint & filter_workitem,
+      const uint & xcorr_workitem
 ):platform_id(platform_id),
 device_id(device_id),
-capbuf_length(capbuf_length)
+capbuf_length(capbuf_length),
+filter_workitem(filter_workitem),
+xcorr_workitem(xcorr_workitem)
 {
   context = 0;
   cmdQueue = 0;
@@ -147,12 +151,11 @@ capbuf_length(capbuf_length)
 
   setup_opencl();
 
-  filter_my_buf_num_wi = 32;
   filter_my_buf_in_len = capbuf_length + (filter_length-1); // post padding
-  filter_my_buf_in_len = filter_my_buf_in_len + ( filter_my_buf_num_wi-(filter_my_buf_in_len%filter_my_buf_num_wi) );
+  filter_my_buf_in_len = filter_my_buf_in_len + ( filter_workitem-(filter_my_buf_in_len%filter_workitem) );
 
-  uint len_in_subbuf = filter_my_buf_in_len/filter_my_buf_num_wi;
-  filter_my_buf_mid_len = (filter_my_buf_num_wi+1) * (len_in_subbuf + filter_length-1);
+  uint len_in_subbuf = filter_my_buf_in_len/filter_workitem;
+  filter_my_buf_mid_len = (filter_workitem+1) * (len_in_subbuf + filter_length-1);
 
   filter_my_buf_out_len = filter_my_buf_in_len;
 
@@ -190,7 +193,7 @@ int lte_opencl_t::filter_my(cvec & capbuf)
     return(ret);
   }
 
-  global_work_size[0] = filter_my_buf_num_wi;
+  global_work_size[0] = filter_workitem;
   local_work_size[0] = 1;
   cl_event skip2cols_done;
   ret = clEnqueueNDRangeKernel(cmdQueue, filter_my_skip2cols, 1, NULL, global_work_size, local_work_size, 2, write_done, &skip2cols_done);
@@ -200,7 +203,7 @@ int lte_opencl_t::filter_my(cvec & capbuf)
   }
 //  clFinish(cmdQueue);
 
-  global_work_size[0] = filter_my_buf_num_wi;
+  global_work_size[0] = filter_workitem;
   local_work_size[0] = 1;
   cl_event multi_filter_done;
   ret = clEnqueueNDRangeKernel(cmdQueue, filter_my_multi_filter, 1, NULL, global_work_size, local_work_size, 1, &skip2cols_done, &multi_filter_done);
@@ -210,7 +213,7 @@ int lte_opencl_t::filter_my(cvec & capbuf)
   }
 //  clFinish(cmdQueue);
 
-  global_work_size[0] = filter_my_buf_num_wi;
+  global_work_size[0] = filter_workitem;
   local_work_size[0] = 1;
   cl_event result_combine_done;
   ret = clEnqueueNDRangeKernel(cmdQueue, filter_my_result_combine, 1, NULL, global_work_size, local_work_size, 1, &multi_filter_done, &result_combine_done);
@@ -1196,6 +1199,11 @@ void pss_moving_corr(
   int32 end_idx = -1;
   int32 current_idx = -1;
 
+//  cout << length(pss_fo_set.get_row(0)) << "\n";
+//  cout << length(pss_fo_set.get_col(0)) << "\n";
+//  cout << length(f_search_set) << "\n";
+
+//  cout << size(pss_fo_set, 1) << "\n";
   cvec chn_tmp(len_pss);
   vec tmp(num_fo_pss);
   for(uint32 i=0; i<(len - (len_pss-1)); i++) {
@@ -1397,8 +1405,8 @@ void pss_fo_set_gen(
     double f_off = fo_search_set(foi);
     temp = ROM_TABLES.pss_td[pssi];
     temp = fshift(temp,f_off,sampling_rate);
-    temp = conj(temp);
-    normalize(temp);
+    temp = conj(temp)/len_pss; // align to latest matlab algorithm
+//    normalize(temp);
     pss_fo_set.set_row(fo_pss_i, temp);
   }
 }
