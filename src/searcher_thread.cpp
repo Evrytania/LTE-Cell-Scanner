@@ -98,7 +98,7 @@ void searcher_thread(
   vf3d xc_incoherent_single;
   vf3d xc_incoherent;
   vec sp_incoherent;
-  vf3d xc;
+  vector <mat> xc(3);
   vec sp;
 
   // for SSS detection
@@ -184,7 +184,7 @@ void searcher_thread(
     if (verbosity>=2) {
       cout << "  Searching for and examining correlation peaks..." << endl;
     }
-    peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,f_search_set,fc_requested,fc_programmed,xc_incoherent_single,DS_COMB_ARM,detected_cells);
+    peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,f_search_set,fc_requested,fc_programmed,xc_incoherent_single,DS_COMB_ARM,k_factor, detected_cells);
 
     // Loop and check each peak
     list<Cell>::iterator iterator=detected_cells.begin();

@@ -40,8 +40,10 @@ Cell::Cell() :
   ind(-1),
   freq(NAN),
   n_id_2(-1),
+  k_factor(NAN),
 
   n_id_1(-1),
+  duplex_mode(-1),
   cp_type(cp_type_t::UNKNOWN),
   frame_start(NAN),
   freq_fine(NAN),

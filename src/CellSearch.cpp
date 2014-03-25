@@ -636,6 +636,11 @@ int main(
 
   double k_factor = 1.0; // need to be decided further together with sampling_carrier_twist
   vec period_ppm;
+  vec k_factor_set;
+
+  // Calculate the threshold vector
+  const uint8 thresh1_n_nines=12;
+  double rx_cutoff=(6*12*15e3/2+4*15e3)/(FS_LTE/16/2);
 
   // for PSS correlate
   //cout << "DS_COMB_ARM override!!!" << endl;
@@ -644,7 +649,7 @@ int main(
   imat xc_incoherent_collapsed_frq;
   vf3d xc_incoherent_single;
   vf3d xc_incoherent;
-  vf3d xc;
+  vector <mat> xc(3);
   vec sp_incoherent;
   vec sp;
 
@@ -704,36 +709,71 @@ int main(
     vec dynamic_f_search_set = f_search_set; // don't touch the original
     sampling_ppm_f_search_set_by_pss(capbuf, pss_fo_set, sampling_carrier_twist, dynamic_f_search_set, period_ppm, xc);
 
-    k_factor = 1;
+    list <Cell> peak_search_cells;
     if (!sampling_carrier_twist) {
       if ( isnan(period_ppm[0]) ) {
         if (verbosity>=2) cout << "No valid PSS is found at pre-proc phase! Please try again.\n";
         continue;
       } else {
-        k_factor = 1 + period_ppm[0]*1e-6;
+        k_factor_set.set_length(length(period_ppm));
+        k_factor_set = 1 + period_ppm*1e-6;
       }
+
+      vec tmp_f_search(1);
+      vector <mat> tmp_xc(3);
+      tmp_xc[0].set_size(length(capbuf)-136, 1);
+      tmp_xc[1].set_size(length(capbuf)-136, 1);
+      tmp_xc[2].set_size(length(capbuf)-136, 1);
+      for (uint16 i=0; i<length(k_factor_set); i++) {
+
+        tmp_f_search(0) = dynamic_f_search_set(i);
+        tmp_xc[0].set_col(0, xc[0].get_col(i));
+        tmp_xc[1].set_col(0, xc[1].get_col(i));
+        tmp_xc[2].set_col(0, xc[2].get_col(i));
+
+        // Correlate
+        uint16 n_comb_xc;
+        uint16 n_comb_sp;
+        if (verbosity>=2) {
+          cout << "  Calculating PSS correlations" << endl;
+        }
+        xcorr_pss(capbuf,tmp_f_search,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,tmp_xc,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist,k_factor_set[i]);
+
+        // Calculate the threshold vector
+        double R_th1=chi2cdf_inv(1-pow(10.0,-thresh1_n_nines),2*n_comb_xc*(2*DS_COMB_ARM+1));
+        vec Z_th1=R_th1*sp_incoherent/rx_cutoff/137/2/n_comb_xc/(2*DS_COMB_ARM+1);
+
+        // Search for the peaks
+        if (verbosity>=2) {
+          cout << "  Searching for and examining correlation peaks..." << endl;
+        }
+        peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,tmp_f_search,fc_requested,fc_programmed,xc_incoherent_single,DS_COMB_ARM,k_factor_set[i],peak_search_cells);
+
+      }
+
+    } else {
+
+      double k_factor = 1;
+      // Correlate
+      uint16 n_comb_xc;
+      uint16 n_comb_sp;
+      if (verbosity>=2) {
+        cout << "  Calculating PSS correlations" << endl;
+      }
+      xcorr_pss(capbuf,dynamic_f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,xc,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist,k_factor);
+
+      // Calculate the threshold vector
+      double R_th1=chi2cdf_inv(1-pow(10.0,-thresh1_n_nines),2*n_comb_xc*(2*DS_COMB_ARM+1));
+      vec Z_th1=R_th1*sp_incoherent/rx_cutoff/137/2/n_comb_xc/(2*DS_COMB_ARM+1);
+
+      // Search for the peaks
+      if (verbosity>=2) {
+        cout << "  Searching for and examining correlation peaks..." << endl;
+      }
+      peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,dynamic_f_search_set,fc_requested,fc_programmed,xc_incoherent_single,DS_COMB_ARM,k_factor,peak_search_cells);
+
     }
 
-    // Correlate
-    uint16 n_comb_xc;
-    uint16 n_comb_sp;
-    if (verbosity>=2) {
-      cout << "  Calculating PSS correlations" << endl;
-    }
-    xcorr_pss(capbuf,dynamic_f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,xc,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist,k_factor);
-
-    // Calculate the threshold vector
-    const uint8 thresh1_n_nines=12;
-    double R_th1=chi2cdf_inv(1-pow(10.0,-thresh1_n_nines),2*n_comb_xc*(2*DS_COMB_ARM+1));
-    double rx_cutoff=(6*12*15e3/2+4*15e3)/(FS_LTE/16/2);
-    vec Z_th1=R_th1*sp_incoherent/rx_cutoff/137/2/n_comb_xc/(2*DS_COMB_ARM+1);
-
-    // Search for the peaks
-    if (verbosity>=2) {
-      cout << "  Searching for and examining correlation peaks..." << endl;
-    }
-    list <Cell> peak_search_cells;
-    peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,dynamic_f_search_set,fc_requested,fc_programmed,xc_incoherent_single,DS_COMB_ARM,peak_search_cells);
     detected_cells[fc_idx]=peak_search_cells;
 
     // Loop and check each peak

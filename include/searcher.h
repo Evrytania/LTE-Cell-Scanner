@@ -133,7 +133,7 @@ void sampling_ppm_f_search_set_by_pss(
   itpp::vec & fo_search_set,
   // Outpus
   itpp::vec & ppm,
-  vf3d & xc
+  std::vector <itpp::mat> & xc
 );
 
 void sampling_ppm_f_search_set_by_pss_old(
@@ -157,7 +157,7 @@ void xcorr_pss(
   const double & fc_requested,
   const double & fc_programmed,
   const double & fs_programmed,
-  const vf3d & xc,
+  const std::vector <itpp::mat> & xc,
   // Outputs
   itpp::mat & xc_incoherent_collapsed_pow,
   itpp::imat & xc_incoherent_collapsed_frq,
@@ -183,6 +183,7 @@ void peak_search(
   const double & fc_programmed,
   const vf3d & xc_incoherent_single,
   const uint8 & ds_comb_arm,
+  const double & k_factor,
   // Outputs
   std::list <Cell> & cells
 );

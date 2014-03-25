@@ -849,7 +849,7 @@ void xc_combine(
   // Inputs
   const cvec & capbuf,
 //  const vcf3d & xc,
-  const vf3d & xc,
+  const vector <mat> & xc,
   const double & fc_requested,
   const double & fc_programmed,
   const double & fs_programmed,
@@ -889,7 +889,7 @@ void xc_combine(
         double actual_start_index=itpp::round_i(m*.005*k_factor*fs_programmed);
         for (uint16 idx=0;idx<9600;idx++) {
 //          xc_incoherent_single[t][idx][foi]+=sqr(xc[t][idx+actual_start_index][foi]);
-          xc_incoherent_single[t][idx][foi]+=xc[t][idx+actual_start_index][foi];
+          xc_incoherent_single[t][idx][foi]+=xc[t](idx+actual_start_index,foi);
         }
       }
       for (uint16 idx=0;idx<9600;idx++) {
@@ -1321,6 +1321,27 @@ void pss_fo_set_gen(
   }
 }
 
+void conv_capbuf_with_pss(
+  // Inputs
+  const cvec & s,
+  const cmat & pss_fo_set,
+  const uint16 & num_fo_pss,
+  // Output
+  mat & corr_store
+) {
+  const uint32 len = length(s);
+  const uint16 len_pss = length(ROM_TABLES.pss_td[0]);
+
+  vec tmp(num_fo_pss);
+  cvec chn_tmp(len_pss);
+  for(uint32 i=0; i<(len - (len_pss-1)); i++) {
+    chn_tmp = s(i, (i+len_pss-1));
+    tmp = abs(pss_fo_set*chn_tmp);
+    tmp = elem_mult( tmp,tmp );
+    corr_store.set_row(i, tmp);
+  }
+}
+
 void sampling_ppm_f_search_set_by_pss(
   // Inputs
   const cvec & s,
@@ -1330,9 +1351,17 @@ void sampling_ppm_f_search_set_by_pss(
   vec & fo_search_set,
   // Outpus
   vec & ppm,
-  vf3d & xc
+  vector <mat> & xc
 ) {
-  uint16 len_pss = length(ROM_TABLES.pss_td[0]);
+  const uint16 len_pss = length(ROM_TABLES.pss_td[0]);
+  const uint16 num_fo_orig = length(fo_search_set);
+  const uint16 num_fo_pss = 3*num_fo_orig;
+  const uint32 len = length(s);
+  const uint32 len_short = len - (len_pss-1);
+
+  mat corr_store(num_fo_pss, len_short);
+
+  conv_capbuf_with_pss(s, pss_fo_set, num_fo_pss, corr_store);
 
 }
 
@@ -1808,7 +1837,7 @@ void xcorr_pss(
   const double & fc_requested,
   const double & fc_programmed,
   const double & fs_programmed,
-  const vf3d & xc,
+  const vector <mat> & xc,
   // Outputs
   mat & xc_incoherent_collapsed_pow,
   imat & xc_incoherent_collapsed_frq,
@@ -1847,6 +1876,7 @@ void peak_search(
   const double & fc_programmed,
   const vf3d & xc_incoherent_single,
   const uint8 & ds_comb_arm,
+  const double & k_factor,
   // Outputs
   list <Cell> & cells
 ) {
@@ -1891,6 +1921,7 @@ void peak_search(
     cell.ind=best_ind;
     cell.freq=f_search_set(xc_incoherent_collapsed_frq(peak_n_id_2,peak_ind));
     cell.n_id_2=peak_n_id_2;
+    cell.k_factor = k_factor;
     cells.push_back(cell);
 
     // Cancel out the false peaks around this one.
