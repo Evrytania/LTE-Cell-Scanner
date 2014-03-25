@@ -24,6 +24,10 @@
 #ifndef HAVE_SEARCHER_H
 #define HAVE_SEARCHER_H
 
+#define USE_OPENCL // just for debug purpose. It should be removed before formal release
+
+#ifdef USE_OPENCL
+
 #include <CL/cl.h>
 #define MAX_NUM_PLATFORM 8
 #define MAX_NUM_DEVICE 8
@@ -58,19 +62,13 @@ class lte_opencl_t {
     // setup OpenCL environment
     int setup_opencl();
 
-    float *filter_my_in_i_host;
-    float *filter_my_in_q_host;
-    float *filter_my_out_i_host;
-    float *filter_my_out_q_host;
+    float *filter_my_in_host;
+    float *filter_my_out_host;
 
-    cl_mem filter_my_orig_i;
-    cl_mem filter_my_orig_q;
-    cl_mem filter_my_in_i;
-    cl_mem filter_my_in_q;
-    cl_mem filter_my_mid_i;
-    cl_mem filter_my_mid_q;
-    cl_mem filter_my_out_i;
-    cl_mem filter_my_out_q;
+    cl_mem filter_my_orig;
+    cl_mem filter_my_in;
+    cl_mem filter_my_mid;
+    cl_mem filter_my_out;
 
     uint filter_my_buf_in_len;
     uint filter_my_buf_mid_len;
@@ -89,6 +87,8 @@ class lte_opencl_t {
   private:
 
 };
+
+#endif
 
 // FIR 6RB filter
 void filter_my(
@@ -126,12 +126,26 @@ void pss_fo_set_gen(
 
 void sampling_ppm_f_search_set_by_pss(
   // Inputs
+  const itpp::cvec & s,
+  const itpp::cmat & pss_fo_set,
+  const bool & sampling_carrier_twist,
+  // Inputs&Outputs
+  itpp::vec & fo_search_set,
+  // Outpus
+  itpp::vec & ppm,
+  vf3d & xc
+);
+
+void sampling_ppm_f_search_set_by_pss_old(
+  // Inputs
   const itpp::cvec & capbuf,
   const itpp::cmat & pss_fo_set,
+  const bool & sampling_carrier_twist,
   // Inputs&Outputs
   itpp::vec & f_search_set,
   // Outpus
-  double & ppm
+  double & ppm,
+  vf3d & xc
 );
 
 // Correlate the captured data against the PSS.
@@ -143,7 +157,7 @@ void xcorr_pss(
   const double & fc_requested,
   const double & fc_programmed,
   const double & fs_programmed,
-  const itpp::cmat & pss_fo_set,
+  const vf3d & xc,
   // Outputs
   itpp::mat & xc_incoherent_collapsed_pow,
   itpp::imat & xc_incoherent_collapsed_frq,
@@ -151,7 +165,6 @@ void xcorr_pss(
   vf3d & xc_incoherent_single,
   vf3d & xc_incoherent,
   itpp::vec & sp_incoherent,
-  vcf3d & xc,
   itpp::vec & sp,
   uint16 & n_comb_xc,
   uint16 & n_comb_sp,

@@ -706,7 +706,7 @@ double kalibrate(
   vf3d xc_incoherent_single;
   vf3d xc_incoherent;
   vec sp_incoherent;
-  vcf3d xc;
+  vf3d xc;
   vec sp;
 
   // for SSS detection
@@ -762,33 +762,10 @@ double kalibrate(
     filter_my(coef, capbuf);
 
 //    double k_factor = 1.0; // need to be decided further together with sampling_carrier_twist
-    double period_ppm = NAN;
+    vec period_ppm;
 
     vec dynamic_f_search_set = f_search_set; // don't touch the original
-    if (!sampling_carrier_twist){
-//      timeval tim;
-//      gettimeofday(&tim, NULL);
-//      double t1=tim.tv_sec+(tim.tv_usec/1000000.0);
-
-      sampling_ppm_f_search_set_by_pss(capbuf, pss_fo_set, dynamic_f_search_set, period_ppm);
-
-//      gettimeofday(&tim, NULL);
-//      double t2=tim.tv_sec+(tim.tv_usec/1000000.0);
-//      printf("%.6lf seconds elapsed\n", t2-t1);
-
-      if (length(dynamic_f_search_set)<length(f_search_set) && !isnan(period_ppm) ) {
-        k_factor=(1+period_ppm*1e-6);
-      } else { // recover original mode
-        dynamic_f_search_set = f_search_set;
-        k_factor = 1.0;
-        period_ppm = NAN;
-        cout << "Calibration failed (no cells detected). Trying again..." << endl;
-        if (verbosity>=2) cout << "No valid PSS is found at pre-proc phase! Please try again.\n";
-        continue;
-  //      cout << "Pre search failed. Back to original sampling-carrier-twisted mode.\n";
-      }
-      pss_fo_set_gen_non_twist(dynamic_f_search_set, fs_programmed, k_factor, pss_fo_set_for_xcorr_pss);
-    }
+    sampling_ppm_f_search_set_by_pss(capbuf, pss_fo_set, sampling_carrier_twist, dynamic_f_search_set, period_ppm, xc);
 
     // Correlate
     uint16 n_comb_xc;
@@ -796,7 +773,7 @@ double kalibrate(
     if (verbosity>=2) {
       cout << "  Calculating PSS correlations" << endl;
     }
-    xcorr_pss(capbuf,dynamic_f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,pss_fo_set_for_xcorr_pss,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,xc,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist,k_factor);
+    xcorr_pss(capbuf,dynamic_f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,xc,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist,k_factor);
 
     // Calculate the threshold vector
     const uint8 thresh1_n_nines=12;

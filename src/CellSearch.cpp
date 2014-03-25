@@ -148,8 +148,8 @@ void parse_commandline(
   device_index=-1;
   opencl_platform = 0;
   opencl_device = 0;
-  filter_workitem = 32;
-  xcorr_workitem = 32;
+  filter_workitem = 64;
+  xcorr_workitem = 64;
 
   while (1) {
     static struct option long_options[] = {
@@ -597,7 +597,6 @@ int main(
   const vec fc_search_set=itpp_ext::matlab_range(freq_start,100e3,freq_end);
 
   cmat pss_fo_set;// pre-generate frequencies offseted pss time domain sequence
-  cmat pss_fo_set_for_xcorr_pss;// pre-generate frequencies offseted pss time domain sequence
   vec f_search_set;
   if (sampling_carrier_twist) { // original mode
     const uint16 n_extra=floor_i((freq_start*ppm/1e6+2.5e3)/5e3);
@@ -607,7 +606,6 @@ int main(
 //    f_search_set=to_vec(itpp_ext::matlab_range(-65000,5000,65000)); // 2*65kHz > 100kHz, overlap adjacent frequencies
       f_search_set=to_vec(itpp_ext::matlab_range(-100000,5000,100000)); // align to matlab script
   }
-
   pss_fo_set_gen(f_search_set, pss_fo_set);
 
   const uint16 n_fc=length(fc_search_set);
@@ -619,12 +617,12 @@ int main(
   for(uint32 i=0; i<n_fc; i++) {
     uint32 sp = i*num_try;
     uint32 ep = sp + num_try;
-    fc_search_set_multi_try.set_subvector(sp, ep, fc_search_set(i));
+    fc_search_set_multi_try.set_subvector(sp, ep-1, fc_search_set(i));
   }
 
   // get coefficients of 6 RB filter (to improve SNR)
   // coef = fir1(46, (0.18e6*6+150e3)/sampling_rate);
-  vec coef( sizeof( chn_6RB_filter_coef )/sizeof(float) );
+  vec coef(( sizeof( chn_6RB_filter_coef )/sizeof(float) ));
   for (uint16 i=0; i<length(coef); i++) {
     coef(i) = chn_6RB_filter_coef[i];
   }
@@ -637,7 +635,7 @@ int main(
   #endif
 
   double k_factor = 1.0; // need to be decided further together with sampling_carrier_twist
-  double period_ppm = NAN;
+  vec period_ppm;
 
   // for PSS correlate
   //cout << "DS_COMB_ARM override!!!" << endl;
@@ -646,8 +644,8 @@ int main(
   imat xc_incoherent_collapsed_frq;
   vf3d xc_incoherent_single;
   vf3d xc_incoherent;
+  vf3d xc;
   vec sp_incoherent;
-  vcf3d xc;
   vec sp;
 
   // for SSS detection
@@ -698,25 +696,22 @@ int main(
       filter_my(coef, capbuf);
     #endif
 //    tt.toc_print();
+//    it_file itf("capbuf.it",true);
+//    itf << Name("capbuf") << capbuf;
+//    itf.close();
+//    continue;
 
     vec dynamic_f_search_set = f_search_set; // don't touch the original
-    if (sampling_carrier_twist) {
-      if (try_idx==0) {
-        pss_fo_set_gen_twist(dynamic_f_search_set, fc_requested, fc_programmed, fs_programmed, pss_fo_set_for_xcorr_pss);
-      }
-    } else {
-      sampling_ppm_f_search_set_by_pss(capbuf, pss_fo_set, dynamic_f_search_set, period_ppm);
+    sampling_ppm_f_search_set_by_pss(capbuf, pss_fo_set, sampling_carrier_twist, dynamic_f_search_set, period_ppm, xc);
 
-      if (length(dynamic_f_search_set)<length(f_search_set) && !isnan(period_ppm) ) {
-        k_factor=(1+period_ppm*1e-6);
-      } else { // recover original mode
-        dynamic_f_search_set = f_search_set;
-        k_factor = 1.0;
-        period_ppm = NAN;
+    k_factor = 1;
+    if (!sampling_carrier_twist) {
+      if ( isnan(period_ppm[0]) ) {
         if (verbosity>=2) cout << "No valid PSS is found at pre-proc phase! Please try again.\n";
         continue;
+      } else {
+        k_factor = 1 + period_ppm[0]*1e-6;
       }
-      pss_fo_set_gen_non_twist(dynamic_f_search_set, fs_programmed, k_factor, pss_fo_set_for_xcorr_pss);
     }
 
     // Correlate
@@ -725,7 +720,7 @@ int main(
     if (verbosity>=2) {
       cout << "  Calculating PSS correlations" << endl;
     }
-    xcorr_pss(capbuf,dynamic_f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,pss_fo_set_for_xcorr_pss,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,xc,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist,k_factor);
+    xcorr_pss(capbuf,dynamic_f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,xc,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist,k_factor);
 
     // Calculate the threshold vector
     const uint8 thresh1_n_nines=12;

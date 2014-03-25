@@ -11,11 +11,9 @@ constant float chn_6RB_filter_coef[47] = { \
   3.535548569572820e-04,     8.193313185354206e-04
 };
 
-__kernel void skip2cols( __global float* in_i,
-                       __global float* in_q,
-                       __global float* out_i,
-                       __global float* out_q,
-                       uint len_in)
+__kernel void skip2cols( __global float2* in,
+                         __global float2* out,
+                         uint len_in)
 {// one work item per work group
   const size_t n = get_global_size(0);
   const size_t m = get_global_id(0);
@@ -24,16 +22,13 @@ __kernel void skip2cols( __global float* in_i,
 
   for (size_t i=0; i<sub_len; i++) {
     size_t new_base_idx = i*n;
-    out_i[new_base_idx + m] = in_i[base_idx + i];
-    out_q[new_base_idx + m] = in_q[base_idx + i];
+    out[new_base_idx + m] = in[base_idx + i];
   }
 }
 
-__kernel void multi_filter( __global float* in_i,
-                       __global float* in_q,
-                       __global float* out_i,
-                       __global float* out_q,
-                       uint len_in)
+__kernel void multi_filter( __global float2* in,
+                            __global float2* out,
+                            uint len_in)
 {// one work item per work group
   const size_t n = get_global_size(0);
   const size_t m = get_global_id(0);
@@ -44,65 +39,53 @@ __kernel void multi_filter( __global float* in_i,
   if (m==0){
     for (size_t i=(sub_len_out-filter_len+1); i<sub_len_out; i++){
       size_t base_idx = i*n;
-      out_i[base_idx] = 0;
-      out_q[base_idx] = 0;
+      out[base_idx] = (float2)(0.0f, 0.0f);
     }
   }
 
   for (size_t i=0; i<filter_len-1; i++){
-    float acc_i = 0;
-    float acc_q = 0;
+    float2 acc = (float2)(0.0f, 0.0f);
 
     for (size_t j=0; j<i+1; j++) {
       size_t base_idx = j*n;
-      acc_i = acc_i + in_i[base_idx + m] * chn_6RB_filter_coef[i-j];
-      acc_q = acc_q + in_q[base_idx + m] * chn_6RB_filter_coef[i-j];
+      acc = acc + in[base_idx + m] * chn_6RB_filter_coef[i-j];
     }
 
     size_t base_idx = i*n;
-    out_i[base_idx+m+1] = acc_i;
-    out_q[base_idx+m+1] = acc_q;
+    out[base_idx+m+1] = acc;
   }
 
 //  for (size_t i=filter_len-1; i<=sub_len_out-filter_len; i++){
-    for (size_t i=filter_len-1; i<=sub_len_in-1; i++){
-    float acc_i = 0;
-    float acc_q = 0;
+  for (size_t i=filter_len-1; i<=sub_len_in-1; i++){
+    float2 acc = (float2)(0.0f, 0.0f);
 
     for (size_t j=0; j<filter_len; j++) {
       size_t base_idx = (i-(filter_len-1)+j)*n;
-      acc_i = acc_i + in_i[base_idx + m] * chn_6RB_filter_coef[(filter_len-1)-j];
-      acc_q = acc_q + in_q[base_idx + m] * chn_6RB_filter_coef[(filter_len-1)-j];
+      acc = acc + in[base_idx + m] * chn_6RB_filter_coef[(filter_len-1)-j];
     }
 
     size_t base_idx = i*n;
-    out_i[base_idx+m+1] = acc_i;
-    out_q[base_idx+m+1] = acc_q;
+    out[base_idx+m+1] = acc;
   }
 
 //  for (size_t i=sub_len_out-filter_len+1; i<sub_len_out; i++){
-    for (size_t i=sub_len_in; i<sub_len_out; i++){
-    float acc_i = 0;
-    float acc_q = 0;
+  for (size_t i=sub_len_in; i<sub_len_out; i++){
+    float2 acc = (float2)(0.0f, 0.0f);
 
 //    for (size_t j=0; j<(filter_len- (i-(sub_len_out-filter_len))); j++) {
-      for (size_t j=0; j<sub_len_out-i; j++) {
+    for (size_t j=0; j<sub_len_out-i; j++) {
       size_t base_idx = (i-(filter_len-1)+j)*n;
-      acc_i = acc_i + in_i[base_idx + m] * chn_6RB_filter_coef[(filter_len-1)-j];
-      acc_q = acc_q + in_q[base_idx + m] * chn_6RB_filter_coef[(filter_len-1)-j];
+      acc = acc + in[base_idx + m] * chn_6RB_filter_coef[(filter_len-1)-j];
     }
 
     size_t base_idx = i*n;
-    out_i[base_idx+m+1] = acc_i;
-    out_q[base_idx+m+1] = acc_q;
+    out[base_idx+m+1] = acc;
   }
 }
 
-__kernel void result_combine( __global float* in_i,
-                       __global float* in_q,
-                       __global float* out_i,
-                       __global float* out_q,
-                       uint len_out)
+__kernel void result_combine( __global float2* in,
+                              __global float2* out,
+                              uint len_out)
 {
   const size_t n = get_global_size(0);
   const size_t m = get_global_id(0);
@@ -114,14 +97,12 @@ __kernel void result_combine( __global float* in_i,
   for (size_t i=0; i<filter_len-1; i++){
     size_t base_idx = i*n;
     size_t base_tail_idx = (sub_len_out+i)*n;
-    out_i[base_linear_idx+i] = in_i[base_idx+m+1] + in_i[base_tail_idx+m];
-    out_q[base_linear_idx+i] = in_q[base_idx+m+1] + in_q[base_tail_idx+m];
+    out[base_linear_idx+i] = in[base_idx+m+1] + in[base_tail_idx+m];
   }
 
   for (size_t i=filter_len-1; i<sub_len_out; i++){
     size_t base_idx = i*n;
-    out_i[base_linear_idx+i] = in_i[base_idx+m+1];
-    out_q[base_linear_idx+i] = in_q[base_idx+m+1];
+    out[base_linear_idx+i] = in[base_idx+m+1];
   }
 }
 
