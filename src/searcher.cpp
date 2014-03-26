@@ -857,6 +857,7 @@ void xc_combine(
   // Outputs
   vf3d & xc_incoherent_single,
   uint16 & n_comb_xc,
+  // end of Outpus
   const bool & sampling_carrier_twist,
   const double k_factor_in
 ) {
@@ -2780,7 +2781,14 @@ Cell tfoec(
       foe=foe+sum(elem_mult(conj(col(0,n_slot-2)),col(1,-1)));
     }
   }
-  double residual_f=arg(foe)/(2*pi)/0.0005;
+  double k_factor;
+  if (sampling_carrier_twist) {
+    k_factor=(fc_requested-cell.freq_fine)/fc_programmed;
+  }
+  else {
+    k_factor = cell.k_factor;
+  }
+  double residual_f=arg(foe)/(2*pi)/(k_factor*0.0005);
 
   // Perform FOC. Does not fix ICI!
   double k_factor_residual;
