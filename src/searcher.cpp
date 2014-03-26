@@ -863,7 +863,7 @@ void xc_combine(
 ) {
   const uint16 n_f=f_search_set.length();
 //  n_comb_xc=floor_i((xc[0].size()-100)/9600);
-  n_comb_xc=floor_i((xc[0].rows()-100)/9600);
+  n_comb_xc=floor_i((xc[0].cols()-100)/9600);
 
   // Create space for some arrays
 #ifndef NDEBUG
@@ -894,7 +894,7 @@ void xc_combine(
         double actual_start_index=itpp::round_i(m*.005*k_factor*fs_programmed);
         for (uint16 idx=0;idx<9600;idx++) {
 //          xc_incoherent_single[t][idx][foi]+=sqr(xc[t][idx+actual_start_index][foi]);
-          xc_incoherent_single[t][idx][foi]+=xc[t](idx+actual_start_index,foi);
+          xc_incoherent_single[t][idx][foi]+=xc[t](foi, idx+actual_start_index);
         }
       }
       for (uint16 idx=0;idx<9600;idx++) {
@@ -1327,24 +1327,24 @@ void pss_fo_set_gen(
 }
 
 mat circshift_mat_to_left(
-  mat & a
+  mat & a,
+  const uint32 n
 ) {
-//  uint num_row = a.rows();
-  uint num_col = a.rows();
-  vec tmp_col = a.get_col(0);
-  a.set_cols(0, a.get_cols(1, num_col-1));
-  a.set_col(num_col-1, tmp_col);
+  uint num_col = a.cols() - n;
+  mat tmp_mat = a.get_cols(0, n-1);
+  a.set_cols(0, a.get_cols(n, a.cols()-1));
+  a.set_cols(num_col, tmp_mat);
   return a;
 }
 
 mat circshift_mat_to_right(
-  mat & a
+  mat & a,
+  const uint32 n
 ) {
-//  uint num_row = a.rows();
-  uint num_col = a.rows();
-  vec tmp_col = a.get_col(num_col-1);
-  a.set_cols(1, a.get_cols(0, num_col-2));
-  a.set_col(0, tmp_col);
+  uint num_col = a.cols() - n;
+  mat tmp_mat = a.get_cols(num_col, a.cols()-1);
+  a.set_cols(n, a.get_cols(0, num_col-1));
+  a.set_cols(0, tmp_mat);
   return a;
 }
 
@@ -1405,9 +1405,9 @@ void sampling_ppm_f_search_set_by_pss(
 
     for (uint16 foi=0; foi<n_f; foi++) {
       for (uint16 t=0; t<num_pss; t++) {
-        xc[t].set_size(len_short, n_f);
+        xc[t].set_size(n_f, len_short);
         col_idx = t*num_fo_orig + foi;
-        xc[t].set_col(foi, corr_store.get_row(col_idx));
+        xc[t].set_row(foi, corr_store.get_row(col_idx));
       }
     }
 
@@ -1454,7 +1454,13 @@ void sampling_ppm_f_search_set_by_pss(
       ep = sp + tmp_pss_period;
       corr_store_tmp = corr_store_tmp + corr_store.get_cols(sp, ep-1);
     }
-    corr_store_tmp = corr_store_tmp + circshift_mat_to_left(corr_store_tmp) + circshift_mat_to_right(corr_store_tmp);
+//    corr_store_tmp = corr_store_tmp + circshift_mat_to_left(corr_store_tmp) + circshift_mat_to_right(corr_store_tmp); // problem! be careful!
+    corr_store_tmp_shift_left = corr_store_tmp;
+    circshift_mat_to_left(corr_store_tmp_shift_left, 1);
+    corr_store_tmp_shift_right = corr_store_tmp;
+    circshift_mat_to_right(corr_store_tmp_shift_right, 1);
+    corr_store_tmp = corr_store_tmp + corr_store_tmp_shift_left + corr_store_tmp_shift_right;
+
     sp = i*num_fo_pss;
     ep = sp + num_fo_pss;
     max_peak_all.set_subvector(sp, max(corr_store_tmp, max_idx_all_tmp, 2) );
@@ -1478,7 +1484,7 @@ void sampling_ppm_f_search_set_by_pss(
 
   ivec sort_idx = sort_index(max_peak_all);
   sort_idx = reverse(sort_idx); // from ascending to descending
-  DBG( cout << "Hit        PAR " << 10*log10( peak_to_avg.get( sort_idx(0, max_reserve-1) ) ) << "dB\n"; )
+  DBG( cout << "Hit        PAR " << 10.0*log10( peak_to_avg.get( sort_idx(0, max_reserve-1) ) ) << "dB\n"; )
 
   ivec above_par_idx = to_ivec( peak_to_avg.get( sort_idx(0, max_reserve-1) ) > pow(10.0, 8.5/10.0) );
   uint16 len_sort_idx = sum(above_par_idx);
@@ -1587,7 +1593,7 @@ void sampling_ppm_f_search_set_by_pss(
 
     exist_flag = false;
     for (uint16 j=0; j<real_count; j++) {
-      if (f_tmp == f_set[j] && abs(ppm_tmp-ppm[j])<4 ) {
+      if ( abs(f_tmp-f_set[j])<7500 && abs(ppm_tmp-ppm[j])<6 ) {
         exist_flag = true;
         DBG( cout << "duplicated fo and ppm " << (f_tmp/1.0e3) << "kHz " << ppm_tmp << "PPM at i=" << i << " j=" << j << "\n"; )
         break;
@@ -1616,9 +1622,9 @@ void sampling_ppm_f_search_set_by_pss(
   n_f = real_count;
   for (uint16 foi=0; foi<n_f; foi++) {
     for (uint16 t=0; t<num_pss; t++) {
-      xc[t].set_size(len_short, n_f);
+      xc[t].set_size(n_f, len_short);
       col_idx = t*num_fo_orig + fo_idx_set[foi];
-      xc[t].set_col(foi, corr_store.get_row(col_idx));
+      xc[t].set_row(foi, corr_store.get_row(col_idx));
     }
   }
 

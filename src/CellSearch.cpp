@@ -729,15 +729,15 @@ int main(
 
       vec tmp_f_search(1);
       vector <mat> tmp_xc(3);
-      tmp_xc[0].set_size(length(capbuf)-136, 1);
-      tmp_xc[1].set_size(length(capbuf)-136, 1);
-      tmp_xc[2].set_size(length(capbuf)-136, 1);
+      tmp_xc[0].set_size(1, length(capbuf)-136);
+      tmp_xc[1].set_size(1, length(capbuf)-136);
+      tmp_xc[2].set_size(1, length(capbuf)-136);
       for (uint16 i=0; i<length(k_factor_set); i++) {
 
         tmp_f_search(0) = dynamic_f_search_set(i);
-        tmp_xc[0].set_col(0, xc[0].get_col(i));
-        tmp_xc[1].set_col(0, xc[1].get_col(i));
-        tmp_xc[2].set_col(0, xc[2].get_col(i));
+        tmp_xc[0].set_row(0, xc[0].get_row(i));
+        tmp_xc[1].set_row(0, xc[1].get_row(i));
+        tmp_xc[2].set_row(0, xc[2].get_row(i));
 
         // Correlate
         uint16 n_comb_xc;
