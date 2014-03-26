@@ -115,8 +115,8 @@
 using namespace itpp;
 using namespace std;
 
-//#define DBG(CODE) CODE
-#define DBG(CODE)
+#define DBG(CODE) CODE
+//#define DBG(CODE)
 
 #define USE_OPENCL // just for debug purpose. It should be removed before formal release
 
@@ -858,10 +858,11 @@ void xc_combine(
   vf3d & xc_incoherent_single,
   uint16 & n_comb_xc,
   const bool & sampling_carrier_twist,
-  double & k_factor
+  const double k_factor_in
 ) {
   const uint16 n_f=f_search_set.length();
-  n_comb_xc=floor_i((xc[0].size()-100)/9600);
+//  n_comb_xc=floor_i((xc[0].size()-100)/9600);
+  n_comb_xc=floor_i((xc[0].rows()-100)/9600);
 
   // Create space for some arrays
 #ifndef NDEBUG
@@ -869,11 +870,14 @@ void xc_combine(
 #else
   xc_incoherent_single=vector < vector < vector < float > > > (3,vector< vector < float > >(9600, vector < float > (n_f)));
 #endif
+  double k_factor;
   for (uint16 foi=0;foi<n_f;foi++) {
     // Combine incoherently
     const double f_off=f_search_set[foi];
     if (sampling_carrier_twist) {
         k_factor=(fc_requested-f_off)/fc_programmed;
+    } else {
+        k_factor = k_factor_in;
     }
 
     for (uint8 t=0;t<3;t++) {
@@ -1321,16 +1325,38 @@ void pss_fo_set_gen(
   }
 }
 
+mat circshift_mat_to_left(
+  mat & a
+) {
+//  uint num_row = a.rows();
+  uint num_col = a.rows();
+  vec tmp_col = a.get_col(0);
+  a.set_cols(0, a.get_cols(1, num_col-1));
+  a.set_col(num_col-1, tmp_col);
+  return a;
+}
+
+mat circshift_mat_to_right(
+  mat & a
+) {
+//  uint num_row = a.rows();
+  uint num_col = a.rows();
+  vec tmp_col = a.get_col(num_col-1);
+  a.set_cols(1, a.get_cols(0, num_col-2));
+  a.set_col(0, tmp_col);
+  return a;
+}
+
 void conv_capbuf_with_pss(
   // Inputs
   const cvec & s,
   const cmat & pss_fo_set,
-  const uint16 & num_fo_pss,
   // Output
   mat & corr_store
 ) {
   const uint32 len = length(s);
-  const uint16 len_pss = length(ROM_TABLES.pss_td[0]);
+  const uint16 len_pss = pss_fo_set.cols();
+  const uint16 num_fo_pss = pss_fo_set.rows();
 
   vec tmp(num_fo_pss);
   cvec chn_tmp(len_pss);
@@ -1338,7 +1364,7 @@ void conv_capbuf_with_pss(
     chn_tmp = s(i, (i+len_pss-1));
     tmp = abs(pss_fo_set*chn_tmp);
     tmp = elem_mult( tmp,tmp );
-    corr_store.set_row(i, tmp);
+    corr_store.set_col(i, tmp);
   }
 }
 
@@ -1347,6 +1373,7 @@ void sampling_ppm_f_search_set_by_pss(
   const cvec & s,
   const cmat & pss_fo_set,
   const bool & sampling_carrier_twist,
+  const uint16 & max_reserve,
   // Inputs&Outputs
   vec & fo_search_set,
   // Outpus
@@ -1355,14 +1382,248 @@ void sampling_ppm_f_search_set_by_pss(
 ) {
   const uint16 len_pss = length(ROM_TABLES.pss_td[0]);
   const uint16 num_fo_orig = length(fo_search_set);
-  const uint16 num_fo_pss = 3*num_fo_orig;
+  const uint16 num_fo_pss = pss_fo_set.rows();
   const uint32 len = length(s);
   const uint32 len_short = len - (len_pss-1);
+  const uint16 num_pss = 3;
 
   mat corr_store(num_fo_pss, len_short);
 
-  conv_capbuf_with_pss(s, pss_fo_set, num_fo_pss, corr_store);
+  conv_capbuf_with_pss(s, pss_fo_set, corr_store);
 
+  ppm.set_length(1, false);
+
+  vec f_set;
+  ivec fo_idx_set;
+  uint16 n_f;
+  uint16 col_idx;
+  if (sampling_carrier_twist) {
+    ppm(0) = NAN;
+
+    n_f = num_fo_orig;
+
+    for (uint16 foi=0; foi<n_f; foi++) {
+      for (uint16 t=0; t<num_pss; t++) {
+        xc[t].set_size(len_short, n_f);
+        col_idx = t*num_fo_orig + foi;
+        xc[t].set_col(foi, corr_store.get_row(col_idx));
+      }
+    }
+
+    DBG( cout << "Corr done.\n"; )
+    return;
+  }
+
+  const uint16 num_ppm_try = 3;
+
+  ivec pss_period(num_pss);
+  pss_period[0] = (19200/2)-1;
+  pss_period[1] = (19200/2);
+  pss_period[2] = (19200/2)+1;
+
+  ivec num_half_radioframe(num_pss);
+  num_half_radioframe[0] = len_short/pss_period[0];
+  num_half_radioframe[1] = len_short/pss_period[1];
+  num_half_radioframe[2] = len_short/pss_period[2];
+
+  vec max_peak_all(num_ppm_try*num_fo_pss);
+  ivec max_idx_all(num_ppm_try*num_fo_pss);
+  ivec max_idx_all_tmp(num_fo_pss);
+  vec peak_to_avg(num_ppm_try*num_fo_pss);
+  mat corr_store_tmp;
+  mat corr_store_tmp_shift_left;
+  mat corr_store_tmp_shift_right;
+  vec corr_store_tmp_col;
+
+  uint32 tmp_pss_period;
+  int tmp_max_idx, tmp_idx;
+
+  for (uint16 i=0; i<num_ppm_try; i++) {
+    tmp_pss_period = pss_period[i];
+
+    corr_store_tmp.set_size(num_fo_pss, tmp_pss_period, false);
+    corr_store_tmp_shift_left.set_size(num_fo_pss, tmp_pss_period, false);
+    corr_store_tmp_shift_right.set_size(num_fo_pss, tmp_pss_period, false);
+    corr_store_tmp_col.set_length(tmp_pss_period, false);
+
+    corr_store_tmp.zeros();
+    uint32 sp, ep;
+    for (uint16 j=0; j<num_half_radioframe[i]; j++) {
+      sp = j*tmp_pss_period;
+      ep = sp + tmp_pss_period;
+      corr_store_tmp = corr_store_tmp + corr_store.get_cols(sp, ep-1);
+    }
+    corr_store_tmp = corr_store_tmp + circshift_mat_to_left(corr_store_tmp) + circshift_mat_to_right(corr_store_tmp);
+    sp = i*num_fo_pss;
+    ep = sp + num_fo_pss;
+    max_peak_all.set_subvector(sp, max(corr_store_tmp, max_idx_all_tmp, 2) );
+    max_idx_all.set_subvector(sp, max_idx_all_tmp);
+    double tmp_peak, tmp_avg_val;
+    ivec peak_area_range(2*80+1);
+    vec tmp_avg_vec(tmp_pss_period);
+    for (uint16 j=sp; j<ep; j++) {
+      tmp_peak = max_peak_all(j);
+      tmp_max_idx = max_idx_all(j);
+      peak_area_range = itpp_ext::matlab_range(tmp_max_idx-80, tmp_max_idx+80);
+      peak_area_range = itpp_ext::matlab_mod(peak_area_range, tmp_pss_period);
+      tmp_avg_vec = corr_store_tmp.get_row(j-sp);
+      for (uint16 k=0; k<(2*80+1); k++) {
+        tmp_avg_vec[peak_area_range[k]] = 0.0;
+      }
+      tmp_avg_val = sum(tmp_avg_vec)/((double)tmp_pss_period-(2.0*80.0+1.0));
+      peak_to_avg(j) = tmp_peak/tmp_avg_val;
+    }
+  }
+
+  ivec sort_idx = sort_index(max_peak_all);
+  sort_idx = reverse(sort_idx); // from ascending to descending
+  DBG( cout << "Hit        PAR " << 10*log10( peak_to_avg.get( sort_idx(0, max_reserve-1) ) ) << "dB\n"; )
+
+  ivec above_par_idx = to_ivec( peak_to_avg.get( sort_idx(0, max_reserve-1) ) > pow(10.0, 8.5/10.0) );
+  uint16 len_sort_idx = sum(above_par_idx);
+
+  if (len_sort_idx==0) {
+    ppm[0] = NAN;
+    DBG( cout << "No strong enough PSS correlation peak.\n"; )
+    return;
+  }
+
+  ivec tmp_sort_idx = sort_idx(0, max_reserve-1);
+  sort_idx.set_length(len_sort_idx, false);
+
+  len_sort_idx = 0;
+  for (uint16 i=0; i<max_reserve; i++) {
+    if (above_par_idx[i] == 1) {
+      sort_idx[len_sort_idx] = tmp_sort_idx[i];
+      len_sort_idx++;
+    }
+  }
+
+  ivec max_idx = max_idx_all.get(sort_idx);
+
+  ppm.set_length(len_sort_idx, false);
+  f_set.set_length(len_sort_idx, false);
+  fo_idx_set.set_length(len_sort_idx, false);
+
+  uint16 shift_idx, fo_pss_idx, fo_idx, num_peak, first_idx;
+  int16 last_idx;
+  double f_tmp, tmp_val, peak_left, peak_right, peak_base, sum_peak, peak_location, peak_val_th, real_dist, ideal_dist, ppm_tmp;
+  vec corr_seq(len_short);
+  uint16 real_count = 0;
+  bool exist_flag;
+  for (uint16 i=0; i<len_sort_idx; i++) {
+    shift_idx = sort_idx[i]/num_fo_pss;
+    fo_pss_idx = sort_idx[i] - shift_idx*num_fo_pss;
+
+    fo_idx = mod(fo_pss_idx, num_fo_orig);
+    f_tmp = fo_search_set[fo_idx];
+
+    corr_seq = corr_store.get_row(fo_pss_idx);
+    tmp_max_idx = max_idx[i];
+    tmp_pss_period = pss_period[shift_idx];
+    tmp_max_idx = tmp_max_idx + (tmp_max_idx-3<0?tmp_pss_period:0);
+
+    num_peak = num_half_radioframe[shift_idx] + 1;
+    vec peak_val(num_peak);
+    vec peak_idx(num_peak);
+    uint16 peak_count = 0;
+    for (uint32 j=tmp_max_idx; j<len_short; j=j+tmp_pss_period) {
+      if ( (j+3) <len_short) {
+        tmp_val = max(corr_seq(j-3, j+3), tmp_idx);
+        peak_location = j-3+tmp_idx;
+        if (tmp_idx != 0 && tmp_idx != 6) {
+          peak_val[peak_count] = tmp_val;
+
+          peak_left =  corr_seq(peak_location-1);
+          peak_right = corr_seq(peak_location+1);
+          peak_base = min(peak_left, peak_right);
+
+          tmp_val = tmp_val - peak_base;
+          peak_left = peak_left - peak_base;
+          peak_right = peak_right - peak_base;
+          sum_peak = tmp_val + peak_left + peak_right;
+
+          peak_location = ( (peak_location-1)*peak_left/sum_peak ) + ( peak_location*tmp_val/sum_peak ) + ( (peak_location+1)*peak_right/sum_peak );
+        }
+        else {
+          peak_val[peak_count] = 0;
+          DBG( cout << "Seems not a peak " << corr_seq(j-3, j+3) << " at i=" << i << " j=" << j << "\n"; )
+        }
+        peak_idx[peak_count] = peak_location;
+        peak_count++;
+      } else {
+        break;
+      }
+    }
+    peak_val.set_length(peak_count, true);
+    peak_idx.set_length(peak_count, true);
+
+    peak_val_th = max(peak_val)/2.0;
+
+    for (first_idx=0; first_idx<peak_count; first_idx++) {
+      if (peak_val[first_idx] > peak_val_th) {
+        break;
+      }
+    }
+
+    for (last_idx=peak_count-1; last_idx>=0; last_idx--) {
+      if (peak_val[last_idx] > peak_val_th) {
+        break;
+      }
+    }
+
+    if ( (double)(last_idx-first_idx) < (double)num_peak*2.0/3.0  ) {
+      DBG( cout << "Too few peak at i=" << i << " of total " << len_sort_idx << "\n"; );
+      continue;
+    } else {
+      DBG( cout << "Hit num forPPM " << (last_idx-first_idx) << "\n"; )
+    }
+
+    real_dist = peak_idx[last_idx] - peak_idx[first_idx];
+    ideal_dist = itpp::round(real_dist/9600.0)*9600.0;
+
+    ppm_tmp = 1e6 * (real_dist - ideal_dist)/ideal_dist;
+
+    exist_flag = false;
+    for (uint16 j=0; j<real_count; j++) {
+      if (f_tmp == f_set[j] && abs(ppm_tmp-ppm[j])<4 ) {
+        exist_flag = true;
+        DBG( cout << "duplicated fo and ppm " << (f_tmp/1.0e3) << "kHz " << ppm_tmp << "PPM at i=" << i << " j=" << j << "\n"; )
+        break;
+      }
+    }
+
+    if (!exist_flag) {
+      f_set[real_count] = f_tmp;
+      ppm[real_count] = ppm_tmp;
+      fo_idx_set[real_count] = fo_idx;
+      real_count++;
+    }
+  }
+
+  if (real_count==0) {
+    ppm[0] = NAN;
+    DBG( cout << "No valid PSS hit sequence.\n"; )
+    return;
+  }
+
+  fo_search_set.set_length(real_count, false);
+  fo_search_set = f_set(0, real_count-1);
+  ppm.set_length(real_count, true);
+  fo_idx_set.set_length(real_count, true);
+
+  n_f = real_count;
+  for (uint16 foi=0; foi<n_f; foi++) {
+    for (uint16 t=0; t<num_pss; t++) {
+      xc[t].set_size(len_short, n_f);
+      col_idx = t*num_fo_orig + fo_idx_set[foi];
+      xc[t].set_col(foi, corr_store.get_row(col_idx));
+    }
+  }
+
+  DBG( cout << "Hit         FO " << (fo_search_set/1e3) << "kHz\n"; )
+  DBG( cout << "Hit        PPM " << ppm << "\n"; )
+  DBG( cout << "Hit     FO idx " << fo_idx_set << "\n"; )
 }
 
 // pre-processing before xcorr_pss
@@ -1850,7 +2111,7 @@ void xcorr_pss(
   uint16 & n_comb_sp,
   // end of debugging
   const bool & sampling_carrier_twist,
-  double & k_factor
+  const double k_factor
 ) {
   // Perform correlations
 //  xc_correlate(capbuf,f_search_set,fc_requested,fc_programmed,fs_programmed,sampling_carrier_twist,k_factor,xc);
@@ -1876,7 +2137,8 @@ void peak_search(
   const double & fc_programmed,
   const vf3d & xc_incoherent_single,
   const uint8 & ds_comb_arm,
-  const double & k_factor,
+  const bool & sampling_carrier_twist,
+  const double k_factor,
   // Outputs
   list <Cell> & cells
 ) {
@@ -1921,7 +2183,14 @@ void peak_search(
     cell.ind=best_ind;
     cell.freq=f_search_set(xc_incoherent_collapsed_frq(peak_n_id_2,peak_ind));
     cell.n_id_2=peak_n_id_2;
-    cell.k_factor = k_factor;
+
+    if (sampling_carrier_twist) {
+      cell.k_factor = (fc_requested-cell.freq)/fc_programmed;
+    }
+    else {
+      cell.k_factor = k_factor;
+    }
+
     cells.push_back(cell);
 
     // Cancel out the false peaks around this one.
@@ -1994,7 +2263,6 @@ void sss_detect_getce_sss(
   cvec & sss_h1_ext_est,
   cvec & sss_h2_ext_est,
   const bool & sampling_carrier_twist,
-  double & k_factor,
   const int & tdd_flag
 ) {
   // Local copies
@@ -2002,8 +2270,11 @@ void sss_detect_getce_sss(
   const double peak_freq=cell.freq;
   const uint8 n_id_2_est=cell.n_id_2;
 
+  double k_factor;
   if (sampling_carrier_twist) {
       k_factor=(fc_requested-peak_freq)/fc_programmed;
+  } else {
+      k_factor = cell.k_factor;
   }
   // Skip to the right by 5 subframes if there is no room here to detect
   // the SSS.
@@ -2182,11 +2453,11 @@ Cell sss_detect(
   mat & log_lik_nrm,
   mat & log_lik_ext,
   const bool & sampling_carrier_twist,
-  double & k_factor,
   const int & tdd_flag
 ) {
+  double k_factor;
   // Get the channel estimates and extract the raw SSS subcarriers
-  sss_detect_getce_sss(cell,capbuf,fc_requested,fc_programmed,fs_programmed,sss_h1_np_est,sss_h2_np_est,sss_h1_nrm_est,sss_h2_nrm_est,sss_h1_ext_est,sss_h2_ext_est,sampling_carrier_twist,k_factor,tdd_flag);
+  sss_detect_getce_sss(cell,capbuf,fc_requested,fc_programmed,fs_programmed,sss_h1_np_est,sss_h2_np_est,sss_h1_nrm_est,sss_h2_nrm_est,sss_h1_ext_est,sss_h2_ext_est,sampling_carrier_twist,tdd_flag);
   // Perform maximum likelihood detection
   sss_detect_ml(cell,sss_h1_np_est,sss_h2_np_est,sss_h1_nrm_est,sss_h2_nrm_est,sss_h1_ext_est,sss_h2_ext_est,log_lik_nrm,log_lik_ext);
 
@@ -2210,6 +2481,8 @@ Cell sss_detect(
   // location will have a measured time offset of 2 samples.
   if (sampling_carrier_twist==1) {
     k_factor=(fc_requested-cell.freq)/fc_programmed;
+  } else {
+    k_factor = cell.k_factor;
   }
   double frame_start=0;
 
@@ -2262,11 +2535,13 @@ Cell pss_sss_foe(
   const double & fc_programmed,
   const double & fs_programmed,
   const bool & sampling_carrier_twist,
-  double & k_factor,
   const int & tdd_flag
 ) {
+  double k_factor;
   if (sampling_carrier_twist){
     k_factor=(fc_requested-cell_in.freq)/fc_programmed;
+  } else {
+    k_factor = cell_in.k_factor;
   }
 
   // Determine where we can find both PSS and SSS
@@ -2376,8 +2651,7 @@ void extract_tfg(
   // Outputs
   cmat & tfg,
   vec & tfg_timestamp,
-  const bool & sampling_carrier_twist,
-  double & k_factor
+  const bool & sampling_carrier_twist
 ) {
   // Local shortcuts
   const double frame_start=cell.frame_start;
@@ -2386,8 +2660,11 @@ void extract_tfg(
 
   // Derive some values
   // fc*k_factor is the receiver's actual RX center frequency.
+  double k_factor;
   if (sampling_carrier_twist){
     k_factor=(fc_requested-cell.freq_fine)/fc_programmed;
+  } else {
+    k_factor = cell.k_factor;
   }
   const int8 n_symb_dl=cell.n_symb_dl();
   double dft_location;
@@ -2476,8 +2753,7 @@ Cell tfoec(
   // Outputs
   cmat & tfg_comp,
   vec & tfg_comp_timestamp,
-  const bool & sampling_carrier_twist,
-  double & k_factor_residual
+  const bool & sampling_carrier_twist
 ) {
   // Local shortcuts
   const int8 n_symb_dl=cell.n_symb_dl();
@@ -2507,8 +2783,12 @@ Cell tfoec(
   double residual_f=arg(foe)/(2*pi)/0.0005;
 
   // Perform FOC. Does not fix ICI!
+  double k_factor_residual;
   if (sampling_carrier_twist){
     k_factor_residual=(fc_requested-residual_f)/fc_programmed;
+  } else {
+//    k_factor_residual = cell.k_factor;
+    k_factor_residual = 1.0;
   }
 
   tfg_comp=cmat(n_ofdm,72);
@@ -2586,6 +2866,9 @@ Cell tfoec(
 
   Cell cell_out(cell);
   cell_out.freq_superfine=cell_out.freq_fine+residual_f;
+  if (sampling_carrier_twist){
+    cell_out.k_factor=(fc_requested-cell_out.freq_superfine)/fc_programmed;
+  }
   return cell_out;
 }
 

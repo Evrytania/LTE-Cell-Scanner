@@ -61,9 +61,9 @@ void print_usage() {
   cout << "    -i --device-index N" << endl;
   cout << "      specify which attached RTLSDR dongle to use" << endl;
   cout << "    -a --opencl-platform N" << endl;
-  cout << "      specify which OpenCL platform to use (default 0; index start with 0)" << endl;
+  cout << "      specify which OpenCL platform to use (default: 0)" << endl;
   cout << "    -j --opencl-device N" << endl;
-  cout << "      specify which OpenCL device of selected platform to use (default 0; index start with 0)" << endl;
+  cout << "      specify which OpenCL device of selected platform to use (default: 0)" << endl;
   cout << "    -w --filter-workitem N" << endl;
   cout << "      specify how many OpenCL workitems are used for the 1st dim of 6RB filter (you'd better use values like 2^n)" << endl;
   cout << "    -u --xcorr-workitem N" << endl;
@@ -74,7 +74,9 @@ void print_usage() {
   cout << "    -e --freq-end fe" << endl;
   cout << "      frequency where cell search should end" << endl;
   cout << "    -n --num-try nt" << endl;
-  cout << "      number of tries at each frequency/file" << endl;
+  cout << "      number of tries at each frequency/file (default: 1)" << endl;
+  cout << "    -m --num-reserve N" << endl;
+  cout << "      number of reserved frequency-ppm peak pairs in pre-search phase (default: 1)" << endl;
   cout << "  Dongle LO correction options:" << endl;
   cout << "    -t --twisted" << endl;
   cout << "      enable original sampling-carrier-twisted mode (default is disable and using carrier&sampling isolated pre-search to support external mixer/LNB)" << endl;
@@ -120,7 +122,7 @@ void parse_commandline(
   // Outputs
   double & freq_start,
   double & freq_end,
-  int & num_try,
+  uint16 & num_try,
   bool & sampling_carrier_twist,
   double & ppm,
   double & correction,
@@ -130,10 +132,11 @@ void parse_commandline(
   int & device_index,
   char * record_bin_filename,
   char * load_bin_filename,
-  uint & opencl_platform,
-  uint & opencl_device,
-  uint & filter_workitem,
-  uint & xcorr_workitem
+  uint16 & opencl_platform,
+  uint16 & opencl_device,
+  uint16 & filter_workitem,
+  uint16 & xcorr_workitem,
+  uint16 & num_reserve
 ) {
   // Default values
   freq_start=-1;
@@ -150,6 +153,7 @@ void parse_commandline(
   opencl_device = 0;
   filter_workitem = 64;
   xcorr_workitem = 64;
+  num_reserve = 1;
 
   while (1) {
     static struct option long_options[] = {
@@ -172,11 +176,12 @@ void parse_commandline(
       {"opencl-device", required_argument, 0, 'j'},
       {"filter-workitem", required_argument, 0, 'w'},
       {"xcorr-workitem", required_argument, 0, 'u'},
+      {"num-reserve", required_argument, 0, 'm'},
       {0, 0, 0, 0}
     };
     /* getopt_long stores the option index here. */
     int option_index = 0;
-    int c = getopt_long (argc, argv, "hvbs:e:n:tp:c:z:y:rld:i:a:j:w:",
+    int c = getopt_long (argc, argv, "hvbs:e:n:tp:c:z:y:rld:i:a:j:w:u:m:",
                      long_options, &option_index);
 
     /* Detect the end of the options. */
@@ -308,6 +313,9 @@ void parse_commandline(
         filter_workitem=strtol(optarg,&endp,10);
       case 'u':
         xcorr_workitem=strtol(optarg,&endp,10);
+        break;
+      case 'm':
+        num_reserve=strtol(optarg,&endp,10);
         break;
       case '?':
         /* getopt_long already printed an error message. */
@@ -564,23 +572,24 @@ int main(
   // Command line parameters are stored here.
   double freq_start;
   double freq_end;
-  int32 num_try;
+  uint16 num_try;
   bool sampling_carrier_twist;
   double ppm;
   double correction;
   bool save_cap;
   bool use_recorded_data;
   string data_dir;
-  int32 device_index;
+  int device_index;
   char record_bin_filename[256] = {0};
   char load_bin_filename[256] = {0};
-  uint opencl_platform;
-  uint opencl_device;
-  uint filter_workitem;
-  uint xcorr_workitem;
+  uint16 opencl_platform;
+  uint16 opencl_device;
+  uint16 filter_workitem;
+  uint16 xcorr_workitem;
+  uint16 num_reserve;
 
   // Get search parameters from user
-  parse_commandline(argc,argv,freq_start,freq_end,num_try,sampling_carrier_twist,ppm,correction,save_cap,use_recorded_data,data_dir,device_index, record_bin_filename, load_bin_filename,opencl_platform,opencl_device,filter_workitem,xcorr_workitem);
+  parse_commandline(argc,argv,freq_start,freq_end,num_try,sampling_carrier_twist,ppm,correction,save_cap,use_recorded_data,data_dir,device_index, record_bin_filename, load_bin_filename,opencl_platform,opencl_device,filter_workitem,xcorr_workitem,num_reserve);
 
   // Open the USB device (if necessary).
   rtlsdr_dev_t * dev=NULL;
@@ -634,7 +643,6 @@ int main(
   lte_ocl.setup_filter_my((string)"filter_my_kernels.cl");
   #endif
 
-  double k_factor = 1.0; // need to be decided further together with sampling_carrier_twist
   vec period_ppm;
   vec k_factor_set;
 
@@ -707,7 +715,7 @@ int main(
 //    continue;
 
     vec dynamic_f_search_set = f_search_set; // don't touch the original
-    sampling_ppm_f_search_set_by_pss(capbuf, pss_fo_set, sampling_carrier_twist, dynamic_f_search_set, period_ppm, xc);
+    sampling_ppm_f_search_set_by_pss(capbuf, pss_fo_set, sampling_carrier_twist, num_reserve, dynamic_f_search_set, period_ppm, xc);
 
     list <Cell> peak_search_cells;
     if (!sampling_carrier_twist) {
@@ -737,7 +745,7 @@ int main(
         if (verbosity>=2) {
           cout << "  Calculating PSS correlations" << endl;
         }
-        xcorr_pss(capbuf,tmp_f_search,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,tmp_xc,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist,k_factor_set[i]);
+        xcorr_pss(capbuf,tmp_f_search,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,tmp_xc,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist,(const double)k_factor_set[i]);
 
         // Calculate the threshold vector
         double R_th1=chi2cdf_inv(1-pow(10.0,-thresh1_n_nines),2*n_comb_xc*(2*DS_COMB_ARM+1));
@@ -747,20 +755,19 @@ int main(
         if (verbosity>=2) {
           cout << "  Searching for and examining correlation peaks..." << endl;
         }
-        peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,tmp_f_search,fc_requested,fc_programmed,xc_incoherent_single,DS_COMB_ARM,k_factor_set[i],peak_search_cells);
+        peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,tmp_f_search,fc_requested,fc_programmed,xc_incoherent_single,DS_COMB_ARM,sampling_carrier_twist,(const double)k_factor_set[i],peak_search_cells);
 
       }
 
     } else {
 
-      double k_factor = 1;
       // Correlate
       uint16 n_comb_xc;
       uint16 n_comb_sp;
       if (verbosity>=2) {
         cout << "  Calculating PSS correlations" << endl;
       }
-      xcorr_pss(capbuf,dynamic_f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,xc,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist,k_factor);
+      xcorr_pss(capbuf,dynamic_f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,xc,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist,NAN);
 
       // Calculate the threshold vector
       double R_th1=chi2cdf_inv(1-pow(10.0,-thresh1_n_nines),2*n_comb_xc*(2*DS_COMB_ARM+1));
@@ -770,7 +777,7 @@ int main(
       if (verbosity>=2) {
         cout << "  Searching for and examining correlation peaks..." << endl;
       }
-      peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,dynamic_f_search_set,fc_requested,fc_programmed,xc_incoherent_single,DS_COMB_ARM,k_factor,peak_search_cells);
+      peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,dynamic_f_search_set,fc_requested,fc_programmed,xc_incoherent_single,DS_COMB_ARM,sampling_carrier_twist,NAN,peak_search_cells);
 
     }
 
@@ -789,7 +796,7 @@ int main(
       cell_temp = (*iterator);
       for(tdd_flag=0;tdd_flag<2;tdd_flag++)
       {
-        (*iterator)=sss_detect(cell_temp,capbuf,THRESH2_N_SIGMA,fc_requested,fc_programmed,fs_programmed,sss_h1_np_est_meas,sss_h2_np_est_meas,sss_h1_nrm_est_meas,sss_h2_nrm_est_meas,sss_h1_ext_est_meas,sss_h2_ext_est_meas,log_lik_nrm,log_lik_ext,sampling_carrier_twist,k_factor,tdd_flag);
+        (*iterator)=sss_detect(cell_temp,capbuf,THRESH2_N_SIGMA,fc_requested,fc_programmed,fs_programmed,sss_h1_np_est_meas,sss_h2_np_est_meas,sss_h1_nrm_est_meas,sss_h2_nrm_est_meas,sss_h1_ext_est_meas,sss_h2_ext_est_meas,log_lik_nrm,log_lik_ext,sampling_carrier_twist,tdd_flag);
         if ((*iterator).n_id_1!=-1)
             break;
       }
@@ -799,16 +806,16 @@ int main(
         continue;
       }
       // Fine FOE
-      (*iterator)=pss_sss_foe((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,sampling_carrier_twist,k_factor,tdd_flag);
+      (*iterator)=pss_sss_foe((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,sampling_carrier_twist,tdd_flag);
 
       // Extract time and frequency grid
-      extract_tfg((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,tfg,tfg_timestamp,sampling_carrier_twist,k_factor);
+      extract_tfg((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,tfg,tfg_timestamp,sampling_carrier_twist);
 
       // Create object containing all RS
       RS_DL rs_dl((*iterator).n_id_cell(),6,(*iterator).cp_type);
 
       // Compensate for time and frequency offsets
-      (*iterator)=tfoec((*iterator),tfg,tfg_timestamp,fc_requested,fc_programmed,rs_dl,tfg_comp,tfg_comp_timestamp,sampling_carrier_twist,k_factor);
+      (*iterator)=tfoec((*iterator),tfg,tfg_timestamp,fc_requested,fc_programmed,rs_dl,tfg_comp,tfg_comp_timestamp,sampling_carrier_twist);
 
       // Finally, attempt to decode the MIB
       (*iterator)=decode_mib((*iterator),tfg_comp,rs_dl);
@@ -827,7 +834,7 @@ int main(
         cout << "     PSS ID: " << (*iterator).n_id_2 << endl;
         cout << "    RX power level: " << db10((*iterator).pss_pow) << " dB" << endl;
         cout << "    residual frequency offset: " << (*iterator).freq_superfine << " Hz" << endl;
-        cout << "                     k_factor: " << k_factor << endl;
+        cout << "                     k_factor: " << (*iterator).k_factor << endl;
       }
 
       ++iterator;
@@ -881,7 +888,7 @@ int main(
       const double correction_residual=true_location/crystal_freq_actual;
       double correction_new=correction*correction_residual;
       if (!sampling_carrier_twist) {
-        correction_new = k_factor;
+        correction_new = (*it).k_factor;
       }
       ss << " " << setprecision(20) << correction_new;
       cout << ss.str() << endl;

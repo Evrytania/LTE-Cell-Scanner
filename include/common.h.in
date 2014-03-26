@@ -108,6 +108,7 @@ class Cell {
     int32 ind;
     double freq;
     int8 n_id_2;
+    double k_factor;
 
     int16 n_id_1;
     int8 duplex_mode;

@@ -129,6 +129,7 @@ void sampling_ppm_f_search_set_by_pss(
   const itpp::cvec & s,
   const itpp::cmat & pss_fo_set,
   const bool & sampling_carrier_twist,
+  const uint16 & max_reserve,
   // Inputs&Outputs
   itpp::vec & fo_search_set,
   // Outpus
@@ -169,7 +170,7 @@ void xcorr_pss(
   uint16 & n_comb_xc,
   uint16 & n_comb_sp,
   const bool & sampling_carrier_twist,
-  double & k_facotr
+  const double k_facotr
 );
 
 // Search the correlations for peaks.
@@ -183,7 +184,8 @@ void peak_search(
   const double & fc_programmed,
   const vf3d & xc_incoherent_single,
   const uint8 & ds_comb_arm,
-  const double & k_factor,
+  const bool & sampling_carrier_twist,
+  const double k_factor,
   // Outputs
   std::list <Cell> & cells
 );
@@ -207,7 +209,6 @@ Cell sss_detect(
   itpp::mat & log_lik_nrm,
   itpp::mat & log_lik_ext,
   const bool & sampling_carrier_twist,
-  double & k_factor,
   const int & tdd_flag
 );
 
@@ -219,7 +220,6 @@ Cell pss_sss_foe(
   const double & fc_programmed,
   const double & fs_programmed,
   const bool & sampling_carrier_twist,
-  double & k_factor,
   const int & tdd_flag
 );
 
@@ -234,8 +234,7 @@ void extract_tfg(
   // Outputs
   itpp::cmat & tfg,
   itpp::vec & tfg_timestamp,
-  const bool & sampling_carrier_twist,
-  double & k_factor
+  const bool & sampling_carrier_twist
 );
 
 // Perform TOE/FOE/TOC/FOC on the time/ frequency grid.
@@ -250,8 +249,7 @@ Cell tfoec(
   // Outputs
   itpp::cmat & tfg_comp,
   itpp::vec & tfg_comp_timestamp,
-  const bool & sampling_carrier_twist,
-  double & k_factor
+  const bool & sampling_carrier_twist
 );
 
 // Attempt to decode the MIB.
