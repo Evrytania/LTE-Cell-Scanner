@@ -12,9 +12,57 @@ GTX 550ti
 --xcorr-workitem 4
 4.7~4.9s
 
+-----------------i5 CPU       M 520  @ 2.40GHz + Intel driver--------------------
+--xcorr-workitem 
+1 2.55s
+2 2.56s
+4 2.6s
+8 2.64s
+
+--xcorr-workitem=4 --num-loop=36
+2.53s
+
+--filter-workitem=32
+0.008s
+
+NO OPENCL: 6RB filter cost 0.0809879s PSS xcorr cost 7.08098s
+
+
 ./CellSearch --loadbin ~/git/rtl-sdr-LTE/scan-capture/frequency-1850-1880MHz/f1860_s1.92_g0_1s_strong.bin
 should be like:
+-----------f_search_set -60:5:55--------------------------------------------------------------
+Processing  at ../scan-capture/frequency-1850-1880MHz/f1860_s1.92_g0_1s_strong.bin
+sampling_ppm_f_search_set_by_pss: try ... ... 
+Hit        PAR 14.061      13.0921       13.013      12.6916dB
+Seems not a peak 8.4609e-06  9.9798e-07   7.947e-06  1.9476e-05  1.8492e-05  1.8757e-05  2.1515e-05 at i=1 j=71585
+Hit num forPPM 15
+Hit num forPPM 12
+duplicated fo and ppm -45kHz 24.03PPM at i=2 j=1
+Hit num forPPM 13
+duplicated fo and ppm -40kHz 26.4206PPM at i=3 j=1
+Hit num forPPM 12
+Hit         FO -40 -15kHz
+Hit        PPM 22.2881      24.5087
+Hit    PSS idx 2  2
+Hit     FO idx 5  10
+Hit FO_PSS idx 29  34
+Hit FO_ALL_PSS 5  10  29  34  53  58
+Found MIB!!!
+  Detected a FDD cell!
+  at ../scan-capture/frequency-1850-1880MHz/f1860_s1.92_g0_1s_strong.bin
+    cell ID: 142
+    PSS  ID: 2
+    RX power level: -42.8659
+    residual frequency offset: -41799.2158
+Found MIB!!!
+  Detected a FDD cell!
+  at ../scan-capture/frequency-1850-1880MHz/f1860_s1.92_g0_1s_strong.bin
+    cell ID: 86
+    PSS  ID: 3
+    RX power level: -43.2341
+    residual frequency offset: -41672.0504
 
+-----------f_search_set -100:5:100--------------------------------------------------------------
 Processing  at ../scan-capture/frequency-1850-1880MHz/f1860_s1.92_g0_1s_strong.bin
 sampling_ppm_f_search_set_by_pss: try ... ... 
 Hit        PAR 14.061      13.0921      12.9709       13.013dB

@@ -136,7 +136,8 @@ void parse_commandline(
   uint16 & opencl_device,
   uint16 & filter_workitem,
   uint16 & xcorr_workitem,
-  uint16 & num_reserve
+  uint16 & num_reserve,
+  uint16 & num_loop
 ) {
   // Default values
   freq_start=-1;
@@ -151,9 +152,10 @@ void parse_commandline(
   device_index=-1;
   opencl_platform = 0;
   opencl_device = 0;
-  filter_workitem = 64;
+  filter_workitem = 32;
   xcorr_workitem = 4;
   num_reserve = 1;
+  num_loop = 0;
 
   while (1) {
     static struct option long_options[] = {
@@ -177,11 +179,12 @@ void parse_commandline(
       {"filter-workitem", required_argument, 0, 'w'},
       {"xcorr-workitem", required_argument, 0, 'u'},
       {"num-reserve", required_argument, 0, 'm'},
+      {"num-loop", required_argument, 0, 'k'},
       {0, 0, 0, 0}
     };
     /* getopt_long stores the option index here. */
     int option_index = 0;
-    int c = getopt_long (argc, argv, "hvbs:e:n:tp:c:z:y:rld:i:a:j:w:u:m:",
+    int c = getopt_long (argc, argv, "hvbs:e:n:tp:c:z:y:rld:i:a:j:w:u:m:k:",
                      long_options, &option_index);
 
     /* Detect the end of the options. */
@@ -317,6 +320,9 @@ void parse_commandline(
       case 'm':
         num_reserve=strtol(optarg,&endp,10);
         break;
+      case 'k':
+        num_loop = strtol(optarg,&endp,10);
+        break;
       case '?':
         /* getopt_long already printed an error message. */
         ABORT(-1);
@@ -391,7 +397,7 @@ void parse_commandline(
   }
 
   if (verbosity>=1) {
-    cout << "LTE CellSearch v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " (" << BUILD_TYPE << ") beginning. 1.0 to 1.1: TDD/ext-LNB/faster added by Jiao Xianjun(putaoshu@gmail.com)" << endl;
+    cout << "OpenCL LTE CellSearch v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " (" << BUILD_TYPE << ") beginning. 1.0 to 1.1: TDD/ext-LNB/faster/OpenCL added by Jiao Xianjun(putaoshu@gmail.com)" << endl;
     if (freq_start==freq_end) {
       cout << "  Search frequency: " << freq_start/1e6 << " MHz" << endl;
     } else {
@@ -587,9 +593,10 @@ int main(
   uint16 filter_workitem;
   uint16 xcorr_workitem;
   uint16 num_reserve;
+  uint16 num_loop;
 
   // Get search parameters from user
-  parse_commandline(argc,argv,freq_start,freq_end,num_try,sampling_carrier_twist,ppm,correction,save_cap,use_recorded_data,data_dir,device_index, record_bin_filename, load_bin_filename,opencl_platform,opencl_device,filter_workitem,xcorr_workitem,num_reserve);
+  parse_commandline(argc,argv,freq_start,freq_end,num_try,sampling_carrier_twist,ppm,correction,save_cap,use_recorded_data,data_dir,device_index, record_bin_filename, load_bin_filename,opencl_platform,opencl_device,filter_workitem,xcorr_workitem,num_reserve,num_loop);
 
   // Open the USB device (if necessary).
   rtlsdr_dev_t * dev=NULL;
@@ -610,9 +617,13 @@ int main(
   if (sampling_carrier_twist) { // original mode
     const uint16 n_extra=floor_i((freq_start*ppm/1e6+2.5e3)/5e3);
     f_search_set=to_vec(itpp_ext::matlab_range(-n_extra*5000,5000,n_extra*5000));
+    if (num_loop == 0)
+      num_loop = length(f_search_set);
   } else {
     // since we have frequency step is 100e3, why not have sub search set limited by this regardless PPM?
     f_search_set=to_vec(itpp_ext::matlab_range(-60000,5000,55000)); // 2*65kHz > 100kHz, overlap adjacent frequencies
+    if (num_loop == 0)
+      num_loop = 36;
 //      f_search_set=to_vec(itpp_ext::matlab_range(-100000,5000,100000)); // align to matlab script
   }
   pss_fo_set_gen(f_search_set, pss_fo_set);
@@ -638,10 +649,15 @@ int main(
 
   cvec capbuf;
 
-  #ifdef USE_OPENCL
   lte_opencl_t lte_ocl(opencl_platform, opencl_device);
+  #ifdef USE_OPENCL
   lte_ocl.setup_filter_my((string)"filter_my_kernels.cl", CAPLENGTH, filter_workitem);
-  lte_ocl.setup_filter_mchn((string)"filter_mchn_kernels.cl", CAPLENGTH, length(f_search_set)*3, pss_fo_set.cols(), xcorr_workitem);
+
+  if ( (length(f_search_set)*3)%num_loop != 0 ){
+    cerr << "length(f_search_set)*3 can not be divided by num_loop. " << (length(f_search_set)*3) << " " << num_loop << "\n";
+    ABORT(-1);
+  }
+  lte_ocl.setup_filter_mchn((string)"filter_mchn_kernels.cl", CAPLENGTH, length(f_search_set)*3/num_loop, pss_fo_set.cols(), xcorr_workitem);
   #endif
 
   vec period_ppm;
@@ -716,7 +732,7 @@ int main(
 //    continue;
 
     vec dynamic_f_search_set = f_search_set; // don't touch the original
-    sampling_ppm_f_search_set_by_pss(lte_ocl, capbuf, pss_fo_set, sampling_carrier_twist, num_reserve, dynamic_f_search_set, period_ppm, xc);
+    sampling_ppm_f_search_set_by_pss(lte_ocl, num_loop, capbuf, pss_fo_set, sampling_carrier_twist, num_reserve, dynamic_f_search_set, period_ppm, xc);
 
     list <Cell> peak_search_cells;
     if (!sampling_carrier_twist) {

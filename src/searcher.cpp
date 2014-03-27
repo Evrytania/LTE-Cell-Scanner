@@ -118,7 +118,7 @@ using namespace std;
 #define DBG(CODE) CODE
 //#define DBG(CODE)
 
-#define USE_OPENCL // just for debug purpose. It should be removed before formal release
+//#define USE_OPENCL // just for debug purpose. It should be removed before formal release
 
 #ifdef USE_OPENCL
 
@@ -184,7 +184,7 @@ device_id(device_id)
   setup_opencl();
 }
 
-int lte_opencl_t::setup_filter_mchn(std::string filter_mchn_kernels_filename, const size_t & capbuf_length_in, const size_t & num_filter_in, const size_t & filter_length_in, const uint & filter_workitem_in)
+int lte_opencl_t::setup_filter_mchn(std::string filter_mchn_kernels_filename, const size_t & capbuf_length_in, const size_t & num_filter_in, const size_t & filter_length_in, const uint & xcorr_workitem_in)
 {
   // in case setup multiple times----------------------------------------
   if (filter_mchn_coef_host!=0) {
@@ -243,7 +243,7 @@ int lte_opencl_t::setup_filter_mchn(std::string filter_mchn_kernels_filename, co
 
   filter_mchn_length = filter_length_in;
   filter_mchn_capbuf_length = capbuf_length_in;
-  filter_mchn_workitem = filter_workitem_in;
+  filter_mchn_workitem = xcorr_workitem_in;
   filter_mchn_num_chn = num_filter_in;
 
   filter_mchn_buf_coef_len = filter_mchn_num_chn * filter_mchn_length;
@@ -327,7 +327,7 @@ int lte_opencl_t::setup_filter_mchn(std::string filter_mchn_kernels_filename, co
     cout << "clCreateBuffer filter_mchn_coef " << ret << "\n";
     return(ret);
   }
-
+//  cout << filter_mchn_buf_in_len << "\n";
   filter_mchn_orig = clCreateBuffer(context, CL_MEM_READ_ONLY, 2*sizeof(float)*filter_mchn_buf_in_len, NULL, &ret);
   if (ret!=0) {
     cout << "clCreateBuffer filter_mchn_orig " << ret << "\n";
@@ -786,6 +786,7 @@ int lte_opencl_t::filter_mchn(const cvec & capbuf, const cmat & pss_fo_set, mat 
   }
 
   cl_event write_done;
+//  cout << filter_mchn_capbuf_length << " " << filter_mchn_buf_in_len << "\n";
   ret = clEnqueueWriteBuffer(cmdQueue, filter_mchn_orig, CL_FALSE, 0, 2*filter_mchn_buf_in_len*sizeof(float),filter_mchn_in_host, 0, NULL, &write_done);
   if (ret!=0) {
     cout << "clEnqueueWriteBuffer filter_mchn_orig " << ret << "\n";
@@ -1138,6 +1139,13 @@ int lte_opencl_t::setup_opencl()
   return(ret);
 }
 
+#else
+lte_opencl_t::lte_opencl_t(
+      const uint & platform_id,
+      const uint & device_id
+):platform_id(platform_id),
+device_id(device_id)
+{}
 #endif
 
 void xc_correlate_new(
@@ -1860,6 +1868,7 @@ void pss_fo_set_gen(
 void sampling_ppm_f_search_set_by_pss(
   // Inputs
   lte_opencl_t & lte_ocl,
+  const uint16 & num_loop,
   const cvec & s,
   const cmat & pss_fo_set,
   const bool & sampling_carrier_twist,
@@ -1878,12 +1887,17 @@ void sampling_ppm_f_search_set_by_pss(
   const uint16 num_pss = 3;
 
   mat corr_store(num_fo_pss, len_short);
+  mat corr_store_sub(num_fo_pss/num_loop, len_short);
 
   static Real_Timer tt;
 
   tt.tic();
   #ifdef USE_OPENCL
-  lte_ocl.filter_mchn(s, pss_fo_set, corr_store);
+  for (uint16 i=0; i<num_loop; i++) {
+    uint16 sp = i*(num_fo_pss/num_loop);
+    lte_ocl.filter_mchn(s, pss_fo_set.get_rows( sp, sp+(num_fo_pss/num_loop)-1 ), corr_store_sub);
+    corr_store.set_rows(sp, corr_store_sub);
+  }
   #else
   conv_capbuf_with_pss(s, pss_fo_set, corr_store);
   #endif

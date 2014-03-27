@@ -767,7 +767,7 @@ double kalibrate(
     vec period_ppm;
 
     vec dynamic_f_search_set = f_search_set; // don't touch the original
-    sampling_ppm_f_search_set_by_pss(lte_ocl, capbuf, pss_fo_set, sampling_carrier_twist, 1, dynamic_f_search_set, period_ppm, xc);
+    sampling_ppm_f_search_set_by_pss(lte_ocl, 1, capbuf, pss_fo_set, sampling_carrier_twist, 1, dynamic_f_search_set, period_ppm, xc);
 
     // Correlate
     uint16 n_comb_xc;

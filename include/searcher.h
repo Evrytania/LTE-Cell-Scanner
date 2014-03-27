@@ -24,7 +24,7 @@
 #ifndef HAVE_SEARCHER_H
 #define HAVE_SEARCHER_H
 
-#define USE_OPENCL // just for debug purpose. It should be removed before formal release
+//#define USE_OPENCL // just for debug purpose. It should be removed before formal release
 
 #ifdef USE_OPENCL
 
@@ -107,7 +107,7 @@ class lte_opencl_t {
     cl_kernel filter_mchn_multi_filter;
     cl_kernel filter_mchn_result_combine;
 
-    int setup_filter_mchn(std::string filter_mchn_kernels_filename, const size_t & capbuf_length_in, const size_t & num_filter_in, const size_t & filter_length_in, const uint & filter_workitem_in);
+    int setup_filter_mchn(std::string filter_mchn_kernels_filename, const size_t & capbuf_length_in, const size_t & num_filter_in, const size_t & filter_length_in, const uint & xcorr_workitem_in);
 
     int filter_mchn(const itpp::cvec & capbuf, const itpp::cmat & pss_fo_set, itpp::mat & corr_store);
 
@@ -115,6 +115,17 @@ class lte_opencl_t {
 
 };
 
+#else
+class lte_opencl_t {
+  public:
+    // Initializer
+    lte_opencl_t(
+      const uint & platform_id,
+      const uint & device_id);
+
+    uint platform_id;
+    uint device_id;
+};
 #endif
 
 // FIR 6RB filter
@@ -154,6 +165,7 @@ void pss_fo_set_gen(
 void sampling_ppm_f_search_set_by_pss(
   // Inputs
   lte_opencl_t & lte_ocl,
+  const uint16 & num_loop,
   const itpp::cvec & s,
   const itpp::cmat & pss_fo_set,
   const bool & sampling_carrier_twist,
