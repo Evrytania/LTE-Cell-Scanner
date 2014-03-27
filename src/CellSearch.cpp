@@ -152,7 +152,7 @@ void parse_commandline(
   opencl_platform = 0;
   opencl_device = 0;
   filter_workitem = 64;
-  xcorr_workitem = 64;
+  xcorr_workitem = 4;
   num_reserve = 1;
 
   while (1) {
@@ -612,8 +612,8 @@ int main(
     f_search_set=to_vec(itpp_ext::matlab_range(-n_extra*5000,5000,n_extra*5000));
   } else {
     // since we have frequency step is 100e3, why not have sub search set limited by this regardless PPM?
-//    f_search_set=to_vec(itpp_ext::matlab_range(-65000,5000,65000)); // 2*65kHz > 100kHz, overlap adjacent frequencies
-      f_search_set=to_vec(itpp_ext::matlab_range(-100000,5000,100000)); // align to matlab script
+    f_search_set=to_vec(itpp_ext::matlab_range(-60000,5000,55000)); // 2*65kHz > 100kHz, overlap adjacent frequencies
+//      f_search_set=to_vec(itpp_ext::matlab_range(-100000,5000,100000)); // align to matlab script
   }
   pss_fo_set_gen(f_search_set, pss_fo_set);
 
@@ -641,7 +641,7 @@ int main(
   #ifdef USE_OPENCL
   lte_opencl_t lte_ocl(opencl_platform, opencl_device);
   lte_ocl.setup_filter_my((string)"filter_my_kernels.cl", CAPLENGTH, filter_workitem);
-  lte_ocl.setup_filter_mchn((string)"filter_mchn_kernels.cl", CAPLENGTH, length(f_search_set)*3, pss_fo_set.cols(), filter_workitem);
+  lte_ocl.setup_filter_mchn((string)"filter_mchn_kernels.cl", CAPLENGTH, length(f_search_set)*3, pss_fo_set.cols(), xcorr_workitem);
   #endif
 
   vec period_ppm;
@@ -703,13 +703,13 @@ int main(
     }
 
     // 6RB filter to improve SNR
-//    tt.tic();
+    tt.tic();
     #ifdef USE_OPENCL
       lte_ocl.filter_my(capbuf); // be careful! capbuf.zeros() will slow down the xcorr part pretty much!
     #else
       filter_my(coef, capbuf);
     #endif
-//    tt.toc_print();
+    tt.toc_print();
 //    it_file itf("capbuf.it",true);
 //    itf << Name("capbuf") << capbuf;
 //    itf.close();

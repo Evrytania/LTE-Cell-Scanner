@@ -1,0 +1,73 @@
+profiling result:
+Intel(R) Core(TM) i7-3930K CPU @ 3.20GHz + Intel driver + garbage data + frequency search:matlab_range(-60000,5000,55000)  24*3=72
+Intel(R) Core(TM) i7-3930K CPU @ 3.20GHz + AMD   driver + garbage data + frequency search:matlab_range(-60000,5000,55000)  24*3=72
+--filter-workitem 64
+0.0025s
+--xcorr-workitem 1~8
+0.47s
+
+GTX 550ti
+--filter-workitem 32 64 128
+0.012s
+--xcorr-workitem 4
+4.7~4.9s
+
+./CellSearch --loadbin ~/git/rtl-sdr-LTE/scan-capture/frequency-1850-1880MHz/f1860_s1.92_g0_1s_strong.bin
+should be like:
+
+Processing  at ../scan-capture/frequency-1850-1880MHz/f1860_s1.92_g0_1s_strong.bin
+sampling_ppm_f_search_set_by_pss: try ... ... 
+Hit        PAR 14.061      13.0921      12.9709       13.013dB
+Seems not a peak 8.4609e-06  9.9798e-07   7.947e-06  1.9476e-05  1.8492e-05  1.8757e-05  2.1515e-05 at i=1 j=71585
+Hit num forPPM 15
+Hit num forPPM 12
+duplicated fo and ppm -45kHz 24.03PPM at i=2 j=1
+Seems not a peak 5.1924e-06  3.5382e-07  8.6181e-06  1.8748e-05  1.8681e-05  1.7227e-05  2.1619e-05 at i=3 j=71595
+Hit num forPPM 15
+Hit num forPPM 13
+duplicated fo and ppm -40kHz 26.4206PPM at i=4 j=1
+Hit         FO -40 -70kHz
+Hit        PPM 22.2881      22.5425
+Hit    PSS idx 2  2
+Hit     FO idx 13   7
+Hit FO_PSS idx 54  48
+Hit FO_ALL_PSS 13   7  54  48  95  89
+Found MIB!!!
+  Detected a FDD cell!
+  at ../scan-capture/frequency-1850-1880MHz/f1860_s1.92_g0_1s_strong.bin
+    cell ID: 142
+    PSS  ID: 2
+    RX power level: -42.8659
+    residual frequency offset: -41799.2158
+Found MIB!!!
+  Detected a FDD cell!
+  at ../scan-capture/frequency-1850-1880MHz/f1860_s1.92_g0_1s_strong.bin
+    cell ID: 86
+    PSS  ID: 3
+    RX power level: -43.2341
+    residual frequency offset: -41672.0504
+ 
+-------------------------------Cells information summary-------------------------------
+At ../scan-capture/frequency-1850-1880MHz/f1860_s1.92_g0_1s_strong.bin
+Cell 1 information:--------------------------------------------------------
+            Cell mode: FDD
+              Cell ID: 142
+   Num. eNB Ant ports: 2
+    Carrier frequency: InfMHz
+Residual freq. offset: -41.7992kHz
+       RX power level: -42.8659
+              CP type: normal
+              Num. RB: 100
+       PHICH duration: normal
+  PHICH resource type: 1
+Cell 2 information:--------------------------------------------------------
+            Cell mode: FDD
+              Cell ID: 86
+   Num. eNB Ant ports: 2
+    Carrier frequency: InfMHz
+Residual freq. offset: -41.6721kHz
+       RX power level: -43.2341
+              CP type: normal
+              Num. RB: 100
+       PHICH duration: normal
+  PHICH resource type: 1
