@@ -681,10 +681,10 @@ int main(
   cmat tfg_comp;
   vec tfg_comp_timestamp;
 
+  Real_Timer tt; // for profiling
   // Each center frequency is searched independently. Results are stored in this vector.
   vector < list<Cell> > detected_cells(n_fc);
   // Loop for each center frequency.
-  Real_Timer tt;
   for (uint32 fci=0;fci<n_fc_multi_try;fci++) {
     double fc_requested=fc_search_set_multi_try(fci);
     uint32 fc_idx = fci/num_try;
@@ -709,7 +709,7 @@ int main(
     #else
       filter_my(coef, capbuf);
     #endif
-    tt.toc_print();
+    cout << "6RB filter cost " << tt.get_time() << "s\n";
 //    it_file itf("capbuf.it",true);
 //    itf << Name("capbuf") << capbuf;
 //    itf.close();

@@ -1879,14 +1879,15 @@ void sampling_ppm_f_search_set_by_pss(
 
   mat corr_store(num_fo_pss, len_short);
 
-  Real_Timer tt;
+  static Real_Timer tt;
+
   tt.tic();
   #ifdef USE_OPENCL
   lte_ocl.filter_mchn(s, pss_fo_set, corr_store);
   #else
   conv_capbuf_with_pss(s, pss_fo_set, corr_store);
   #endif
-  tt.toc_print();
+  cout << "PSS xcorr cost " << tt.get_time() << "s\n";
 
   ppm.set_length(1, false);
 
