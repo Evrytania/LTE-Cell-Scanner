@@ -95,8 +95,8 @@ void searcher_thread(
 #define DS_COMB_ARM 2
   mat xc_incoherent_collapsed_pow;
   imat xc_incoherent_collapsed_frq;
-  vf3d xc_incoherent_single;
-  vf3d xc_incoherent;
+  vector <mat> xc_incoherent_single(3);
+  vector <mat> xc_incoherent(3);
   vec sp_incoherent;
   vector <mat> xc(3);
   vec sp;

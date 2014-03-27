@@ -1349,7 +1349,7 @@ void xc_combine(
   const double & fs_programmed,
   const vec & f_search_set,
   // Outputs
-  vf3d & xc_incoherent_single,
+  vector <mat>  & xc_incoherent_single,
   uint16 & n_comb_xc,
   // end of Outpus
   const bool & sampling_carrier_twist,
@@ -1361,10 +1361,13 @@ void xc_combine(
 
   // Create space for some arrays
 #ifndef NDEBUG
-  xc_incoherent_single=vector < vector < vector < float > > > (3,vector< vector < float > >(9600, vector < float > (n_f,NAN)));
+//  xc_incoherent_single=vector < vector < vector < float > > > (3,vector< vector < float > >(9600, vector < float > (n_f,NAN)));
 #else
-  xc_incoherent_single=vector < vector < vector < float > > > (3,vector< vector < float > >(9600, vector < float > (n_f)));
+//  xc_incoherent_single=vector < vector < vector < float > > > (3,vector< vector < float > >(9600, vector < float > (n_f)));
 #endif
+  xc_incoherent_single[0].set_size(n_f, 9600);
+  xc_incoherent_single[1].set_size(n_f, 9600);
+  xc_incoherent_single[2].set_size(n_f, 9600);
   double k_factor;
   for (uint16 foi=0;foi<n_f;foi++) {
     // Combine incoherently
@@ -1376,9 +1379,10 @@ void xc_combine(
     }
 
     for (uint8 t=0;t<3;t++) {
-      for (uint16 idx=0;idx<9600;idx++) {
-        xc_incoherent_single[t][idx][foi]=0;
-      }
+//      for (uint16 idx=0;idx<9600;idx++) {
+//        xc_incoherent_single[t][idx][foi]=0;
+//      }
+      xc_incoherent_single[t].set_row(foi, zeros(9600));
       for (uint16 m=0;m<n_comb_xc;m++) {
         // Because of the large supported frequency offsets and the large
         // amount of time represented by the capture buffer, the length
@@ -1388,12 +1392,13 @@ void xc_combine(
         double actual_start_index=itpp::round_i(m*.005*k_factor*fs_programmed);
         for (uint16 idx=0;idx<9600;idx++) {
 //          xc_incoherent_single[t][idx][foi]+=sqr(xc[t][idx+actual_start_index][foi]);
-          xc_incoherent_single[t][idx][foi]+=xc[t](foi, idx+actual_start_index);
+          xc_incoherent_single[t](foi,idx)+=xc[t](foi, idx+actual_start_index);
         }
       }
-      for (uint16 idx=0;idx<9600;idx++) {
-        xc_incoherent_single[t][idx][foi]=xc_incoherent_single[t][idx][foi]/n_comb_xc;
-      }
+//      for (uint16 idx=0;idx<9600;idx++) {
+//        xc_incoherent_single[t][idx][foi]=xc_incoherent_single[t][idx][foi]/n_comb_xc;
+//      }
+      xc_incoherent_single[t].set_row(foi, xc_incoherent_single[t].get_row(foi)/n_comb_xc);
     }
   }
 }
@@ -1402,37 +1407,43 @@ void xc_combine(
 // Simply: xc_incoherent(t,idx,foi)=mean(xc_incoherent_single(t,idx-ds_comb_arm:idx+ds_comb_arm,foi);
 void xc_delay_spread(
   // Inputs
-  const vf3d & xc_incoherent_single,
+  const vector <mat> & xc_incoherent_single,
   const uint8 & ds_comb_arm,
   // Outputs
-  vf3d & xc_incoherent
+  vector <mat> & xc_incoherent
 ) {
-  const int n_f=xc_incoherent_single[0][0].size();
+  const int n_f=xc_incoherent_single[0].rows();
 
   // Create space for some arrays
 #ifndef NDEBUG
-  xc_incoherent=vector < vector < vector < float > > > (3,vector< vector < float > >(9600, vector < float > (n_f,NAN)));
+//  xc_incoherent=vector < vector < vector < float > > > (3,vector< vector < float > >(9600, vector < float > (n_f,NAN)));
 #else
-  xc_incoherent=vector < vector < vector < float > > > (3,vector< vector < float > >(9600, vector < float > (n_f)));
+//  xc_incoherent=vector < vector < vector < float > > > (3,vector< vector < float > >(9600, vector < float > (n_f)));
 #endif
+  xc_incoherent[0].set_size(n_f, 9600);
+  xc_incoherent[1].set_size(n_f, 9600);
+  xc_incoherent[2].set_size(n_f, 9600);
+
   for (uint16 foi=0;foi<n_f;foi++) {
     for (uint8 t=0;t<3;t++) {
-      for (uint16 idx=0;idx<9600;idx++) {
-        xc_incoherent[t][idx][foi]=xc_incoherent_single[t][idx][foi];
-      }
+//      for (uint16 idx=0;idx<9600;idx++) {
+//        xc_incoherent[t][idx][foi]=xc_incoherent_single[t][idx][foi];
+//      }
+      xc_incoherent[t].set_row(foi, xc_incoherent_single[t].get_row(foi));
     }
     for (uint8 t=1;t<=ds_comb_arm;t++) {
       for (uint8 k=0;k<3;k++) {
         for (uint16 idx=0;idx<9600;idx++) {
-          xc_incoherent[k][idx][foi]+=xc_incoherent_single[k][itpp_ext::matlab_mod(idx-t,9600)][foi]+xc_incoherent_single[k][itpp_ext::matlab_mod(idx+t,9600)][foi];
+          xc_incoherent[k](foi, idx)+=xc_incoherent_single[k](foi, itpp_ext::matlab_mod(idx-t,9600))+xc_incoherent_single[k](foi,itpp_ext::matlab_mod(idx+t,9600));
         }
       }
     }
     // Normalize
     for (uint8 t=0;t<3;t++) {
-      for (uint16 idx=0;idx<9600;idx++) {
-        xc_incoherent[t][idx][foi]=xc_incoherent[t][idx][foi]/(2*ds_comb_arm+1);
-      }
+//      for (uint16 idx=0;idx<9600;idx++) {
+//        xc_incoherent[t][idx][foi]=xc_incoherent[t][idx][foi]/(2*ds_comb_arm+1);
+//      }
+      xc_incoherent[t].set_row( foi, xc_incoherent[t].get_row(foi)/(2*ds_comb_arm+1) );
     }
   }
 }
@@ -1443,12 +1454,12 @@ void xc_delay_spread(
 // the largest magnitude.
 void xc_peak_freq(
   // Inputs
-  const vf3d & xc_incoherent,
+  const vector <mat> & xc_incoherent,
   // Outputs
   mat & xc_incoherent_collapsed_pow,
   imat & xc_incoherent_collapsed_frq
 ) {
-  const int n_f=xc_incoherent[0][0].size();
+//  const int n_f=xc_incoherent[0].rows();
 
   xc_incoherent_collapsed_pow=mat(3,9600);
   xc_incoherent_collapsed_frq=imat(3,9600);
@@ -1459,14 +1470,17 @@ void xc_peak_freq(
 
   for (uint8 t=0;t<3;t++) {
     for (uint16 k=0;k<9600;k++) {
-      double best_pow=xc_incoherent[t][k][0];
-      uint16 best_idx=0;
-      for (uint16 foi=1;foi<n_f;foi++) {
-        if (xc_incoherent[t][k][foi]>best_pow) {
-          best_pow=xc_incoherent[t][k][foi];
-          best_idx=foi;
-        }
-      }
+//      double best_pow=xc_incoherent[t][k][0];
+//      uint16 best_idx=0;
+//      for (uint16 foi=1;foi<n_f;foi++) {
+//        if (xc_incoherent[t][k][foi]>best_pow) {
+//          best_pow=xc_incoherent[t][k][foi];
+//          best_idx=foi;
+//        }
+//      }
+      int best_idx;
+      double best_pow = max(xc_incoherent[t].get_col(k), best_idx);
+
       xc_incoherent_collapsed_pow(t,k)=best_pow;
       xc_incoherent_collapsed_frq(t,k)=best_idx;
     }
@@ -2621,8 +2635,8 @@ void xcorr_pss(
   mat & xc_incoherent_collapsed_pow,
   imat & xc_incoherent_collapsed_frq,
   // Following used only for debugging...
-  vf3d & xc_incoherent_single,
-  vf3d & xc_incoherent,
+  vector <mat>  & xc_incoherent_single,
+  vector <mat>  & xc_incoherent,
   vec & sp_incoherent,
   vec & sp,
   uint16 & n_comb_xc,
@@ -2653,7 +2667,7 @@ void peak_search(
   const vec & f_search_set,
   const double & fc_requested,
   const double & fc_programmed,
-  const vf3d & xc_incoherent_single,
+  const vector <mat> & xc_incoherent_single,
   const uint8 & ds_comb_arm,
   const bool & sampling_carrier_twist,
   const double k_factor,
@@ -2686,8 +2700,8 @@ void peak_search(
     int16 best_ind=-1;
     for (uint16 t=peak_ind-ds_comb_arm;t<=peak_ind+ds_comb_arm;t++) {
       uint16 t_wrap=mod(t,9600);
-      if (xc_incoherent_single[peak_n_id_2][t_wrap][xc_incoherent_collapsed_frq(peak_n_id_2,peak_ind)]>best_pow) {
-        best_pow=xc_incoherent_single[peak_n_id_2][t_wrap][xc_incoherent_collapsed_frq(peak_n_id_2,peak_ind)];
+      if (xc_incoherent_single[peak_n_id_2](xc_incoherent_collapsed_frq(peak_n_id_2,peak_ind),t_wrap)>best_pow) {
+        best_pow=xc_incoherent_single[peak_n_id_2](xc_incoherent_collapsed_frq(peak_n_id_2,peak_ind),t_wrap);
         best_ind=t_wrap;
       }
     }
