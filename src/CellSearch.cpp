@@ -639,8 +639,9 @@ int main(
   cvec capbuf;
 
   #ifdef USE_OPENCL
-  lte_opencl_t lte_ocl(opencl_platform, opencl_device, CAPLENGTH, filter_workitem, xcorr_workitem);
-  lte_ocl.setup_filter_my((string)"filter_my_kernels.cl");
+  lte_opencl_t lte_ocl(opencl_platform, opencl_device);
+  lte_ocl.setup_filter_my((string)"filter_my_kernels.cl", CAPLENGTH, filter_workitem);
+  lte_ocl.setup_filter_mchn((string)"filter_mchn_kernels.cl", CAPLENGTH, length(f_search_set)*3, pss_fo_set.cols(), filter_workitem);
   #endif
 
   vec period_ppm;
@@ -715,7 +716,7 @@ int main(
 //    continue;
 
     vec dynamic_f_search_set = f_search_set; // don't touch the original
-    sampling_ppm_f_search_set_by_pss(capbuf, pss_fo_set, sampling_carrier_twist, num_reserve, dynamic_f_search_set, period_ppm, xc);
+    sampling_ppm_f_search_set_by_pss(lte_ocl, capbuf, pss_fo_set, sampling_carrier_twist, num_reserve, dynamic_f_search_set, period_ppm, xc);
 
     list <Cell> peak_search_cells;
     if (!sampling_carrier_twist) {

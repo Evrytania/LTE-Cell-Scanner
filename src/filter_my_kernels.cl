@@ -20,8 +20,9 @@ __kernel void skip2cols( __global float2* in,
   const size_t sub_len = len_in/n;
   const size_t base_idx = m*sub_len;
 
-  for (size_t i=0; i<sub_len; i++) {
-    size_t new_base_idx = i*n;
+  size_t i, new_base_idx;
+  for (i=0; i<sub_len; i++) {
+    new_base_idx = i*n;
     out[new_base_idx + m] = in[base_idx + i];
   }
 }
@@ -36,49 +37,51 @@ __kernel void multi_filter( __global float2* in,
   const size_t sub_len_in = len_in/n;
   const size_t sub_len_out = sub_len_in + filter_len - 1;
 
+  size_t i, j, base_idx;
   if (m==0){
-    for (size_t i=(sub_len_out-filter_len+1); i<sub_len_out; i++){
-      size_t base_idx = i*n;
+    for (i=(sub_len_out-filter_len+1); i<sub_len_out; i++){
+      base_idx = i*n;
       out[base_idx] = (float2)(0.0f, 0.0f);
     }
   }
 
-  for (size_t i=0; i<filter_len-1; i++){
-    float2 acc = (float2)(0.0f, 0.0f);
+  float2 acc;
+  for (i=0; i<filter_len-1; i++){
+    acc = (float2)(0.0f, 0.0f);
 
-    for (size_t j=0; j<i+1; j++) {
-      size_t base_idx = j*n;
+    for (j=0; j<i+1; j++) {
+      base_idx = j*n;
       acc = acc + in[base_idx + m] * chn_6RB_filter_coef[i-j];
     }
 
-    size_t base_idx = i*n;
+    base_idx = i*n;
     out[base_idx+m+1] = acc;
   }
 
 //  for (size_t i=filter_len-1; i<=sub_len_out-filter_len; i++){
-  for (size_t i=filter_len-1; i<=sub_len_in-1; i++){
-    float2 acc = (float2)(0.0f, 0.0f);
+  for (i=filter_len-1; i<=sub_len_in-1; i++){
+    acc = (float2)(0.0f, 0.0f);
 
-    for (size_t j=0; j<filter_len; j++) {
-      size_t base_idx = (i-(filter_len-1)+j)*n;
+    for (j=0; j<filter_len; j++) {
+      base_idx = (i-(filter_len-1)+j)*n;
       acc = acc + in[base_idx + m] * chn_6RB_filter_coef[(filter_len-1)-j];
     }
 
-    size_t base_idx = i*n;
+    base_idx = i*n;
     out[base_idx+m+1] = acc;
   }
 
 //  for (size_t i=sub_len_out-filter_len+1; i<sub_len_out; i++){
-  for (size_t i=sub_len_in; i<sub_len_out; i++){
-    float2 acc = (float2)(0.0f, 0.0f);
+  for (i=sub_len_in; i<sub_len_out; i++){
+    acc = (float2)(0.0f, 0.0f);
 
 //    for (size_t j=0; j<(filter_len- (i-(sub_len_out-filter_len))); j++) {
-    for (size_t j=0; j<sub_len_out-i; j++) {
-      size_t base_idx = (i-(filter_len-1)+j)*n;
+    for (j=0; j<sub_len_out-i; j++) {
+      base_idx = (i-(filter_len-1)+j)*n;
       acc = acc + in[base_idx + m] * chn_6RB_filter_coef[(filter_len-1)-j];
     }
 
-    size_t base_idx = i*n;
+    base_idx = i*n;
     out[base_idx+m+1] = acc;
   }
 }
@@ -94,14 +97,15 @@ __kernel void result_combine( __global float2* in,
 
   size_t base_linear_idx = m*sub_len_out;
 
-  for (size_t i=0; i<filter_len-1; i++){
-    size_t base_idx = i*n;
-    size_t base_tail_idx = (sub_len_out+i)*n;
+  size_t i, base_idx, base_tail_idx;
+  for (i=0; i<filter_len-1; i++){
+    base_idx = i*n;
+    base_tail_idx = (sub_len_out+i)*n;
     out[base_linear_idx+i] = in[base_idx+m+1] + in[base_tail_idx+m];
   }
 
-  for (size_t i=filter_len-1; i<sub_len_out; i++){
-    size_t base_idx = i*n;
+  for (i=filter_len-1; i<sub_len_out; i++){
+    base_idx = i*n;
     out[base_linear_idx+i] = in[base_idx+m+1];
   }
 }

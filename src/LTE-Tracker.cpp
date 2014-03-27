@@ -698,6 +698,8 @@ double kalibrate(
   3.535548569572820e-04     8.193313185354206e-04";
 
   cvec capbuf;
+  lte_opencl_t lte_ocl(0, 0);
+
   // for PSS correlate
   //cout << "DS_COMB_ARM override!!!" << endl;
 #define DS_COMB_ARM 2
@@ -765,7 +767,7 @@ double kalibrate(
     vec period_ppm;
 
     vec dynamic_f_search_set = f_search_set; // don't touch the original
-    sampling_ppm_f_search_set_by_pss(capbuf, pss_fo_set, sampling_carrier_twist, 1, dynamic_f_search_set, period_ppm, xc);
+    sampling_ppm_f_search_set_by_pss(lte_ocl, capbuf, pss_fo_set, sampling_carrier_twist, 1, dynamic_f_search_set, period_ppm, xc);
 
     // Correlate
     uint16 n_comb_xc;

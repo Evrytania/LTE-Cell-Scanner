@@ -37,10 +37,7 @@ class lte_opencl_t {
     // Initializer
     lte_opencl_t(
       const uint & platform_id,
-      const uint & device_id,
-      const size_t & capbuf_length,
-      const uint & filter_workitem,
-      const uint & xcorr_workitem
+      const uint & device_id
     );
 
     // de-Initializer
@@ -48,9 +45,6 @@ class lte_opencl_t {
 
     uint platform_id;
     uint device_id;
-
-    size_t capbuf_length;
-    size_t filter_length;
 
     cl_uint num_platform;
     cl_platform_id platforms[MAX_NUM_PLATFORM];
@@ -61,6 +55,11 @@ class lte_opencl_t {
 
     // setup OpenCL environment
     int setup_opencl();
+
+    // for filter_my
+    size_t filter_my_length;
+    uint filter_my_workitem;
+    size_t filter_my_capbuf_length;
 
     float *filter_my_in_host;
     float *filter_my_out_host;
@@ -77,12 +76,40 @@ class lte_opencl_t {
     cl_kernel filter_my_skip2cols;
     cl_kernel filter_my_multi_filter;
     cl_kernel filter_my_result_combine;
-    uint filter_workitem;
-    uint xcorr_workitem;
 
-    int setup_filter_my(std::string filter_my_kernels_filename);
+    int setup_filter_my(std::string filter_my_kernels_filename, const size_t & capbuf_length_in, const uint & filter_workitem_in);
 
     int filter_my(itpp::cvec & capbuf);
+
+    // for xcorr_pss
+    size_t filter_mchn_length;
+    uint filter_mchn_workitem;
+    size_t filter_mchn_capbuf_length;
+    size_t filter_mchn_num_chn;
+
+    float *filter_mchn_coef_host;
+    float *filter_mchn_in_host;
+    float *filter_mchn_out_abs2_host;
+
+    cl_mem filter_mchn_coef;
+    cl_mem filter_mchn_orig;
+    cl_mem filter_mchn_in;
+    cl_mem filter_mchn_mid;
+    cl_mem filter_mchn_out;
+    cl_mem filter_mchn_out_abs2;
+
+    uint filter_mchn_buf_coef_len;
+    uint filter_mchn_buf_in_len;
+    uint filter_mchn_buf_mid_len;
+    uint filter_mchn_buf_out_len;
+
+    cl_kernel filter_mchn_skip2cols;
+    cl_kernel filter_mchn_multi_filter;
+    cl_kernel filter_mchn_result_combine;
+
+    int setup_filter_mchn(std::string filter_mchn_kernels_filename, const size_t & capbuf_length_in, const size_t & num_filter_in, const size_t & filter_length_in, const uint & filter_workitem_in);
+
+    int filter_mchn(const itpp::cvec & capbuf, const itpp::cmat & pss_fo_set, itpp::mat & corr_store);
 
   private:
 
@@ -126,6 +153,7 @@ void pss_fo_set_gen(
 
 void sampling_ppm_f_search_set_by_pss(
   // Inputs
+  lte_opencl_t & lte_ocl,
   const itpp::cvec & s,
   const itpp::cmat & pss_fo_set,
   const bool & sampling_carrier_twist,
