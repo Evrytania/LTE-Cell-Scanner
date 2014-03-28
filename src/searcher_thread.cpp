@@ -43,6 +43,7 @@
 #include "dsp.h"
 #include "rtl-sdr.h"
 #include "LTE-Tracker.h"
+#include "filter_coef.h"
 
 using namespace itpp;
 using namespace std;
@@ -78,17 +79,14 @@ void searcher_thread(
   const double & fc_programmed=global_thread_data.fc_programmed;
   const double & fs_programmed=global_thread_data.fs_programmed;
 
-// 6RB filter to improve SNR
-  vec coef = "8.193313185354206e-04     3.535548569572820e-04    -1.453429245341695e-03     1.042805860697287e-03     1.264224526451337e-03 \
-  -3.219586065044259e-03     1.423981657254563e-03     3.859884310477692e-03    -6.552708013395765e-03     8.590509694961493e-04 \
-  9.363722386299336e-03    -1.120357391780316e-02    -2.423088424232164e-03     1.927528718829535e-02    -1.646405738285926e-02 \
-  -1.143040384534755e-02     3.652830082843752e-02    -2.132986170036144e-02    -3.396829121834471e-02     7.273086636811442e-02 \
-  -2.476823886110626e-02    -1.207789042999466e-01     2.861583432079335e-01     6.398255789896659e-01     2.861583432079335e-01 \
-  -1.207789042999466e-01    -2.476823886110626e-02     7.273086636811442e-02    -3.396829121834471e-02    -2.132986170036144e-02 \
-  3.652830082843752e-02    -1.143040384534755e-02    -1.646405738285926e-02     1.927528718829535e-02    -2.423088424232164e-03 \
-  -1.120357391780316e-02     9.363722386299336e-03     8.590509694961493e-04    -6.552708013395765e-03     3.859884310477692e-03 \
-  1.423981657254563e-03    -3.219586065044259e-03     1.264224526451337e-03     1.042805860697287e-03    -1.453429245341695e-03 \
-  3.535548569572820e-04     8.193313185354206e-04";
+  vec coef(( sizeof( chn_6RB_filter_coef )/sizeof(float) ));
+  for (uint16 i=0; i<length(coef); i++) {
+    coef(i) = chn_6RB_filter_coef[i];
+  }
+
+  // Calculate the threshold vector
+  const uint8 thresh1_n_nines=12;
+  double rx_cutoff=(6*12*15e3/2+4*15e3)/(FS_LTE/16/2);
 
   // for PSS correlate
   //cout << "DS_COMB_ARM override!!!" << endl;
@@ -120,24 +118,32 @@ void searcher_thread(
   cmat tfg_comp;
   vec tfg_comp_timestamp;
 
+  vec period_ppm;
+  double xcorr_pss_time;
+
+  Real_Timer tt; // for profiling
+
   // Get the current frequency offset (because it won't change anymore after main thread launches this thread, so move it outside loop)
   vec f_search_set(1);
+  cmat pss_fo_set;// pre-generate frequencies offseted pss time domain sequence
   f_search_set(0)=global_thread_data.frequency_offset();
+  pss_fo_set_gen(f_search_set, pss_fo_set);
+
   const bool sampling_carrier_twist = global_thread_data.sampling_carrier_twist();
   double k_factor = global_thread_data.k_factor();
-//  if (sampling_carrier_twist){
-//      k_factor = (fc_requested-f_search_set(0))/fc_programmed;
-//  }
+  uint16 opencl_platform = global_thread_data.opencl_platform();
+  uint16 opencl_device = global_thread_data.opencl_device();
 
-  cmat pss_fo_set_for_xcorr_pss;
-  if (sampling_carrier_twist) {
-    pss_fo_set_gen_twist(f_search_set, fc_requested, fc_programmed, fs_programmed, pss_fo_set_for_xcorr_pss);
-  } else {
-    pss_fo_set_gen_non_twist(f_search_set, fs_programmed, k_factor, pss_fo_set_for_xcorr_pss);
-  }
+  lte_opencl_t lte_ocl(opencl_platform, opencl_device);
+
+  #ifdef USE_OPENCL
+  uint16 filter_workitem = global_thread_data.filter_workitem();
+  uint16 xcorr_workitem = global_thread_data.xcorr_workitem();
+  lte_ocl.setup_filter_my((string)"filter_my_kernels.cl", CAPLENGTH, filter_workitem);
+  lte_ocl.setup_filter_mchn((string)"filter_mchn_kernels.cl", CAPLENGTH, length(f_search_set)*3, pss_fo_set.cols(), xcorr_workitem);
+  #endif
 
   // Loop forever.
-  Real_Timer tt;
   while (true) {
     // Used to measure searcher cycle time.
     tt.tic();
@@ -157,27 +163,25 @@ void searcher_thread(
     // Local reference to the capture buffer.
     cvec &capbuf=capbuf_sync.capbuf;
 
-    filter_my(coef, capbuf);
+    #ifdef USE_OPENCL
+      lte_ocl.filter_my(capbuf); // be careful! capbuf.zeros() will slow down the xcorr part pretty much!
+    #else
+      filter_my(coef, capbuf);
+    #endif
 
     // Correlate
-//    mat xc_incoherent_collapsed_pow;
-//    imat xc_incoherent_collapsed_frq;
-//    vf3d xc_incoherent_single;
-//    vf3d xc_incoherent;
-//    vec sp_incoherent;
-//    vcf3d xc;
-//    vec sp;
     uint16 n_comb_xc;
     uint16 n_comb_sp;
     if (verbosity>=2) {
       cout << "  Calculating PSS correlations" << endl;
     }
+
+    sampling_ppm_f_search_set_by_pss(lte_ocl, 0, capbuf, pss_fo_set, 1, 0, f_search_set, period_ppm, xc, xcorr_pss_time);
+
     xcorr_pss(capbuf,f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,xc,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist,k_factor);
 
     // Calculate the threshold vector
-    const uint8 thresh1_n_nines=12;
     double R_th1=chi2cdf_inv(1-pow(10.0,-thresh1_n_nines),2*n_comb_xc*(2*DS_COMB_ARM+1));
-    double rx_cutoff=(6*12*15e3/2+4*15e3)/(FS_LTE/16/2);
     vec Z_th1=R_th1*sp_incoherent/rx_cutoff/137/2/n_comb_xc/(2*DS_COMB_ARM+1);
 
     // Search for the peaks
@@ -243,16 +247,12 @@ void searcher_thread(
       (*iterator)=pss_sss_foe((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,sampling_carrier_twist,tdd_flag);
 
       // Extract time and frequency grid
-//      cmat tfg;
-//      vec tfg_timestamp;
       extract_tfg((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,tfg,tfg_timestamp,sampling_carrier_twist);
 
       // Create object containing all RS
       RS_DL rs_dl((*iterator).n_id_cell(),6,(*iterator).cp_type);
 
       // Compensate for time and frequency offsets
-//      cmat tfg_comp;
-//      vec tfg_comp_timestamp;
       (*iterator)=tfoec((*iterator),tfg,tfg_timestamp,fc_requested,fc_programmed,rs_dl,tfg_comp,tfg_comp_timestamp,sampling_carrier_twist);
 
       // Finally, attempt to decode the MIB
@@ -307,6 +307,7 @@ void searcher_thread(
       ++iterator;
     }
     global_thread_data.searcher_cycle_time(tt.toc());
+//    global_thread_data.searcher_cycle_time(xcorr_pss_time);
   }
   // Will never reach here...
 }

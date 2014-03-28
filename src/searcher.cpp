@@ -58,6 +58,7 @@
 #include <vector>
 #include <boost/math/special_functions/gamma.hpp>
 #include <sys/time.h>
+#include <curses.h>
 #include "rtl-sdr.h"
 #include "common.h"
 #include "lte_lib.h"
@@ -115,8 +116,8 @@
 using namespace itpp;
 using namespace std;
 
-#define DBG(CODE) CODE
-//#define DBG(CODE)
+//#define DBG(CODE) CODE
+#define DBG(CODE)
 
 //#define USE_OPENCL // just for debug purpose. It should be removed before formal release
 
@@ -270,7 +271,7 @@ int lte_opencl_t::setup_filter_mchn(std::string filter_mchn_kernels_filename, co
   if (!kernel_file.is_open())
   {
     cout << "setup_filter_mchn: open file failed! Please make sure program can find " << filter_mchn_kernels_filename << "\n";
-    return(-1);
+    ABORT(-1);
   }
   std::filebuf* pbuf = kernel_file.rdbuf();
 
@@ -288,7 +289,7 @@ int lte_opencl_t::setup_filter_mchn(std::string filter_mchn_kernels_filename, co
   cl_program program = clCreateProgramWithSource(context, 1, kernel_string, NULL, &ret);
   if (ret!=0) {
     cout << "clCreateProgramWithSource " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   ret = clBuildProgram(program, num_device, devices, NULL, NULL, NULL);
@@ -297,25 +298,25 @@ int lte_opencl_t::setup_filter_mchn(std::string filter_mchn_kernels_filename, co
     char tmp_info[8192];
     ret =  clGetProgramBuildInfo(program, devices[0], CL_PROGRAM_BUILD_LOG, 8192, tmp_info, NULL);
     cout << tmp_info << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   filter_mchn_skip2cols = clCreateKernel(program, "skip2cols", &ret);
   if (ret!=0) {
     cout << "clCreateKernel filter_mchn_skip2cols " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   filter_mchn_multi_filter = clCreateKernel(program, "multi_filter", &ret);
   if (ret!=0) {
     cout << "clCreateKernel filter_mchn_multi_filter " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   filter_mchn_result_combine = clCreateKernel(program, "result_combine", &ret);
   if (ret!=0) {
     cout << "clCreateKernel filter_mchn_result_combine " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   delete [] buffer;
@@ -325,37 +326,37 @@ int lte_opencl_t::setup_filter_mchn(std::string filter_mchn_kernels_filename, co
   filter_mchn_coef = clCreateBuffer(context, CL_MEM_READ_ONLY, 2*sizeof(float)*filter_mchn_buf_coef_len, NULL, &ret);
   if (ret!=0) {
     cout << "clCreateBuffer filter_mchn_coef " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 //  cout << filter_mchn_buf_in_len << "\n";
   filter_mchn_orig = clCreateBuffer(context, CL_MEM_READ_ONLY, 2*sizeof(float)*filter_mchn_buf_in_len, NULL, &ret);
   if (ret!=0) {
     cout << "clCreateBuffer filter_mchn_orig " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   filter_mchn_in = clCreateBuffer(context, CL_MEM_READ_WRITE, 2*sizeof(float)*filter_mchn_buf_in_len, NULL, &ret);
   if (ret!=0) {
     cout << "clCreateBuffer filter_mchn_in " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   filter_mchn_mid = clCreateBuffer(context, CL_MEM_READ_WRITE, 2*sizeof(float)*filter_mchn_buf_mid_len, NULL, &ret);
   if (ret!=0) {
     cout << "clCreateBuffer filter_mchn_mid " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   filter_mchn_out = clCreateBuffer(context, CL_MEM_WRITE_ONLY, 2*sizeof(float)*filter_mchn_buf_out_len, NULL, &ret);
   if (ret!=0) {
     cout << "clCreateBuffer filter_mchn_out " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   filter_mchn_out_abs2 = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(float)*filter_mchn_buf_out_len, NULL, &ret);
   if (ret!=0) {
     cout << "clCreateBuffer filter_mchn_out_abs2 " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
   // ---------------------------------gen buffers---------------------------
 
@@ -363,80 +364,80 @@ int lte_opencl_t::setup_filter_mchn(std::string filter_mchn_kernels_filename, co
   ret = clSetKernelArg(filter_mchn_skip2cols, 0, sizeof(cl_mem), &filter_mchn_orig);
   if (ret!=0) {
     cout << "clSetKernelArg filter_mchn_skip2cols 0 " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   ret = clSetKernelArg(filter_mchn_skip2cols, 1, sizeof(cl_mem), &filter_mchn_in);
   if (ret!=0) {
     cout << "clSetKernelArg filter_mchn_skip2cols 1 " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   ret = clSetKernelArg(filter_mchn_skip2cols, 2, sizeof(uint), &filter_mchn_buf_in_len);
   if (ret!=0) {
     cout << "clSetKernelArg filter_mchn_skip2cols 2 " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
 
   ret = clSetKernelArg(filter_mchn_multi_filter, 0, sizeof(cl_mem), &filter_mchn_in);
   if (ret!=0) {
     cout << "clSetKernelArg filter_mchn_multi_filter 0 " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   ret = clSetKernelArg(filter_mchn_multi_filter, 1, sizeof(cl_mem), &filter_mchn_mid);
   if (ret!=0) {
     cout << "clSetKernelArg filter_mchn_multi_filter 1 " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   ret = clSetKernelArg(filter_mchn_multi_filter, 2, sizeof(cl_mem), &filter_mchn_coef);
   if (ret!=0) {
     cout << "clSetKernelArg filter_mchn_multi_filter 2 " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   ret = clSetKernelArg(filter_mchn_multi_filter, 3, sizeof(uint), &filter_mchn_buf_in_len);
   if (ret!=0) {
     cout << "clSetKernelArg filter_mchn_multi_filter 3 " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   ret = clSetKernelArg(filter_mchn_multi_filter, 4, sizeof(uint), &filter_mchn_length);
   if (ret!=0) {
     cout << "clSetKernelArg filter_mchn_multi_filter 4 " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   ret = clSetKernelArg(filter_mchn_result_combine, 0, sizeof(cl_mem), &filter_mchn_mid);
   if (ret!=0) {
     cout << "clSetKernelArg filter_mchn_result_combine 0 " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   ret = clSetKernelArg(filter_mchn_result_combine, 1, sizeof(cl_mem), &filter_mchn_out);
   if (ret!=0) {
     cout << "clSetKernelArg filter_mchn_result_combine 1 " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   ret = clSetKernelArg(filter_mchn_result_combine, 2, sizeof(cl_mem), &filter_mchn_out_abs2);
   if (ret!=0) {
     cout << "clSetKernelArg filter_mchn_result_combine 2 " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   ret = clSetKernelArg(filter_mchn_result_combine, 3, sizeof(uint), &filter_mchn_buf_in_len);
   if (ret!=0) {
     cout << "clSetKernelArg filter_mchn_result_combine 3 " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   ret = clSetKernelArg(filter_mchn_result_combine, 4, sizeof(uint), &filter_mchn_length);
   if (ret!=0) {
     cout << "clSetKernelArg filter_mchn_result_combine 4 " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
   // ------------------------------set buffers as kernel's args---------------------------
 
@@ -515,7 +516,7 @@ int lte_opencl_t::setup_filter_my(std::string filter_my_kernels_filename, const 
   if (!kernel_file.is_open())
   {
     cout << "setup_filter_my: open file failed! Please make sure program can find " << filter_my_kernels_filename << "\n";
-    return(-1);
+    ABORT(-1);
   }
   std::filebuf* pbuf = kernel_file.rdbuf();
 
@@ -533,7 +534,7 @@ int lte_opencl_t::setup_filter_my(std::string filter_my_kernels_filename, const 
   cl_program program = clCreateProgramWithSource(context, 1, kernel_string, NULL, &ret);
   if (ret!=0) {
     cout << "clCreateProgramWithSource " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   ret = clBuildProgram(program, num_device, devices, NULL, NULL, NULL);
@@ -542,25 +543,25 @@ int lte_opencl_t::setup_filter_my(std::string filter_my_kernels_filename, const 
     char tmp_info[8192];
     ret =  clGetProgramBuildInfo(program, devices[0], CL_PROGRAM_BUILD_LOG, 8192, tmp_info, NULL);
     cout << tmp_info << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   filter_my_skip2cols = clCreateKernel(program, "skip2cols", &ret);
   if (ret!=0) {
     cout << "clCreateKernel filter_my_skip2cols " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   filter_my_multi_filter = clCreateKernel(program, "multi_filter", &ret);
   if (ret!=0) {
     cout << "clCreateKernel filter_my_multi_filter " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   filter_my_result_combine = clCreateKernel(program, "result_combine", &ret);
   if (ret!=0) {
     cout << "clCreateKernel filter_my_result_combine " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   delete [] buffer;
@@ -570,25 +571,25 @@ int lte_opencl_t::setup_filter_my(std::string filter_my_kernels_filename, const 
   filter_my_orig = clCreateBuffer(context, CL_MEM_READ_ONLY, 2*sizeof(float)*filter_my_buf_in_len, NULL, &ret);
   if (ret!=0) {
     cout << "clCreateBuffer filter_my_orig " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   filter_my_in = clCreateBuffer(context, CL_MEM_READ_WRITE, 2*sizeof(float)*filter_my_buf_in_len, NULL, &ret);
   if (ret!=0) {
     cout << "clCreateBuffer filter_my_in " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   filter_my_mid = clCreateBuffer(context, CL_MEM_READ_WRITE, 2*sizeof(float)*filter_my_buf_mid_len, NULL, &ret);
   if (ret!=0) {
     cout << "clCreateBuffer filter_my_mid " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   filter_my_out = clCreateBuffer(context, CL_MEM_WRITE_ONLY, 2*sizeof(float)*filter_my_buf_out_len, NULL, &ret);
   if (ret!=0) {
     cout << "clCreateBuffer filter_my_out " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
   // ---------------------------------gen buffers---------------------------
 
@@ -596,56 +597,56 @@ int lte_opencl_t::setup_filter_my(std::string filter_my_kernels_filename, const 
   ret = clSetKernelArg(filter_my_skip2cols, 0, sizeof(cl_mem), &filter_my_orig);
   if (ret!=0) {
     cout << "clSetKernelArg filter_my_skip2cols 0 " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   ret = clSetKernelArg(filter_my_skip2cols, 1, sizeof(cl_mem), &filter_my_in);
   if (ret!=0) {
     cout << "clSetKernelArg filter_my_skip2cols 1 " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   ret = clSetKernelArg(filter_my_skip2cols, 2, sizeof(uint), &filter_my_buf_in_len);
   if (ret!=0) {
     cout << "clSetKernelArg filter_my_skip2cols 2 " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
 
   ret = clSetKernelArg(filter_my_multi_filter, 0, sizeof(cl_mem), &filter_my_in);
   if (ret!=0) {
     cout << "clSetKernelArg filter_my_multi_filter 0 " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   ret = clSetKernelArg(filter_my_multi_filter, 1, sizeof(cl_mem), &filter_my_mid);
   if (ret!=0) {
     cout << "clSetKernelArg filter_my_multi_filter 1 " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   ret = clSetKernelArg(filter_my_multi_filter, 2, sizeof(uint), &filter_my_buf_in_len);
   if (ret!=0) {
     cout << "clSetKernelArg filter_my_multi_filter 2 " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   ret = clSetKernelArg(filter_my_result_combine, 0, sizeof(cl_mem), &filter_my_mid);
   if (ret!=0) {
     cout << "clSetKernelArg filter_my_result_combine 0 " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   ret = clSetKernelArg(filter_my_result_combine, 1, sizeof(cl_mem), &filter_my_out);
   if (ret!=0) {
     cout << "clSetKernelArg filter_my_result_combine 1 " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   ret = clSetKernelArg(filter_my_result_combine, 2, sizeof(uint), &filter_my_buf_out_len);
   if (ret!=0) {
     cout << "clSetKernelArg filter_my_result_combine 2 " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
   // ------------------------------set buffers as kernel's args---------------------------
 
@@ -790,7 +791,7 @@ int lte_opencl_t::filter_mchn(const cvec & capbuf, const cmat & pss_fo_set, mat 
   ret = clEnqueueWriteBuffer(cmdQueue, filter_mchn_orig, CL_FALSE, 0, 2*filter_mchn_buf_in_len*sizeof(float),filter_mchn_in_host, 0, NULL, &write_done);
   if (ret!=0) {
     cout << "clEnqueueWriteBuffer filter_mchn_orig " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   global_work_size[0] = filter_mchn_workitem; global_work_size[1] = 1;  global_work_size[2] = 1;
@@ -799,13 +800,13 @@ int lte_opencl_t::filter_mchn(const cvec & capbuf, const cmat & pss_fo_set, mat 
   ret = clEnqueueNDRangeKernel(cmdQueue, filter_mchn_skip2cols, 1, NULL, global_work_size, local_work_size, 1, &write_done, &(multi_filter_pre[0]));
   if (ret!=0) {
     cout << "clEnqueueNDRangeKernel filter_mchn_skip2cols " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   ret = clEnqueueWriteBuffer(cmdQueue, filter_mchn_coef, CL_FALSE, 0, 2*filter_mchn_buf_coef_len*sizeof(float),filter_mchn_coef_host, 0, NULL, &(multi_filter_pre[1]));
   if (ret!=0) {
     cout << "clEnqueueWriteBuffer filter_mchn_coef " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   global_work_size[0] = filter_mchn_workitem; global_work_size[1] = filter_mchn_num_chn;  global_work_size[2] = 1;
@@ -814,7 +815,7 @@ int lte_opencl_t::filter_mchn(const cvec & capbuf, const cmat & pss_fo_set, mat 
   ret = clEnqueueNDRangeKernel(cmdQueue, filter_mchn_multi_filter, 2, NULL, global_work_size, local_work_size, 2, multi_filter_pre, &multi_filter_done);
   if (ret!=0) {
     cout << "clEnqueueNDRangeKernel filter_mchn_multi_filter " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   global_work_size[0] = filter_mchn_workitem; global_work_size[1] = filter_mchn_num_chn;  global_work_size[2] = 1;
@@ -823,13 +824,13 @@ int lte_opencl_t::filter_mchn(const cvec & capbuf, const cmat & pss_fo_set, mat 
   ret = clEnqueueNDRangeKernel(cmdQueue, filter_mchn_result_combine, 2, NULL, global_work_size, local_work_size, 1, &multi_filter_done, &result_combine_done);
   if (ret!=0) {
     cout << "clEnqueueNDRangeKernel filter_mchn_result_combine " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   ret = clEnqueueReadBuffer(cmdQueue, filter_mchn_out_abs2, CL_FALSE, 0, filter_mchn_buf_out_len*sizeof(float), filter_mchn_out_abs2_host, 1, &result_combine_done, NULL);
   if (ret!=0) {
     cout << "clEnqueueReadBuffer filter_mchn_out" << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
   clFinish(cmdQueue);
 
@@ -869,7 +870,7 @@ int lte_opencl_t::filter_my(cvec & capbuf)
   ret = clEnqueueWriteBuffer(cmdQueue, filter_my_orig, CL_FALSE, 0, 2*filter_my_buf_in_len*sizeof(float),filter_my_in_host, 0, NULL, &write_done);
   if (ret!=0) {
     cout << "clEnqueueWriteBuffer filter_my_orig " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   global_work_size[0] = filter_my_workitem;
@@ -878,7 +879,7 @@ int lte_opencl_t::filter_my(cvec & capbuf)
   ret = clEnqueueNDRangeKernel(cmdQueue, filter_my_skip2cols, 1, NULL, global_work_size, local_work_size, 1, &write_done, &skip2cols_done);
   if (ret!=0) {
     cout << "clEnqueueNDRangeKernel filter_my_skip2cols " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   global_work_size[0] = filter_my_workitem;
@@ -887,7 +888,7 @@ int lte_opencl_t::filter_my(cvec & capbuf)
   ret = clEnqueueNDRangeKernel(cmdQueue, filter_my_multi_filter, 1, NULL, global_work_size, local_work_size, 1, &skip2cols_done, &multi_filter_done);
   if (ret!=0) {
     cout << "clEnqueueNDRangeKernel filter_my_multi_filter " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   global_work_size[0] = filter_my_workitem;
@@ -896,13 +897,13 @@ int lte_opencl_t::filter_my(cvec & capbuf)
   ret = clEnqueueNDRangeKernel(cmdQueue, filter_my_result_combine, 1, NULL, global_work_size, local_work_size, 1, &multi_filter_done, &result_combine_done);
   if (ret!=0) {
     cout << "clEnqueueNDRangeKernel filter_my_result_combine " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   ret = clEnqueueReadBuffer(cmdQueue, filter_my_out, CL_FALSE, 0, 2*filter_my_buf_out_len*sizeof(float), filter_my_out_host, 1, &result_combine_done, NULL);
   if (ret!=0) {
     cout << "clEnqueueReadBuffer filter_my_out" << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
   clFinish(cmdQueue);
 
@@ -920,7 +921,7 @@ int lte_opencl_t::setup_opencl()
   ret = clGetPlatformIDs(0, NULL, &num_platform);
   if (ret!=0) {
     cout << "clGetPlatformIDs " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   cout << "OpenCL: number of platforms " << num_platform << "\n";
@@ -932,7 +933,7 @@ int lte_opencl_t::setup_opencl()
   ret = clGetPlatformIDs(num_platform, platforms, NULL);
   if (ret!=0) {
     cout << "clGetPlatformIDs " << ret << "\n";
-    return(ret);
+    ABORT(-1);
   }
 
   char info_return[1024];
@@ -942,35 +943,35 @@ int lte_opencl_t::setup_opencl()
     ret = clGetPlatformInfo( platforms[pidx], CL_PLATFORM_NAME, 1024, info_return, NULL);
     if (ret!=0) {
       cout << "clGetPlatformInfo CL_PLATFORM_NAME " << ret << "\n";
-      return(ret);
+      ABORT(-1);
     }
     if ( pidx==platform_id ) cout << "Platform " << pidx << " NAME: " << info_return << "\n";
 
     ret = clGetPlatformInfo( platforms[pidx], CL_PLATFORM_VENDOR, 1024, info_return, NULL);
     if (ret!=0) {
       cout << "clGetPlatformInfo CL_PLATFORM_VENDOR " << ret << "\n";
-      return(ret);
+      ABORT(-1);
     }
     DBG( cout << "Platform " << pidx << " VENDOR: " << info_return << "\n"; )
 
     ret = clGetPlatformInfo( platforms[pidx], CL_PLATFORM_VERSION, 1024, info_return, NULL);
     if (ret!=0) {
       cout << "clGetPlatformInfo CL_PLATFORM_VERSION " << ret << "\n";
-      return(ret);
+      ABORT(-1);
     }
     DBG( cout << "Platform " << pidx << " VERSION: " << info_return << "\n"; )
 
     ret = clGetPlatformInfo( platforms[pidx], CL_PLATFORM_PROFILE, 1024, info_return, NULL);
     if (ret!=0) {
       cout << "clGetPlatformInfo CL_PLATFORM_PROFILE " << ret << "\n";
-      return(ret);
+      ABORT(-1);
     }
     if ( pidx==platform_id ) cout << "Platform " << pidx << " PROFILE: " << info_return << "\n";
 
     ret = clGetPlatformInfo( platforms[pidx], CL_PLATFORM_EXTENSIONS, 1024, info_return, NULL);
     if (ret!=0) {
       cout << "clGetPlatformInfo CL_PLATFORM_EXTENSIONS " << ret << "\n";
-      return(ret);
+      ABORT(-1);
     }
     DBG( cout << "Platform " << pidx << " EXTENSIONS: " << info_return << "\n"; )
 
@@ -978,21 +979,21 @@ int lte_opencl_t::setup_opencl()
     ret = clGetDeviceIDs(platforms[pidx], CL_DEVICE_TYPE_ALL, 0, NULL, &numDevices);
     if (ret!=0) {
       cout << "clGetDeviceIDs " << ret << "\n";
-      return(ret);
+      ABORT(-1);
     }
     if ( pidx==platform_id ) cout << "OpenCL: number of devices " << numDevices << "\n";
 
     ret = clGetDeviceIDs(platforms[pidx], CL_DEVICE_TYPE_ALL, numDevices, tmp_devices, NULL);
     if (ret!=0) {
       cout << "clGetDeviceIDs " << ret << "\n";
-      return(ret);
+      ABORT(-1);
     }
 
     if (pidx == platform_id) {
       context = clCreateContext(NULL, numDevices, tmp_devices, NULL, NULL, &ret);
       if (ret!=0) {
         cout << "clCreateContext " << ret << "\n";
-        return(ret);
+        ABORT(-1);
       }
 
       for (uint didx=0; didx<numDevices; didx++) {
@@ -1001,7 +1002,7 @@ int lte_opencl_t::setup_opencl()
           cmdQueue = clCreateCommandQueue(context, tmp_devices[didx], CL_QUEUE_PROFILING_ENABLE, &ret);
           if (ret!=0) {
             cout << "clCreateCommandQueue " << ret << "\n";
-            return(ret);
+            ABORT(-1);
           }
         }
       }
@@ -1013,28 +1014,28 @@ int lte_opencl_t::setup_opencl()
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_NAME,	1024, info_return, NULL);
       if (ret!=0) {
         cout << "clGetDeviceInfo CL_DEVICE_NAME " << ret << "\n";
-        return(ret);
+        ABORT(-1);
       }
       if ( pidx==platform_id && didx==device_id ) cout << "Platform " << pidx<< " Device " << didx << " NAME: " << info_return << "\n";
 
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_VENDOR,	1024, info_return, NULL);
       if (ret!=0) {
         cout << "clGetDeviceInfo CL_DEVICE_VENDOR " << ret << "\n";
-        return(ret);
+        ABORT(-1);
       }
       DBG( cout << "Platform " << pidx << " Device " << didx << " VENDOR: " << info_return << "\n"; )
 
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_VERSION,	1024, info_return, NULL);
       if (ret!=0) {
         cout << "clGetDeviceInfo CL_DEVICE_VERSION " << ret << "\n";
-        return(ret);
+        ABORT(-1);
       }
       DBG( cout << "Platform " << pidx << " Device " << didx << " VERSION: " << info_return << "\n"; )
 
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_PROFILE,	1024, info_return, NULL);
       if (ret!=0) {
         cout << "clGetDeviceInfo CL_DEVICE_PROFILE " << ret << "\n";
-        return(ret);
+        ABORT(-1);
       }
       if ( pidx==platform_id && didx==device_id ) cout << "Platform " << pidx << " Device " << didx << " PROFILE: " << info_return << "\n";
 
@@ -1042,22 +1043,22 @@ int lte_opencl_t::setup_opencl()
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_AVAILABLE,	sizeof(cl_bool), &ava_flag, NULL);
       if (ret!=0) {
         cout << "clGetDeviceInfo CL_DEVICE_AVAILABLE " << ret << "\n";
-        return(ret);
+        ABORT(-1);
       }
       if (!ava_flag) {
         cout << "clGetDeviceInfo CL_DEVICE_AVAILABLE " << ava_flag << "\n";
-        return(ava_flag);
+        ABORT(-1);
       }
       DBG( cout << "Platform " << pidx << " Device " << didx << " AVAILABLE: " << ava_flag << "\n"; )
 
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_COMPILER_AVAILABLE,	sizeof(cl_bool), &ava_flag, NULL);
       if (ret!=0) {
         cout << "clGetDeviceInfo CL_DEVICE_COMPILER_AVAILABLE " << ret << "\n";
-        return(ret);
+        ABORT(-1);
       }
       if (!ava_flag) {
         cout << "clGetDeviceInfo CL_COMPILER_AVAILABLE " << ava_flag << "\n";
-        return(ava_flag);
+        ABORT(-1);
       }
       DBG( cout << "Platform " << pidx << " Device " << didx << " COMPILER_AVAILABLE: " << ava_flag << "\n"; )
 
@@ -1065,7 +1066,7 @@ int lte_opencl_t::setup_opencl()
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_ENDIAN_LITTLE,	sizeof(cl_bool), &endian_flag, NULL);
       if (ret!=0) {
         cout << "clGetDeviceInfo CL_DEVICE_ENDIAN_LITTLE " << ret << "\n";
-        return(ret);
+        ABORT(-1);
       }
       DBG( cout << "Platform " << pidx << " Device " << didx << " ENDIAN_LITTLE: " << endian_flag << "\n"; )
 
@@ -1073,7 +1074,7 @@ int lte_opencl_t::setup_opencl()
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_LOCAL_MEM_SIZE,	sizeof(cl_ulong), &mem_size, NULL);
       if (ret!=0) {
         cout << "clGetDeviceInfo CL_DEVICE_LOCAL_MEM_SIZE " << ret << "\n";
-        return(ret);
+        ABORT(-1);
       }
       if ( pidx==platform_id && didx==device_id ) cout << "Platform " << pidx << " Device " << didx << " LOCAL_MEM_SIZE: " << mem_size << "\n";
 
@@ -1081,7 +1082,7 @@ int lte_opencl_t::setup_opencl()
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_LOCAL_MEM_TYPE,	sizeof(cl_device_local_mem_type), &mem_type, NULL);
       if (ret!=0) {
         cout << "clGetDeviceInfo CL_DEVICE_LOCAL_MEM_TYPE " << ret << "\n";
-        return(ret);
+        ABORT(-1);
       }
       DBG( cout << "Platform " << pidx << " Device " << didx << " LOCAL_MEM_TYPE: " << mem_type << "\n"; )
 
@@ -1089,7 +1090,7 @@ int lte_opencl_t::setup_opencl()
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_MAX_CLOCK_FREQUENCY,	sizeof(cl_uint), &max_freq, NULL);
       if (ret!=0) {
         cout << "clGetDeviceInfo CL_DEVICE_MAX_CLOCK_FREQUENCY " << ret << "\n";
-        return(ret);
+        ABORT(-1);
       }
       if ( pidx==platform_id && didx==device_id ) cout << "Platform " << pidx << " Device " << didx << " MAX_CLOCK_FREQUENCY: " << max_freq << "\n";
 
@@ -1097,7 +1098,7 @@ int lte_opencl_t::setup_opencl()
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_MAX_COMPUTE_UNITS,	sizeof(cl_uint), &max_num_cu, NULL);
       if (ret!=0) {
         cout << "clGetDeviceInfo CL_DEVICE_MAX_COMPUTE_UNITS " << ret << "\n";
-        return(ret);
+        ABORT(-1);
       }
       if ( pidx==platform_id && didx==device_id ) cout << "Platform " << pidx << " Device " << didx << " MAX_COMPUTE_UNITS: " << max_num_cu << "\n";
 
@@ -1105,7 +1106,7 @@ int lte_opencl_t::setup_opencl()
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_MAX_WORK_GROUP_SIZE,	sizeof(size_t), &wg_size, NULL);
       if (ret!=0) {
         cout << "clGetDeviceInfo CL_DEVICE_MAX_WORK_GROUP_SIZE " << ret << "\n";
-        return(ret);
+        ABORT(-1);
       }
       DBG( cout << "Platform " << pidx  << " Device " << didx << " MAX_WORK_GROUP_SIZE: " << wg_size << "\n"; )
 
@@ -1113,7 +1114,7 @@ int lte_opencl_t::setup_opencl()
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_MAX_WORK_ITEM_SIZES,	3*sizeof(size_t), wi_size, NULL);
       if (ret!=0) {
         cout << "clGetDeviceInfo CL_DEVICE_MAX_WORK_ITEM_SIZES " << ret << "\n";
-        return(ret);
+        ABORT(-1);
       }
       DBG( cout << "Platform " << pidx << " Device " << didx << " MAX_WORK_ITEM_SIZES: " << wi_size[0] << " " << wi_size[1] <<  " " << wi_size[2] << "\n"; )
 
@@ -1121,7 +1122,7 @@ int lte_opencl_t::setup_opencl()
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_PREFERRED_VECTOR_WIDTH_FLOAT,	sizeof(cl_uint), &float_vec_size, NULL);
       if (ret!=0) {
         cout << "clGetDeviceInfo CL_DEVICE_PREFERRED_VECTOR_WIDTH_FLOAT " << ret << "\n";
-        return(ret);
+        ABORT(-1);
       }
       if ( pidx==platform_id && didx==device_id ) cout << "Platform " << pidx << " Device " << didx << " PREFERRED_VECTOR_WIDTH_FLOAT: " << float_vec_size << "\n";
 
@@ -1129,7 +1130,7 @@ int lte_opencl_t::setup_opencl()
       ret = clGetDeviceInfo( tmp_devices[didx], CL_DEVICE_EXTENSIONS,	1024, info_return, NULL);
       if (ret!=0) {
         cout << "clGetDeviceInfo CL_DEVICE_EXTENSIONS " << ret << "\n";
-        return(ret);
+        ABORT(-1);
       }
       DBG( cout << "Platform " << pidx << " Device " << didx << " EXTENSIONS: " << info_return << "\n"; )
     }
@@ -1891,7 +1892,8 @@ void sampling_ppm_f_search_set_by_pss(
   vec & fo_search_set,
   // Outpus
   vec & ppm,
-  vector <mat> & xc
+  vector <mat> & xc,
+  double & xcorr_pss_time
 ) {
   const uint16 len_pss = length(ROM_TABLES.pss_td[0]);
   const uint16 num_fo_orig = length(fo_search_set);
@@ -1901,21 +1903,23 @@ void sampling_ppm_f_search_set_by_pss(
   const uint16 num_pss = 3;
 
   mat corr_store(num_fo_pss, len_short);
-  mat corr_store_sub(num_fo_pss/num_loop, len_short);
+//  mat corr_store_sub(num_fo_pss/num_loop, len_short);
 
   static Real_Timer tt;
 
   tt.tic();
   #ifdef USE_OPENCL
-  for (uint16 i=0; i<num_loop; i++) {
-    uint16 sp = i*(num_fo_pss/num_loop);
-    lte_ocl.filter_mchn(s, pss_fo_set.get_rows( sp, sp+(num_fo_pss/num_loop)-1 ), corr_store_sub);
-    corr_store.set_rows(sp, corr_store_sub);
-  }
+//  for (uint16 i=0; i<num_loop; i++) {
+//    uint16 sp = i*(num_fo_pss/num_loop);
+//    lte_ocl.filter_mchn(s, pss_fo_set.get_rows( sp, sp+(num_fo_pss/num_loop)-1 ), corr_store_sub);
+//    corr_store.set_rows(sp, corr_store_sub);
+//  }
+  lte_ocl.filter_mchn(s, pss_fo_set, corr_store);
   #else
   conv_capbuf_with_pss(s, pss_fo_set, corr_store);
   #endif
-  cout << "PSS xcorr cost " << tt.get_time() << "s\n";
+  xcorr_pss_time = tt.get_time();
+//  cout << "PSS xcorr cost " << tt.get_time() << "s\n";
 
   ppm.set_length(1, false);
 

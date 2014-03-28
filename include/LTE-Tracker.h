@@ -181,6 +181,42 @@ class global_thread_data_t {
     // Read/write frequency offset, k_factor, sampling_carrier_twist (via mutex).
     // Mutex makes sure that no read or write is interrupted when
     // only part of the data has been read.
+    inline double opencl_device() {
+      boost::mutex::scoped_lock lock(opencl_device_mutex);
+      double r=opencl_device_private;
+      return r;
+    }
+    inline void opencl_device(const double & f) {
+      boost::mutex::scoped_lock lock(opencl_device_mutex);
+      opencl_device_private=f;
+    }
+    inline double opencl_platform() {
+      boost::mutex::scoped_lock lock(opencl_platform_mutex);
+      double r=opencl_platform_private;
+      return r;
+    }
+    inline void opencl_platform(const double & f) {
+      boost::mutex::scoped_lock lock(opencl_platform_mutex);
+      opencl_platform_private=f;
+    }
+    inline double filter_workitem() {
+      boost::mutex::scoped_lock lock(filter_workitem_mutex);
+      double r=filter_workitem_private;
+      return r;
+    }
+    inline void filter_workitem(const double & f) {
+      boost::mutex::scoped_lock lock(filter_workitem_mutex);
+      filter_workitem_private=f;
+    }
+    inline double xcorr_workitem() {
+      boost::mutex::scoped_lock lock(xcorr_workitem_mutex);
+      double r=xcorr_workitem_private;
+      return r;
+    }
+    inline void xcorr_workitem(const double & f) {
+      boost::mutex::scoped_lock lock(xcorr_workitem_mutex);
+      xcorr_workitem_private=f;
+    }
     inline double sampling_carrier_twist() {
       boost::mutex::scoped_lock lock(sampling_carrier_twist_mutex);
       double r=sampling_carrier_twist_private;
@@ -245,6 +281,14 @@ class global_thread_data_t {
   private:
     // The frequency offset of the dongle. This value will be updated
     // continuously.
+    boost::mutex opencl_platform_mutex;
+    uint16 opencl_platform_private;
+    boost::mutex opencl_device_mutex;
+    uint16 opencl_device_private;
+    boost::mutex xcorr_workitem_mutex;
+    uint16 xcorr_workitem_private;
+    boost::mutex filter_workitem_mutex;
+    uint16 filter_workitem_private;
     boost::mutex sampling_carrier_twist_mutex;
     bool sampling_carrier_twist_private;
     boost::mutex k_factor_mutex;

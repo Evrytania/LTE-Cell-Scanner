@@ -1,19 +1,33 @@
 profiling result:
 Intel(R) Core(TM) i7-3930K CPU @ 3.20GHz + Intel driver + garbage data + frequency search:matlab_range(-60000,5000,55000)  24*3=72
 Intel(R) Core(TM) i7-3930K CPU @ 3.20GHz + AMD   driver + garbage data + frequency search:matlab_range(-60000,5000,55000)  24*3=72
---filter-workitem 64
+non-twist mode
+--filter-workitem 64, 32
 0.0025s
 --xcorr-workitem 1~8
 0.47s
+--num-loop=24 --xcorr-workitem=4 //not use num-loop now.
+0.53s
 
+non-twist mode
 GTX 550ti
 --filter-workitem 32 64 128
 0.012s
 --xcorr-workitem 4
 4.7~4.9s
+--num-loop=9 --xcorr-workitem=8
+4.48s
+
+non-twist mode NO OPENCL 6RB filter cost 0.062s PSS xcorr cost 3.2s
+
+twist mode NO OPENCL 6RB filter cost 0.061s PSS xcorr cost 11.1
+
+twist mode i7-3930K CPU @ 3.20GHz
+--xcorr-workitem 1~4
+1.79 ~ 1.8
 
 -----------------i5 CPU       M 520  @ 2.40GHz + Intel driver--------------------
---xcorr-workitem 
+--xcorr-workitem
 1 2.55s
 2 2.56s
 4 2.6s
@@ -25,14 +39,14 @@ GTX 550ti
 --filter-workitem=32
 0.008s
 
-NO OPENCL: 6RB filter cost 0.0809879s PSS xcorr cost 7.08098s
+non-twist mode NO OPENCL: 6RB filter cost 0.0809879s PSS xcorr cost 7.08098s
 
 
-./CellSearch --loadbin ~/git/rtl-sdr-LTE/scan-capture/frequency-1850-1880MHz/f1860_s1.92_g0_1s_strong.bin
+./CellSearch --loadbin ~/git/rtl-sdr-LTE/scan-capture/frequency-1850-1880MHz/f1860_s1.92_g0_1s_strong.bin --num-reserve=4
 should be like:
 -----------f_search_set -60:5:55--------------------------------------------------------------
 Processing  at ../scan-capture/frequency-1850-1880MHz/f1860_s1.92_g0_1s_strong.bin
-sampling_ppm_f_search_set_by_pss: try ... ... 
+sampling_ppm_f_search_set_by_pss: try ... ...
 Hit        PAR 14.061      13.0921       13.013      12.6916dB
 Seems not a peak 8.4609e-06  9.9798e-07   7.947e-06  1.9476e-05  1.8492e-05  1.8757e-05  2.1515e-05 at i=1 j=71585
 Hit num forPPM 15
@@ -64,7 +78,7 @@ Found MIB!!!
 
 -----------f_search_set -100:5:100--------------------------------------------------------------
 Processing  at ../scan-capture/frequency-1850-1880MHz/f1860_s1.92_g0_1s_strong.bin
-sampling_ppm_f_search_set_by_pss: try ... ... 
+sampling_ppm_f_search_set_by_pss: try ... ...
 Hit        PAR 14.061      13.0921      12.9709       13.013dB
 Seems not a peak 8.4609e-06  9.9798e-07   7.947e-06  1.9476e-05  1.8492e-05  1.8757e-05  2.1515e-05 at i=1 j=71585
 Hit num forPPM 15
@@ -94,7 +108,7 @@ Found MIB!!!
     PSS  ID: 3
     RX power level: -43.2341
     residual frequency offset: -41672.0504
- 
+
 -------------------------------Cells information summary-------------------------------
 At ../scan-capture/frequency-1850-1880MHz/f1860_s1.92_g0_1s_strong.bin
 Cell 1 information:--------------------------------------------------------

@@ -14,7 +14,9 @@ I study and do experiments using MATLAB in this repo: https://github.com/JiaoXia
 Some usages of new features
 -----------------------------------------------------------------
 
-"cmake .. -DNO_OPENCL=1" to force not to use OpenCL. (It will try to find OpenCL and use it in default mode.)
+Before cmake, the build directory should better be cleaned.
+
+"cmake .. -DUSE_OPENCL=0" to force not to use OpenCL. (It will try to find and use OpenCL if USE_OPENCL isn't specified or is set to 1.)
 
 "CellSearch --help" to see all options.
 

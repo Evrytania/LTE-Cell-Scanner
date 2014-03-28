@@ -174,7 +174,8 @@ void sampling_ppm_f_search_set_by_pss(
   itpp::vec & fo_search_set,
   // Outpus
   itpp::vec & ppm,
-  std::vector <itpp::mat> & xc
+  std::vector <itpp::mat> & xc,
+  double & xcorr_pss_time
 );
 
 void sampling_ppm_f_search_set_by_pss_old(

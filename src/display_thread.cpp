@@ -535,7 +535,7 @@ void display_thread(
       // Header and footer
       {
         stringstream ss;
-        ss << "LTE-Tracker v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " -- www.evrytania.com; 1.0 to 1.1: TDD/ext-LNB/faster added by Jiao Xianjun(putaoshu@gmail.com).";
+        ss << "LTE-Tracker v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " -- www.evrytania.com; 1.0 to 1.1: TDD/OpenCL/ext-LNB/faster added by Jiao X.J.(putaoshu@gmail.com).";
         move(0,0);
         attron(COLOR_PAIR(CYAN));
         print_center(ss.str());
@@ -569,7 +569,8 @@ void display_thread(
       attron(COLOR_PAIR(MAGENTA));
       printw("[FO: %6.0lf Hz]",global_thread_data.frequency_offset());
       //attron(A_BOLD);
-      printw("[searcher delay: %.1lf s]",global_thread_data.searcher_cycle_time());
+//      printw("[searcher delay: %.1lf s]",global_thread_data.searcher_cycle_time());
+      printw("[searcher delay: %f s]",global_thread_data.searcher_cycle_time());
       //attroff(A_BOLD);
 
       if (fifo_status) {
