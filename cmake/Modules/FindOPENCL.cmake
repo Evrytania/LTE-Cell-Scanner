@@ -1,3 +1,6 @@
+# For OpenCL LTE Scanner (https://github.com/JiaoXianjun/LTE-Cell-Scanner)
+# Jiao Xianjun (putaoshu@gmail.com)
+
 # - Find OpenCL
 # Find the native OpenCL includes and library
 # This module defines
@@ -26,6 +29,7 @@ IF (OPENCL_LIBRARY AND OPENCL_INCLUDE_DIR)
   SET(OPENCL_FOUND "YES")
 ELSE (OPENCL_LIBRARY AND OPENCL_INCLUDE_DIR)
   SET(OPENCL_FOUND "NO")
+  MESSAGE(STATUS "OPENCL not found.")
 ENDIF (OPENCL_LIBRARY AND OPENCL_INCLUDE_DIR)
 
 IF (OPENCL_FOUND)

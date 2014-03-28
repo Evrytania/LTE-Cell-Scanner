@@ -40,7 +40,16 @@ twist mode i7-3930K CPU @ 3.20GHz
 0.008s
 
 non-twist mode NO OPENCL: 6RB filter cost 0.0809879s PSS xcorr cost 7.08098s
+twist mode NO OPENCL: 6RB filter cost 0.0809879s PSS xcorr cost 26s
 
+-----------------i5 CPU       M 520  @ 2.40GHz + POCL--------------------
+6RB filter 0.008
+xcorr-workitem=2
+2.4s
+xcorr-workitem=4
+2.38s
+xcorr-workitem=8
+2.41s
 
 ./CellSearch --loadbin ~/git/rtl-sdr-LTE/scan-capture/frequency-1850-1880MHz/f1860_s1.92_g0_1s_strong.bin --num-reserve=4
 should be like:
