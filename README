@@ -12,36 +12,85 @@ Before explore this LTE Scanner, please make sure you have following two things 
 
 ATTENTION!!! I find that only v0.5.2 librtlsdr (https://github.com/steve-m/librtlsdr) works with this LTE Scanner. Not v0.5.3! (at least in my computer)
 
+I study and do experiments using MATLAB in this repo: https://github.com/JiaoXianjun/rtl-sdr-LTE
+
+Introduction video(inside China):
+
+Introduction video(outside China): http://www.youtube.com/watch?v=SxZzEVEKuRs
+
+Videos before:
+
 Introduction video(inside China): http://v.youku.com/v_show/id_XNjc1MjIzMDEy.html
 
 Introduction video(outside China): http://www.youtube.com/watch?v=4zRLgxzn4Pc
-
-I study and do experiments using MATLAB in this repo: https://github.com/JiaoXianjun/rtl-sdr-LTE
 
 -----------------------------------------------------------------
 New features and Usages
 -----------------------------------------------------------------
 
-Before cmake, the build directory should better be cleaned.
-
-"cmake .. -DUSE_OPENCL=0" to force not to use OpenCL. (It will try to find and use OpenCL if USE_OPENCL isn't specified or is set to 1.)
-
 "CellSearch --help" to see all options.
+
+1. OpenCL support
+
+"cd LTE-Cell-Scanner"
+
+"mkdir build"
+
+"cd build"
+
+"cmake ../"
+
+(Before cmake, the build directory should better be cleaned.)
+
+In default, "cmake ../" will try to find and use OpenCL if USE_OPENCL isn't specified or is set to 1.
+
+So, make sure you have OpenCL driver installed in your system correctly, if you want LTE Scanner faster.
+
+Intel, AMD, Nvidia, They all have free OpenCL driver/support for their CPUs, GPUs. There are also some other open source OpenCLs,
+such as pocl - Portable Computing Language (https://github.com/pocl/pocl)
+
+"cmake .. -DUSE_OPENCL=0" to force not to use OpenCL.
+
+Run test: (before run, make sure program can find .bin and .cl files. Two kernel files, filter_my_kernels.cl and filter_mchn_kernels.cl, are in src directory)
+
+"CellSearch --loadbin test/f1890_s1.92_g0_0.16s.bin --opencl-platform=0 --opencl-device=0 --filter-workitem=32 --xcorr-workitem=2"
+
+You can specify platform and device index. When program runs, it tells you how many platforms are detected.
+
+Number of workitems of 6RB channel filter kernel can be specified by --filter-workitem. Default value is 32.
+
+Number of workitems in the 1st NDrange dimension of PSS frequency-time correlation kernel can be specified by --xcorr-workitem.
+Default value is 2. It has the 2nd NDrange dimension with 72 workitems (non-twist mode) or 273 workitems (twist mode).
+
+2. TDD, external-LNB/mixer and pre-search algorithm improvement
+
+"CellSearch --freq-start 1860e6 -t" to use original carrier-sampling-clock twisted mode.
+
+My new developed mode is non-twisted mode (default mode), which supports external LNB and fast pre-search.
+See detailed explanation in https://github.com/JiaoXianjun/rtl-sdr-LTE , and this video:
+(inside China): http://v.youku.com/v_show/id_XNjc1MjIzMDEy.html ,
+ (outside China): http://www.youtube.com/watch?v=4zRLgxzn4Pc )
+
+If you find different search results between two modes (twisted and non-twisted), please capture the signal into bin file and tell me.
+Thanks!
+
+"CellSearch --loadbin test/f1890_s1.92_g0_0.16s.bin --num-reserve=4"
+
+Specify how many pre-search frequency-PPM pairs are reserved for following peak search. Default value is 1.
+
+3. Capture and reload rtl-sdr raw uint8 bin file.
 
 "CellSearch --freq-start 1860e6 --recbin a.bin" to save signal in file a.bin while doing cell search at frequency 1.86GHz
 
 "CellSearch --loadbin test/f1890_s1.92_g0_0.16s.bin" to search LTE cell in captured bin file test/f1890_s1.92_g0_0.16s.bin
 
-"CellSearch --freq-start 1860e6 --num-try 10" to try to perform 10 tries of searching at frequency 1.86GHz (When signal is weak, only one try may not have you good luck)
+4. Multiple tries at one frequency point.
 
-"CellSearch --freq-start 1860e6 -t" to use original carrier-sampling twisted mode. (My new developed mode is non-twisted mode (default mode), which supports external LNB and fast pre-search. See detailed explanation in https://github.com/JiaoXianjun/rtl-sdr-LTE)
-
-If you find different search results between two modes (twisted and non-twisted), please capture the signal into bin file and tell me.
-Thanks!
+"CellSearch test/noise.bin --num-try 10" to try to perform 10 tries of searching at frequency 1.86GHz (When signal is weak, only one try may not have you good luck)
 
 
 Original Readme of James Peroulas's LTE Cell Scanner / Tracker
-=======================
+=====================================================================
 
 --------------------------
 LTE Cell Scanner / Tracker
