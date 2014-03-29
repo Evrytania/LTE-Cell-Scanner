@@ -1,28 +1,20 @@
-An OpenCL accelerated TDD/FDD LTE Scanner.
+An OpenCL accelerated TDD/FDD LTE Scanner. By Jiao Xianjun (putaoshu@gmail.com).
 
-( Hope to be merged back to where I fork: https://github.com/Evrytania/LTE-Cell-Scanner )
+Before explore this LTE Scanner, it's better for you to do some homeworks:
 
-Jiao Xianjun (putaoshu@gmail.com).
+1. Original FDD only LTE Cell Scanner / Tracker: https://github.com/Evrytania/LTE-Cell-Scanner , by James Peroulas.
 
-Before explore this LTE Scanner, please make sure you have following two things work well:
+2. rtl-sdr ultra cheap USB TV dongle: http://sdr.osmocom.org/trac/wiki/rtl-sdr
 
-1. Original FDD only LTE Cell Scanner / Tracker: https://github.com/Evrytania/LTE-Cell-Scanner
+ATTENTION!!! Only v0.5.2 librtlsdr (https://github.com/steve-m/librtlsdr) works with this LTE Scanner. Not v0.5.3! (at least for my computer)
 
-2. rtl-sdr: http://sdr.osmocom.org/trac/wiki/rtl-sdr
+MATLAB algorithm study and experiments are in : https://github.com/JiaoXianjun/rtl-sdr-LTE
 
-ATTENTION!!! I find that only v0.5.2 librtlsdr (https://github.com/steve-m/librtlsdr) works with this LTE Scanner. Not v0.5.3! (at least in my computer)
+Any questions or interests, feel free to contact me. putaoshu@gmail.com
 
-I study and do experiments using MATLAB in this repo: https://github.com/JiaoXianjun/rtl-sdr-LTE
+Introduction video: (inside China) http://pan.baidu.com/s/1o6qbLGY , (outside China) http://www.youtube.com/watch?v=SxZzEVEKuRs
 
-Introduction video(inside China):
-
-Introduction video(outside China): http://www.youtube.com/watch?v=SxZzEVEKuRs
-
-Videos before:
-
-Introduction video(inside China): http://v.youku.com/v_show/id_XNjc1MjIzMDEy.html
-
-Introduction video(outside China): http://www.youtube.com/watch?v=4zRLgxzn4Pc
+Introduction video before: (inside China) http://v.youku.com/v_show/id_XNjc1MjIzMDEy.html , (outside China) http://www.youtube.com/watch?v=4zRLgxzn4Pc
 
 -----------------------------------------------------------------
 New features and Usages
@@ -30,7 +22,7 @@ New features and Usages
 
 "CellSearch --help" to see all options.
 
-1. OpenCL support
+1. ----------------------OpenCL support----------------------
 
 "cd LTE-Cell-Scanner"
 
@@ -42,60 +34,61 @@ New features and Usages
 
 (Before cmake, the build directory should better be cleaned.)
 
-In default, "cmake ../" will try to find and use OpenCL if USE_OPENCL isn't specified or is set to 1.
+In default, "cmake ../" tries to find and use OpenCL to get speedup.
 
-"cmake .. -DUSE_OPENCL=0" to force not to use OpenCL.
+"cmake .. -DUSE_OPENCL=0" forces not to use OpenCL.
 
-So, make sure you have OpenCL driver installed in your system correctly, if you want LTE Scanner accelerated.
+So, make sure OpenCL SDK has been installed in your system correctly, if you want LTE Scanner accelerated.
 
-Intel, AMD, Nvidia, They all have free OpenCL driver/support for their CPUs, GPUs. There are also some other open source OpenCLs,
+Intel, AMD, Nvidia, they all have free OpenCL SDK for their CPU/GPUs. There are also some other open source OpenCLs SDK,
 such as pocl - Portable Computing Language (https://github.com/pocl/pocl)
 
-Run test: (before run, make sure program can find .cl kernel files. Two kernel files, filter_my_kernels.cl and filter_mchn_kernels.cl, are in src directory)
+"make" to generate executable program.
+
+Before run test, two kernel files, filter_my_kernels.cl and filter_mchn_kernels.cl, should be put together with executable program or in $PATH.
+Because they need to be compiled and executed by OpenCL runtime after program launch.
+
+Run test:
 
 "CellSearch --loadbin test/f1890_s1.92_g0_0.16s.bin --opencl-platform=0 --opencl-device=0 --filter-workitem=32 --xcorr-workitem=2"
 
-You can specify OpenCL platform and device index to choose which CPU/GPU is used.
-When program runs, it tells you how many platforms are detected in total.
+OpenCL platform and device are specified by "--opencl-platform=idx1 --opencl-device=idx2" to decide which CPU/GPU is used.
+When program runs, it tells you how many platforms are detected in total. Default index is 0.
 
-Number of workitems of 6RB channel filter kernel can be specified by --filter-workitem. Default value is 32.
+Number of workitems for 6RB channel filter kernel can be specified by "--filter-workitem". Default value is 32.
 
-Number of workitems in the 1st NDrange dimension of PSS frequency-time correlation kernel can be specified by --xcorr-workitem.
-Default value is 2. It always has the 2nd NDrange dimension with 72 workitems (non-twist mode) or 273 workitems (twist mode).
+Number of workitems in the 1st NDrange dimension for PSS frequency-time correlation kernel can be specified by "--xcorr-workitem".
+Default value is 2. PSS correlation always has the 2nd NDrange dimension with 72 workitems (non-twist mode) or 273 workitems (twist mode).
 
-Optimal number of workitems is platform-device dependent. You may find out best values according to your computer configuration.
+Optimal number of workitems is platform-device dependent. Optimal values should be found according to your computer configuration.
 
-2. TDD, external-LNB/mixer and pre-search algorithm improvement
+2. -----TDD, ext-LNB/mixer, pre-search algorithm improvement-----
 
 "CellSearch --freq-start 1860e6 -t"
 
-"-t" is used to force into original carrier-sampling-clock twisted mode. Without "-t" leads to non-twisted mode (default mode).
+"-t" forces program into original carrier-sampling-clock twisted mode. Without "-t" leads to non-twisted mode (default mode).
 
 Default mode supports external LNB and fast pre-search.
-See detailed explanation in https://github.com/JiaoXianjun/rtl-sdr-LTE , and videos:
-(inside China): http://v.youku.com/v_show/id_XNjc1MjIzMDEy.html ,
+See detailed explanation in https://github.com/JiaoXianjun/rtl-sdr-LTE , and videos: (inside China): http://v.youku.com/v_show/id_XNjc1MjIzMDEy.html ,
  (outside China): http://www.youtube.com/watch?v=4zRLgxzn4Pc )
-
-If you find different search results between two modes, please capture the signal into bin file and tell me.
-Thanks!
 
 "CellSearch --loadbin test/f1890_s1.92_g0_0.16s.bin --num-reserve=4"
 
-"--num-reserve" Specify how many pre-search frequency-PPM pairs are reserved for following peak search. Default value is 1.
+"--num-reserve" specifies how many frequency-PPM pairs are reserved in search process. Default value is 1.
 
-3. Capture and reload rtl-sdr raw uint8 bin file.
+3. --------Capture and reload rtl-sdr raw uint8 bin file--------
 
-"CellSearch --freq-start 1860e6 --recbin a.bin" to save signal in file a.bin while doing cell search at frequency 1.86GHz
+"CellSearch --freq-start 1860e6 --recbin a.bin" saves signal in file a.bin while doing cell search at frequency 1.86GHz
 
-"CellSearch --loadbin test/f1890_s1.92_g0_0.16s.bin" to search LTE cell in captured bin file test/f1890_s1.92_g0_0.16s.bin
+"CellSearch --loadbin test/f1890_s1.92_g0_0.16s.bin" searches LTE cell in captured bin file test/f1890_s1.92_g0_0.16s.bin
 
-4. Multiple tries at one frequency point.
+4. ------------Multiple tries at one frequency point------------
 
-"CellSearch test/noise.bin --num-try 10" to try to perform 10 tries of searching at frequency 1.86GHz (When signal is weak, only one try may not have you good luck)
+"CellSearch test/noise.bin --num-try 10" performs 10 tries of searching at frequency 1.86GHz (When signal is weak, only one try may not have you good luck)
 
 
 Original Readme of James Peroulas's LTE Cell Scanner / Tracker
-=====================================================================
+========================================================================
 
 --------------------------
 LTE Cell Scanner / Tracker
