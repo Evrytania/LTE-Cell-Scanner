@@ -12,6 +12,9 @@ MATLAB algorithm study and experiments are in : https://github.com/JiaoXianjun/r
 
 Any questions or interests, feel free to contact me. putaoshu@gmail.com
 
+(Another ATTENTION: This Scanner narrows searching range around one frequency point from +/-.2MHz to +/-.05MHz, because scanner uses .1MHz step size in frequency sweeping.
+For example, if there is a cell at 1860MHz, but your dongle has frequency offset as big as .2MHz, you should use "--freq-start=1859.8e6 --freq-end=1860.2e6" to ensure hit.)
+
 Introduction video: (inside China) http://pan.baidu.com/s/1o6qbLGY ,
 (outside China) http://www.youtube.com/watch?v=SxZzEVEKuRs
 
