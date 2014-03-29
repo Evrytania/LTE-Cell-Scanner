@@ -1,8 +1,16 @@
+An OpenCL accelerated TDD/FDD LTE Scanner.
+
+( Hope to be merged back to where I fork: https://github.com/Evrytania/LTE-Cell-Scanner )
+
 Jiao Xianjun (putaoshu@gmail.com).
 
-TDD, external-LNB, and fater pre-searcher are added now! In the future this will be merged back to https://github.com/Evrytania/LTE-Cell-Scanner
+Before explore this LTE Scanner, please make sure you have following two things work well:
 
-ATTENTION!!! I find that LTE-Cell-Scanner only works with v0.5.2 librtlsdr (https://github.com/steve-m/librtlsdr). Not v0.5.3! (at least in my computer)
+1. Original FDD only LTE Cell Scanner / Tracker: https://github.com/Evrytania/LTE-Cell-Scanner
+
+2. rtl-sdr: http://sdr.osmocom.org/trac/wiki/rtl-sdr
+
+ATTENTION!!! I find that only v0.5.2 librtlsdr (https://github.com/steve-m/librtlsdr) works with this LTE Scanner. Not v0.5.3! (at least in my computer)
 
 Introduction video(inside China): http://v.youku.com/v_show/id_XNjc1MjIzMDEy.html
 
@@ -11,7 +19,7 @@ Introduction video(outside China): http://www.youtube.com/watch?v=4zRLgxzn4Pc
 I study and do experiments using MATLAB in this repo: https://github.com/JiaoXianjun/rtl-sdr-LTE
 
 -----------------------------------------------------------------
-Some usages of new features
+New features and Usages
 -----------------------------------------------------------------
 
 Before cmake, the build directory should better be cleaned.
@@ -30,6 +38,10 @@ Before cmake, the build directory should better be cleaned.
 
 If you find different search results between two modes (twisted and non-twisted), please capture the signal into bin file and tell me.
 Thanks!
+
+
+Original Readme of James Peroulas's LTE Cell Scanner / Tracker
+=======================
 
 --------------------------
 LTE Cell Scanner / Tracker

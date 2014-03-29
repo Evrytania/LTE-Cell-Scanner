@@ -154,7 +154,7 @@ void parse_commandline(
   opencl_platform = 0;
   opencl_device = 0;
   filter_workitem = 32;
-  xcorr_workitem = 1;
+  xcorr_workitem = 2;
   num_reserve = 1;
   num_loop = 0;
 
