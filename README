@@ -44,39 +44,44 @@ New features and Usages
 
 In default, "cmake ../" will try to find and use OpenCL if USE_OPENCL isn't specified or is set to 1.
 
-So, make sure you have OpenCL driver installed in your system correctly, if you want LTE Scanner faster.
+"cmake .. -DUSE_OPENCL=0" to force not to use OpenCL.
+
+So, make sure you have OpenCL driver installed in your system correctly, if you want LTE Scanner accelerated.
 
 Intel, AMD, Nvidia, They all have free OpenCL driver/support for their CPUs, GPUs. There are also some other open source OpenCLs,
 such as pocl - Portable Computing Language (https://github.com/pocl/pocl)
 
-"cmake .. -DUSE_OPENCL=0" to force not to use OpenCL.
-
-Run test: (before run, make sure program can find .bin and .cl files. Two kernel files, filter_my_kernels.cl and filter_mchn_kernels.cl, are in src directory)
+Run test: (before run, make sure program can find .cl kernel files. Two kernel files, filter_my_kernels.cl and filter_mchn_kernels.cl, are in src directory)
 
 "CellSearch --loadbin test/f1890_s1.92_g0_0.16s.bin --opencl-platform=0 --opencl-device=0 --filter-workitem=32 --xcorr-workitem=2"
 
-You can specify platform and device index. When program runs, it tells you how many platforms are detected.
+You can specify OpenCL platform and device index to choose which CPU/GPU is used.
+When program runs, it tells you how many platforms are detected in total.
 
 Number of workitems of 6RB channel filter kernel can be specified by --filter-workitem. Default value is 32.
 
 Number of workitems in the 1st NDrange dimension of PSS frequency-time correlation kernel can be specified by --xcorr-workitem.
-Default value is 2. It has the 2nd NDrange dimension with 72 workitems (non-twist mode) or 273 workitems (twist mode).
+Default value is 2. It always has the 2nd NDrange dimension with 72 workitems (non-twist mode) or 273 workitems (twist mode).
+
+Optimal number of workitems is platform-device dependent. You may find out best values according to your computer configuration.
 
 2. TDD, external-LNB/mixer and pre-search algorithm improvement
 
-"CellSearch --freq-start 1860e6 -t" to use original carrier-sampling-clock twisted mode.
+"CellSearch --freq-start 1860e6 -t"
 
-My new developed mode is non-twisted mode (default mode), which supports external LNB and fast pre-search.
-See detailed explanation in https://github.com/JiaoXianjun/rtl-sdr-LTE , and this video:
+"-t" is used to force into original carrier-sampling-clock twisted mode. Without "-t" leads to non-twisted mode (default mode).
+
+Default mode supports external LNB and fast pre-search.
+See detailed explanation in https://github.com/JiaoXianjun/rtl-sdr-LTE , and videos:
 (inside China): http://v.youku.com/v_show/id_XNjc1MjIzMDEy.html ,
  (outside China): http://www.youtube.com/watch?v=4zRLgxzn4Pc )
 
-If you find different search results between two modes (twisted and non-twisted), please capture the signal into bin file and tell me.
+If you find different search results between two modes, please capture the signal into bin file and tell me.
 Thanks!
 
 "CellSearch --loadbin test/f1890_s1.92_g0_0.16s.bin --num-reserve=4"
 
-Specify how many pre-search frequency-PPM pairs are reserved for following peak search. Default value is 1.
+"--num-reserve" Specify how many pre-search frequency-PPM pairs are reserved for following peak search. Default value is 1.
 
 3. Capture and reload rtl-sdr raw uint8 bin file.
 
