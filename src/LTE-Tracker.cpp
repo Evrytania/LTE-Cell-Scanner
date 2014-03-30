@@ -484,12 +484,12 @@ void parse_commandline(
   if (verbosity>=1) {
     cout << "OpenCL LTE Tracker v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " (" << BUILD_TYPE << ") beginning. 1.0 to 1.1: TDD/OpenCL/ext-LNB/faster added by Jiao Xianjun(putaoshu@gmail.com)" << endl;
     cout << "  Search frequency: " << fc/1e6 << " MHz" << endl;
-    if (sampling_carrier_twist) {
+//    if (sampling_carrier_twist) {
       cout << "  PPM: " << ppm << endl;
       stringstream temp;
       temp << setprecision(20) << correction;
       cout << "  correction: " << temp.str() << endl;
-    }
+//    }
 //    if (save_cap)
 //      cout << "  Captured data will be saved in capbufXXXX.it files" << endl;
     if (use_recorded_data)
@@ -979,10 +979,10 @@ double kalibrate(
   double correction_residual=(true_location/fc_requested*fc_programmed)/crystal_freq_actual;
   //const double correction_new=correction*correction_residual;
 
-  if (!sampling_carrier_twist) {
-    correction_residual = best.k_factor;
+//  if (!sampling_carrier_twist) {
+//    correction_residual = best.k_factor;
+//  }
     k_factor = best.k_factor;
-  }
   if (verbosity>=1) {
     cout << "Calibration succeeded!" << endl;
     cout << "   Residual frequency offset: " << best.freq_superfine << " Hz" << endl;
