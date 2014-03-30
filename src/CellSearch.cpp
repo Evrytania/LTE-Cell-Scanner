@@ -404,12 +404,12 @@ void parse_commandline(
     } else {
       cout << "  Search frequency range: " << freq_start/1e6 << "-" << freq_end/1e6 << " MHz" << endl;
     }
-    if (sampling_carrier_twist) {
+//    if (sampling_carrier_twist) {
       cout << "  PPM: " << ppm << endl;
       stringstream temp;
       temp << setprecision(20) << correction;
       cout << "  correction: " << temp.str() << endl;
-    }
+//    }
     if (save_cap)
       cout << "  Captured data will be saved in capbufXXXX.it files" << endl;
     if (use_recorded_data)
@@ -479,6 +479,7 @@ string freq_formatter(
 
 // Open the USB device
 void config_usb(
+  const bool & sampling_carrier_twist,
   const double & correction,
   const int32 & device_index_cmdline,
   const double & fc,
@@ -514,8 +515,13 @@ void config_usb(
     ABORT(-1);
   }
 
+  double sampling_rate = 0;
+  if (sampling_carrier_twist)
+    sampling_rate = 1920000*correction;
+  else
+    sampling_rate = 1920000;
   // Sampling frequency
-  if (rtlsdr_set_sample_rate(dev,itpp::round(1920000*correction))<0) {
+  if (rtlsdr_set_sample_rate(dev,itpp::round(sampling_rate))<0) {
     cerr << "Error: unable to set sampling rate" << endl;
     ABORT(-1);
   }
@@ -603,7 +609,7 @@ int main(
   rtlsdr_dev_t * dev=NULL;
   double fs_programmed = 1920000; // in case not initialized by config_usb
   if ( (!use_recorded_data) && (strlen(load_bin_filename)==0) )
-    config_usb(correction,device_index,freq_start,dev,fs_programmed);
+    config_usb(sampling_carrier_twist,correction,device_index,freq_start,dev,fs_programmed);
 
   if (use_recorded_data)
     num_try=1; // compatible to .it file case
@@ -909,9 +915,9 @@ int main(
       // Calculate correction factors
       const double correction_residual=true_location/crystal_freq_actual;
       double correction_new=correction*correction_residual;
-      if (!sampling_carrier_twist) {
-        correction_new = (*it).k_factor;
-      }
+//      if (!sampling_carrier_twist) {
+//        correction_new = (*it).k_factor;
+//      }
       ss << " " << setprecision(20) << correction_new;
       cout << ss.str() << endl;
 
