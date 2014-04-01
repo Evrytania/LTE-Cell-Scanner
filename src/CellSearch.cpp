@@ -655,14 +655,14 @@ int main(
   vec f_search_set;
   if (sampling_carrier_twist) { // original mode
     const uint16 n_extra=floor_i((freq_start*ppm/1e6+2.5e3)/5e3);
-    f_search_set=to_vec(itpp_ext::matlab_range( -n_extra*5000,5000, (n_extra)*5000));
+    f_search_set=to_vec(itpp_ext::matlab_range( -n_extra*5000,5000, (n_extra-1)*5000));
     // for graphic card which has limited mem, you should turn num_loop on if OpenCL reports -4: CL_MEM_OBJECT_ALLOCATION_FAILURE
 //    if (num_loop == 0) // it is not so useful
 //      num_loop = length(f_search_set)/2;
   } else {
     if (length(fc_search_set)==1) {//when only one frequency is specified, whole PPM range should be covered
       const uint16 n_extra=floor_i((freq_start*ppm/1e6+2.5e3)/5e3);
-      f_search_set=to_vec(itpp_ext::matlab_range( -n_extra*5000,5000, (n_extra)*5000));
+      f_search_set=to_vec(itpp_ext::matlab_range( -n_extra*5000,5000, (n_extra-1)*5000));
     } else {
       // since we have frequency step is 100e3, why not have sub search set limited by this regardless PPM?
       f_search_set=to_vec(itpp_ext::matlab_range(-60000,5000,55000)); // 2*65kHz > 100kHz, overlap adjacent frequencies
@@ -674,11 +674,7 @@ int main(
 
   cout << "    Search PSS at fo: " << f_search_set(0)/1e3 << " to " << f_search_set( length(f_search_set)-1 )/1e3 << " kHz" << endl;
 
-  if (dongle_used) { // if dongle is not used, do correction explicitly. Because if dongle is used, the correction is done when tuning dongle's frequency.
-    freq_correction = 0;
-  }
-
-  pss_fo_set_gen(f_search_set + freq_correction, pss_fo_set);
+  pss_fo_set_gen(f_search_set, pss_fo_set);
 
 //  cout << "Search PSS fo(crect): " << f_search_set(0)/1e3 << " to " << f_search_set( length(f_search_set)-1 )/1e3 << " kHz" << endl;
 
@@ -771,6 +767,10 @@ int main(
     if (run_out_of_data){
       fci = n_fc_multi_try; // end of loop
       continue;
+    }
+
+    if (!dongle_used) { // if dongle is not used, do correction explicitly. Because if dongle is used, the correction is done when tuning dongle's frequency.
+      capbuf = fshift(capbuf,-freq_correction,fs_programmed);
     }
 
     // 6RB filter to improve SNR
@@ -928,7 +928,7 @@ int main(
   } else {
     cout << "Detected the following cells:" << endl;
     cout << "DPX:TDD/FDD; A: #antenna ports C: CP type ; P: PHICH duration ; PR: PHICH resource type" << endl;
-    cout << "DPX CID A      fc   foff RXPWR C nRB P  PR CrystalCorrectionFactor" << endl;
+    cout << "DPX CID A      fc   freq-offset RXPWR C nRB P  PR CrystalCorrectionFactor" << endl;
     list <Cell>::iterator it=cells_final.begin();
     while (it!=cells_final.end()) {
       // Use a stringstream to avoid polluting the iostream settings of cout.
@@ -940,7 +940,7 @@ int main(
       ss << setw(3) << (*it).n_id_cell();
       ss << setw(2) << (*it).n_ports;
       ss << " " << setw(6) << setprecision(5) << (*it).fc_requested/1e6 << "M";
-      ss << " " << freq_formatter((*it).freq_superfine);
+      ss << " " << setw(13) << freq_formatter((*it).freq_superfine);
       ss << " " << setw(5) << setprecision(3) << db10((*it).pss_pow);
       ss << " " << (((*it).cp_type==cp_type_t::NORMAL)?"N":(((*it).cp_type==cp_type_t::UNKNOWN)?"U":"E"));
       ss << " " << setw(3) << (*it).n_rb_dl;
