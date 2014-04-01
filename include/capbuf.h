@@ -29,6 +29,16 @@ double calculate_fc_programmed_in_context(
   rtlsdr_dev_t * & dev
 );
 
+int read_header_from_bin(
+  // input
+  const char *bin_filename,
+  // output, NAN represents invalid header info
+  double & fc_requested,
+  double & fc_programmed,
+  double & fs_requested,
+  double & fs_programmed
+);
+
 // Returns a capture buffer either from a file or from live data read
 // from the dongle.
 int capture_data(

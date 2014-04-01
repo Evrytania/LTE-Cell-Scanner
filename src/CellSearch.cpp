@@ -87,9 +87,9 @@ void print_usage() {
   cout << "      crystal correction factor" << endl;
   cout << "  Capture buffer save/ load options:" << endl;
   cout << "    -z --recbin" << endl;
-  cout << "      save captured data in the bin file" << endl;
+  cout << "      save captured data in the bin file. (only supports single frequency scanning)" << endl;
   cout << "    -y --loadbin" << endl;
-  cout << "      used data in captured bin file" << endl;
+  cout << "      used data in captured bin file. (only supports single frequency scanning)" << endl;
   cout << "    -r --record" << endl;
   cout << "      save captured data in the files capbuf_XXXX.it" << endl;
   cout << "    -l --load" << endl;
@@ -399,11 +399,14 @@ void parse_commandline(
 
   if (verbosity>=1) {
     cout << "OpenCL LTE CellSearch v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " (" << BUILD_TYPE << ") beginning. 1.0 to 1.1: TDD/OpenCL/ext-LNB/faster added by Jiao Xianjun(putaoshu@gmail.com)" << endl;
-    if (freq_start==freq_end) {
-      cout << "  Search frequency: " << freq_start/1e6 << " MHz" << endl;
-    } else {
-      cout << "  Search frequency range: " << freq_start/1e6 << "-" << freq_end/1e6 << " MHz" << endl;
-    }
+
+// //    frequency information will be displayed in main() function.
+//    if (freq_start==freq_end) {
+//      cout << "  Search frequency: " << freq_start/1e6 << " MHz" << endl;
+//    } else {
+//      cout << "  Search frequency range: " << freq_start/1e6 << "-" << freq_end/1e6 << " MHz" << endl;
+//    }
+
 //    if (sampling_carrier_twist) {
       cout << "  PPM: " << ppm << endl;
       stringstream temp;
@@ -608,7 +611,8 @@ int main(
   // Open the USB device (if necessary).
   rtlsdr_dev_t * dev=NULL;
   double fs_programmed = 1920000; // in case not initialized by config_usb
-  if ( (!use_recorded_data) && (strlen(load_bin_filename)==0) )
+  bool dongle_used = (!use_recorded_data) && (strlen(load_bin_filename)==0);
+  if ( dongle_used )
     config_usb(sampling_carrier_twist,correction,device_index,freq_start,dev,fs_programmed);
 
   if (use_recorded_data)
@@ -617,7 +621,35 @@ int main(
   // Generate a list of center frequencies that should be searched and also
   // a list of frequency offsets that should be searched for each center
   // frequency.
-  const vec fc_search_set=itpp_ext::matlab_range(freq_start,100e3,freq_end);
+  vec fc_search_set;
+  double freq_correction = 0;
+  if (freq_start!=9999e6) { // if frequency scanning range is specified
+    fc_search_set=itpp_ext::matlab_range(freq_start,100e3,freq_end);
+    freq_correction = freq_start*(correction-1)/correction;
+  } else { // if frequency scanning range is not specified. a file is as input
+    if (strlen(load_bin_filename)==0) {// if no binary file is specified
+      cerr << "Neither frequency nor captured bin file is specified!\n";
+      ABORT(-1);
+    } else { // when binary file is used, it means there is only one frequency
+      double fc_requested_tmp, fc_programmed_tmp, fs_requested_tmp, fs_programmed_tmp;
+      if ( read_header_from_bin( load_bin_filename, fc_requested_tmp, fc_programmed_tmp, fs_requested_tmp, fs_programmed_tmp) ) {
+        cerr << "main: read_header_from_bin failed.\n";
+        ABORT(-1);
+      }
+      if (fc_requested_tmp==NAN) { //  no valid header information is found
+        cerr << "Neither frequency nor valid bin file header information is specified!\n";
+        ABORT(-1);
+      } else {
+        freq_start = fc_requested_tmp;
+        fc_search_set.set_length(1, false);
+        fc_search_set[0] = fc_requested_tmp;
+        freq_correction = fc_requested_tmp*(correction-1)/correction;
+      }
+    }
+  }
+
+  cout << "    Search frequency: " << fc_search_set(0)/1e6 << " to " <<  fc_search_set( length(fc_search_set)-1 )/1e6 << " MHz" << endl;
+  cout << "with freq correction: " << freq_correction/1e3 << " kHz" << endl;
 
   cmat pss_fo_set;// pre-generate frequencies offseted pss time domain sequence
   vec f_search_set;
@@ -628,13 +660,27 @@ int main(
 //    if (num_loop == 0) // it is not so useful
 //      num_loop = length(f_search_set)/2;
   } else {
-    // since we have frequency step is 100e3, why not have sub search set limited by this regardless PPM?
-    f_search_set=to_vec(itpp_ext::matlab_range(-60000,5000,55000)); // 2*65kHz > 100kHz, overlap adjacent frequencies
-//    if (num_loop == 0) // it is not so useful
-//      num_loop = 36;
-//      f_search_set=to_vec(itpp_ext::matlab_range(-100000,5000,100000)); // align to matlab script
+    if (length(fc_search_set)==1) {//when only one frequency is specified, whole PPM range should be covered
+      const uint16 n_extra=floor_i((freq_start*ppm/1e6+2.5e3)/5e3);
+      f_search_set=to_vec(itpp_ext::matlab_range( -n_extra*5000,5000, (n_extra)*5000));
+    } else {
+      // since we have frequency step is 100e3, why not have sub search set limited by this regardless PPM?
+      f_search_set=to_vec(itpp_ext::matlab_range(-60000,5000,55000)); // 2*65kHz > 100kHz, overlap adjacent frequencies
+  //    if (num_loop == 0) // it is not so useful
+  //      num_loop = 36;
+  //      f_search_set=to_vec(itpp_ext::matlab_range(-100000,5000,100000)); // align to matlab script
+    }
   }
-  pss_fo_set_gen(f_search_set, pss_fo_set);
+
+  cout << "    Search PSS at fo: " << f_search_set(0)/1e3 << " to " << f_search_set( length(f_search_set)-1 )/1e3 << " kHz" << endl;
+
+  if (dongle_used) { // if dongle is not used, do correction explicitly. Because if dongle is used, the correction is done when tuning dongle's frequency.
+    freq_correction = 0;
+  }
+
+  pss_fo_set_gen(f_search_set + freq_correction, pss_fo_set);
+
+//  cout << "Search PSS fo(crect): " << f_search_set(0)/1e3 << " to " << f_search_set( length(f_search_set)-1 )/1e3 << " kHz" << endl;
 
   const uint16 n_fc=length(fc_search_set);
 

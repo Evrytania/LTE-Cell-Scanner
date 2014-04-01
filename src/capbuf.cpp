@@ -104,6 +104,141 @@ double calculate_fc_programmed_in_context(
   }
   return(fc_programmed);
 }
+
+int write_header_to_bin(
+  // input
+  FILE * fp,
+  const double & fc_requested,
+  const double & fc_programmed,
+  const double & fs_requested,
+  const double & fs_programmed
+) {
+
+  int ret = 0;
+  double valid_magic[8] = {73492.215, -0.7923597, -189978508, 93.126712, -53243.129, 0.0008123898, -6.0098321, 237.09983};
+  uint64 tmp[8] = {fc_requested, fc_programmed, fs_requested, fs_programmed, 0,0,0,0};
+  size_t num_write;
+  for (uint16 i=0; i<8; i++) {
+    num_write = fwrite(valid_magic+i, sizeof(double), 1, fp);
+    num_write = num_write + fwrite(tmp+i, sizeof(uint64), 1, fp);
+
+    if ( num_write != 2 ){
+      ret = 1;
+      cerr << "write_header_to_bin Error: write operation is not successful.\n";
+      break;
+    }
+  }
+
+  return(ret);
+}
+
+int read_header_from_bin(
+  // input
+  FILE * fp,
+  // output, NAN represents invalid header info
+  double & fc_requested,
+  double & fc_programmed,
+  double & fs_requested,
+  double & fs_programmed
+) {
+  int ret;
+
+  fc_requested = NAN;
+  fc_programmed = NAN;
+  fs_requested = NAN;
+  fs_programmed = NAN;
+
+//  FILE *fp = fopen(bin_filename, "rb");
+//  if (fp == NULL)
+//  {
+//    cerr << "read_header_from_bin Error: unable to open file: " << bin_filename << endl;
+//    ABORT(-1);
+//  }
+
+  double valid_magic[8] = {73492.215, -0.7923597, -189978508, 93.126712, -53243.129, 0.0008123898, -6.0098321, 237.09983};
+  double magic[8];
+  uint64 tmp[8];
+  uint16 valid_count = 0;
+  size_t num_read;
+  for (uint16 i=0; i<8; i++) {
+    num_read = fread(magic+i, sizeof(double), 1, fp);
+    num_read = num_read + fread(tmp+i, sizeof(uint64), 1, fp);
+
+    if ( num_read == 2 )
+      valid_count = valid_count + ( magic[i]==valid_magic[i] );
+  }
+
+//  fclose(fp);
+
+  if ( valid_count == 8 ) {
+    fc_requested = tmp[0];
+    fc_programmed = tmp[1];
+    fs_requested = tmp[2];
+    fs_programmed = tmp[3];
+    ret = 0;
+  } else {
+    ret = 1;
+  }
+
+  return(ret);
+
+}
+
+int read_header_from_bin(
+  // input
+  const char *bin_filename,
+  // output, NAN represents invalid header info
+  double & fc_requested,
+  double & fc_programmed,
+  double & fs_requested,
+  double & fs_programmed
+) {
+
+  int ret;
+
+  fc_requested = NAN;
+  fc_programmed = NAN;
+  fs_requested = NAN;
+  fs_programmed = NAN;
+
+  FILE *fp = fopen(bin_filename, "rb");
+  if (fp == NULL)
+  {
+    cerr << "read_header_from_bin Error: unable to open file: " << bin_filename << endl;
+    ABORT(-1);
+  }
+
+  double valid_magic[8] = {73492.215, -0.7923597, -189978508, 93.126712, -53243.129, 0.0008123898, -6.0098321, 237.09983};
+  double magic[8];
+  uint64 tmp[8];
+  uint16 valid_count = 0;
+  size_t num_read;
+  for (uint16 i=0; i<8; i++) {
+    num_read = fread(magic+i, sizeof(double), 1, fp);
+    num_read = num_read + fread(tmp+i, sizeof(uint64), 1, fp);
+
+    if ( num_read == 2 )
+      valid_count = valid_count + ( magic[i]==valid_magic[i] );
+  }
+
+  fclose(fp);
+
+  if ( valid_count == 8 ) {
+    fc_requested = tmp[0];
+    fc_programmed = tmp[1];
+    fs_requested = tmp[2];
+    fs_programmed = tmp[3];
+    cout << "Read file header fc_requested " << fc_requested/1e6 << "MHz fc_programmed " << fc_programmed/1e6 << "MHz fs_requested " << fs_requested/1e6 << "MHz fs_programmed " << fs_programmed/1e6 << "MHz\n";
+    ret = 0;
+  } else {
+    cout << "Read file header failed.\n";
+    ret = 1;
+  }
+
+  return(ret);
+
+}
+
 // This function produces a vector of captured data. The data can either
 // come from live data received by the RTLSDR, or from a file containing
 // previously captured data.
@@ -152,23 +287,50 @@ int capture_data(
     ivec fc_v;
     itf>>fc_v;
     if (fc_requested!=fc_v(0)) {
-      cout << "Warning: while reading capture buffer " << capture_number << ", the read" << endl;
+      cout << "capture_data Warning: while reading capture buffer " << capture_number << ", the read" << endl;
       cout << "center frequency did not match the expected center frequency." << endl;
     }
     itf.close();
-    fc_programmed=fc_requested; // be careful about this!
+
+//    fc_programmed=fc_requested; // be careful about this!
+    fc_programmed = calculate_fc_programmed_in_context(fc_requested, use_recorded_data, load_bin_filename, dev);
+
   } else if (load_bin_flag) {
     // Read data from load_bin_filename. Do not use live data.
     // Convert to complex
+    double fc_requested_tmp,fc_programmed_tmp,fs_requested_tmp,fs_programmed_tmp;
+    bool header_exist = false;
+    if ( read_header_from_bin(load_bin_filename, fc_requested_tmp,fc_programmed_tmp,fs_requested_tmp,fs_programmed_tmp) ) {
+      cerr << "capture_data Error: read_header_from_bin failed.\n";
+      ABORT(-1);
+    }
+    if (fc_requested_tmp!=NAN) {
+      header_exist = true;
+      if (fc_requested!=fc_requested_tmp) {
+        cout << "capture_data Warning: while reading capture bin file " << load_bin_filename << ", the read" << endl;
+        cout << "center frequency did not match the expected center frequency." << endl;
+        cout << "fc_requested and fc_programmed in the file header will be omitted." << endl;
+      }
+    }
+
     unsigned char *capbuf_raw = new unsigned char[2*CAPLENGTH];
+
     if (read_all_in_bin) {
       capbuf.set_size(0);
 
       FILE *fp = fopen(load_bin_filename, "rb");
       if (fp == NULL)
       {
-        cerr << "Error: unable to open file: " << load_bin_filename << endl;
+        cerr << "capture_data Error: unable to open file: " << load_bin_filename << endl;
         ABORT(-1);
+      }
+
+      if (header_exist) {// skip header
+        if ( read_header_from_bin(fp, fc_requested_tmp,fc_programmed_tmp,fs_requested_tmp,fs_programmed_tmp) ) {
+          cerr << "capture_data Error: skipping file header failed.\n";
+          fclose(fp);
+          ABORT(-1);
+        }
       }
 
       uint32 len_capbuf = 0;
@@ -191,20 +353,29 @@ int capture_data(
       fclose(fp);
     } else {
       capbuf.set_size(CAPLENGTH);
-      unsigned char *capbuf_raw = new unsigned char[2*CAPLENGTH];
+
       FILE *fp = fopen(load_bin_filename, "rb");
       if (fp == NULL)
       {
-        cerr << "Error: unable to open file: " << load_bin_filename << endl;
+        cerr << "capture_data Error: unable to open file: " << load_bin_filename << endl;
         ABORT(-1);
       }
+
+      if (header_exist) {// skip header
+        if ( read_header_from_bin(fp, fc_requested_tmp,fc_programmed_tmp,fs_requested_tmp,fs_programmed_tmp) ) {
+          cerr << "capture_data Error: skipping file header failed.\n";
+          fclose(fp);
+          ABORT(-1);
+        }
+      }
+
       for(uint16 i=0; i<(capture_number+1); i++) {
         int read_count = fread(capbuf_raw, sizeof(unsigned char), 2*CAPLENGTH, fp);
         if (read_count != (2*CAPLENGTH))
         {
 //          fclose(fp);
 //          cerr << "Error: file " << load_bin_filename << " size is not sufficient" << endl;
-          cerr << "Run of recorded file data.\n";
+          cerr << "capture_data: Run of recorded file data.\n";
           run_out_of_data = 1;
           break;
 //          ABORT(-1);
@@ -212,15 +383,14 @@ int capture_data(
       }
       fclose(fp);
       for (uint32 t=0;t<CAPLENGTH;t++) {
-        capbuf(t)=complex<double>((((double)capbuf_raw[(t<<1)])-128.0)/128.0,(((double)capbuf_raw[(t<<1)+1])-128.0)/128.0);
-        // 127 --> 128.
+        capbuf(t)=complex<double>((((double)capbuf_raw[(t<<1)])-128.0)/128.0,(((double)capbuf_raw[(t<<1)+1])-128.0)/128.0); // 127 --> 128.
       }
     }
 
     delete[] capbuf_raw;
 
-    fc_programmed=fc_requested; // be careful about this!
-    //cout << capbuf(0).real() << " " << capbuf(0).imag() << " "<< capbuf(1).real() << " " << capbuf(1).imag() << " "<< capbuf(2).real() << " " << capbuf(2).imag() << " "<< capbuf(3).real() << " " << capbuf(3).imag() << " "<< capbuf(4).real() << " " << capbuf(4).imag() << " "<< capbuf(5).real() << " " << capbuf(5).imag() << " "<< capbuf(6).real() << " " << capbuf(6).imag() << " "<<"\n";
+//    fc_programmed=fc_requested; // be careful about this!
+    fc_programmed = calculate_fc_programmed_in_context(fc_requested, use_recorded_data, load_bin_filename, dev);
   } else {
     if (verbosity>=2) {
       cout << "Capturing live data" << endl;
@@ -231,10 +401,10 @@ int capture_data(
     while (rtlsdr_set_center_freq(dev,itpp::round(fc_requested*correction))<0) {
       n_fail++;
       if (n_fail>=5) {
-        cerr << "Error: unable to set center frequency" << endl;
+        cerr << "capture_data Error: unable to set center frequency" << endl;
         ABORT(-1);
       }
-      cerr << "Unable to set center frequency... retrying..." << endl;
+      cerr << "capture_data: Unable to set center frequency... retrying..." << endl;
       sleep(1);
     }
 
@@ -253,12 +423,14 @@ int capture_data(
       //fc_programmed=fc_requested;
     } else {
       // Unsupported tuner...
+      cout << "capture_data Warning: It is not RTLSDR_TUNER_E4000\n";
+      cout << "set fc_programmed=fc_requested";
       fc_programmed=fc_requested;
     }
 
     // Reset the buffer
     if (rtlsdr_reset_buffer(dev)<0) {
-      cerr << "Error: unable to reset RTLSDR buffer" << endl;
+      cerr << "capture_data Error: unable to reset RTLSDR buffer" << endl;
       ABORT(-1);
     }
 
@@ -318,9 +490,18 @@ int capture_data(
 
     if (fp == NULL)
     {
-      cerr << "Error: unable to open file: " << record_bin_filename << endl;
+      cerr << "capture_data Error: unable to open file: " << record_bin_filename << endl;
       ABORT(-1);
     }
+
+    if (capture_number==0){ // write bin file header
+      int ret = write_header_to_bin(fp, fc_requested,fc_programmed,(const double &)1920000,(const double &)1920000); // not use fs. it seems always 1920000
+      if (ret) {
+        cerr << "capture_data Error: unable write header info to file: " << record_bin_filename << endl;
+        ABORT(-1);
+      }
+    }
+
     for (uint32 t=0;t<CAPLENGTH;t++) {
       unsigned char tmp;
       tmp = (unsigned char)( capbuf(t).real()*128.0 + 128.0 );
