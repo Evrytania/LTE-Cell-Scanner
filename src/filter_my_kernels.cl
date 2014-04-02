@@ -59,7 +59,7 @@ __kernel void multi_filter( __global float2* in,
   const size_t sub_len_in = len_in/n;
   const size_t sub_len_out = sub_len_in + filter_len - 1;
 
-  size_t i, j, base_idx, coef_idx;
+  size_t i, j, base_idx;
   if (m==0){
     for (i=(sub_len_out-filter_len+1); i<sub_len_out; i++){
       base_idx = i*n;
@@ -73,8 +73,7 @@ __kernel void multi_filter( __global float2* in,
 
     for (j=0; j<i+1; j++) {
       base_idx = j*n;
-      coef_idx = (filter_len-1)-i+j;
-      acc = acc + in[base_idx + m] * chn_6RB_filter_coef[coef_idx];
+      acc = acc + in[base_idx + m] * chn_6RB_filter_coef[(filter_len-1)-i+j];
     }
 
     base_idx = i*n;

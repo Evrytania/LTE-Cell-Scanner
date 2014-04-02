@@ -11,7 +11,22 @@ filter_workitem = 32;
 xcorr_workitem = 2;
 1.78s
 
-------------------runtime calculation pss xcorr coef---------------------------
+-60 to 55 kHz ----------- reverse coef to sequential coef:-------------
+550ti---------
+filter_workitem = 32;
+0.012s
+xcorr_workitem = 2;
+5.1s
+
+-----------Intel-------------
+filter_workitem = 32;
+0.0024s
+xcorr_workitem = 2;
+0.47s
+
+-60 to 55 kHz ---------runtime calculation pss xcorr coef---------------------------
+online sin() cos()-----------------
+too slow! drop this method!
 
 -----------old profiling result:------------------------------------------------------------
 Intel(R) Core(TM) i7-3930K CPU @ 3.20GHz + Intel driver + garbage data + frequency search:matlab_range(-60000,5000,55000)  24*3=72

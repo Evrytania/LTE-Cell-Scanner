@@ -8,9 +8,6 @@ Before explore this LTE Scanner, it's better for you to do some homeworks:
 
 ATTENTION!!! Only v0.5.2 librtlsdr (https://github.com/steve-m/librtlsdr) works with this LTE Scanner. Not v0.5.3! (at least for my computer)
 
-ATTENTION!!! This Scanner (new mode) narrows searching range around one frequency point from +/-.2MHz to +/-.05MHz, because scanner uses .1MHz step size in frequency sweeping.
-For example, if there is a cell at 1860MHz, but your dongle has frequency offset as big as .2MHz, "--freq-start=1859.8e6 --freq-end=1860.2e6" should be used to ensure hit.
-
 ATTENTION!!! Please use release version instead of dev trunk if you want a 100% workable program.
 
 MATLAB algorithm study and experiments are in : https://github.com/JiaoXianjun/rtl-sdr-LTE

@@ -49,6 +49,7 @@ __kernel void multi_filter( __global float2* in,
   const size_t base_coef = m1*len_coef;
   const size_t base_out = m1*sub_len_out*n;
 
+  float2 coef_tmp;
   size_t i, j, base_idx, coef_idx;
   if (m==0){
     for (i=(sub_len_out-filter_len+1); i<sub_len_out; i++){
@@ -63,7 +64,8 @@ __kernel void multi_filter( __global float2* in,
     for (j=0; j<i+1; j++) {
       base_idx = j*n;
       coef_idx = (filter_len-1)-i+j;
-      acc = acc + (float2)( in[base_idx + m].x*coef[base_coef+ coef_idx].x - in[base_idx + m].y*coef[base_coef+ coef_idx].y,  in[base_idx + m].x*coef[base_coef+ coef_idx].y + in[base_idx + m].y*coef[base_coef+ coef_idx].x );
+      coef_tmp = coef[base_coef+ coef_idx];
+      acc = acc + (float2)( in[base_idx + m].x*coef_tmp.x - in[base_idx + m].y*coef_tmp.y,  in[base_idx + m].x*coef_tmp.y + in[base_idx + m].y*coef_tmp.x );
     }
 
     base_idx = i*n;
@@ -75,7 +77,9 @@ __kernel void multi_filter( __global float2* in,
 
     for (j=0; j<filter_len; j++) {
       base_idx = (i-(filter_len-1)+j)*n;
-      acc = acc + (float2)( in[base_idx + m].x*coef[base_coef+ j].x - in[base_idx + m].y*coef[base_coef+ j].y,  in[base_idx + m].x*coef[base_coef+ j].y + in[base_idx + m].y*coef[base_coef+ j].x );
+      coef_idx = j;
+      coef_tmp = coef[base_coef+ coef_idx];
+      acc = acc + (float2)( in[base_idx + m].x*coef_tmp.x - in[base_idx + m].y*coef_tmp.y,  in[base_idx + m].x*coef_tmp.y + in[base_idx + m].y*coef_tmp.x );
     }
 
     base_idx = i*n;
@@ -87,7 +91,9 @@ __kernel void multi_filter( __global float2* in,
 
     for (j=0; j<sub_len_out-i; j++) {
       base_idx = (i-(filter_len-1)+j)*n;
-      acc = acc + (float2)( in[base_idx + m].x*coef[base_coef+ j].x - in[base_idx + m].y*coef[base_coef+ j].y,  in[base_idx + m].x*coef[base_coef+ j].y + in[base_idx + m].y*coef[base_coef+ j].x );
+      coef_idx = j;
+      coef_tmp = coef[base_coef+ coef_idx];
+      acc = acc + (float2)( in[base_idx + m].x*coef_tmp.x - in[base_idx + m].y*coef_tmp.y,  in[base_idx + m].x*coef_tmp.y + in[base_idx + m].y*coef_tmp.x );
     }
 
     base_idx = i*n;
