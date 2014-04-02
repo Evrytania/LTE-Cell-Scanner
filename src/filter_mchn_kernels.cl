@@ -49,7 +49,7 @@ __kernel void multi_filter( __global float2* in,
   const size_t base_coef = m1*len_coef;
   const size_t base_out = m1*sub_len_out*n;
 
-  size_t i, j, base_idx;
+  size_t i, j, base_idx, coef_idx;
   if (m==0){
     for (i=(sub_len_out-filter_len+1); i<sub_len_out; i++){
       base_idx = i*n;
@@ -62,37 +62,32 @@ __kernel void multi_filter( __global float2* in,
 
     for (j=0; j<i+1; j++) {
       base_idx = j*n;
-//      acc = acc + in[base_idx + m] * coef[base_coef+ i-j];
-        acc = acc + (float2)( in[base_idx + m].x*coef[base_coef+ i-j].x - in[base_idx + m].y*coef[base_coef+ i-j].y,  in[base_idx + m].x*coef[base_coef+ i-j].y + in[base_idx + m].y*coef[base_coef+ i-j].x );
+      coef_idx = (filter_len-1)-i+j;
+      acc = acc + (float2)( in[base_idx + m].x*coef[base_coef+ coef_idx].x - in[base_idx + m].y*coef[base_coef+ coef_idx].y,  in[base_idx + m].x*coef[base_coef+ coef_idx].y + in[base_idx + m].y*coef[base_coef+ coef_idx].x );
     }
 
     base_idx = i*n;
     out[base_out+ base_idx+m+1] = acc;
   }
 
-//  for (size_t i=filter_len-1; i<=sub_len_out-filter_len; i++){
   for (i=filter_len-1; i<=sub_len_in-1; i++){
     float2 acc = (float2)(0.0f, 0.0f);
 
     for (j=0; j<filter_len; j++) {
       base_idx = (i-(filter_len-1)+j)*n;
-//      acc = acc + in[base_idx + m] * coef[base_coef+ (filter_len-1)-j];
-      acc = acc + (float2)( in[base_idx + m].x*coef[base_coef+ (filter_len-1)-j].x - in[base_idx + m].y*coef[base_coef+ (filter_len-1)-j].y,  in[base_idx + m].x*coef[base_coef+ (filter_len-1)-j].y + in[base_idx + m].y*coef[base_coef+ (filter_len-1)-j].x );
+      acc = acc + (float2)( in[base_idx + m].x*coef[base_coef+ j].x - in[base_idx + m].y*coef[base_coef+ j].y,  in[base_idx + m].x*coef[base_coef+ j].y + in[base_idx + m].y*coef[base_coef+ j].x );
     }
 
     base_idx = i*n;
     out[base_out+ base_idx+m+1] = acc;
   }
 
-//  for (size_t i=sub_len_out-filter_len+1; i<sub_len_out; i++){
   for (i=sub_len_in; i<sub_len_out; i++){
     float2 acc = (float2)(0.0f, 0.0f);
 
-//    for (size_t j=0; j<(filter_len- (i-(sub_len_out-filter_len))); j++) {
     for (j=0; j<sub_len_out-i; j++) {
       base_idx = (i-(filter_len-1)+j)*n;
-//      acc = acc + in[base_idx + m] * coef[base_coef+ (filter_len-1)-j];
-      acc = acc + (float2)( in[base_idx + m].x*coef[base_coef+ (filter_len-1)-j].x - in[base_idx + m].y*coef[base_coef+ (filter_len-1)-j].y,  in[base_idx + m].x*coef[base_coef+ (filter_len-1)-j].y + in[base_idx + m].y*coef[base_coef+ (filter_len-1)-j].x );
+      acc = acc + (float2)( in[base_idx + m].x*coef[base_coef+ j].x - in[base_idx + m].y*coef[base_coef+ j].y,  in[base_idx + m].x*coef[base_coef+ j].y + in[base_idx + m].y*coef[base_coef+ j].x );
     }
 
     base_idx = i*n;

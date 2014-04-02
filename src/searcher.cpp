@@ -1872,11 +1872,11 @@ void pss_fo_set_gen(
     temp = fshift(temp,f_off,sampling_rate);
     temp = conj(temp)/len_pss; // align to latest matlab algorithm
 
-    #ifdef USE_OPENCL
-      pss_fo_set.set_row(fo_pss_i, reverse(temp) );
-    #else
+//    #ifdef USE_OPENCL  // already reverse accessing in kernel. no need now
+//      pss_fo_set.set_row(fo_pss_i, reverse(temp) );
+//    #else
       pss_fo_set.set_row(fo_pss_i, temp);
-    #endif
+//    #endif
   }
 }
 
