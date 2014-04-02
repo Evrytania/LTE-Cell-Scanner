@@ -129,6 +129,9 @@ int write_header_to_bin(
     }
   }
 
+  if (ret==0) {
+    cout << "Write file header fc_requested " << fc_requested/1e6 << "MHz fc_programmed " << fc_programmed/1e6 << "MHz fs_requested " << fs_requested/1e6 << "MHz fs_programmed " << fs_programmed/1e6 << "MHz\n";
+  }
   return(ret);
 }
 

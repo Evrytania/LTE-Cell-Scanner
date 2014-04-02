@@ -341,13 +341,13 @@ void parse_commandline(
   // Second order command line checking. Ensure that command line options
   // are consistent.
   if (freq_start==-1) {
-    if (!sampling_carrier_twist) {
+//    if (!sampling_carrier_twist) {
       freq_start=9999e6; // fake
       cout << "Warning: Frequency not specified. Make sure you are working on captured file.\n";
-    } else {
-      cerr << "Error: must specify a start frequency. (Try --help)" << endl;
-      ABORT(-1);
-    }
+//    } else {
+//      cerr << "Error: must specify a start frequency. (Try --help)" << endl;
+//      ABORT(-1);
+//    }
   }
   // Start and end frequencies should be on a 100kHz raster.
   if (freq_start<1e6) {
@@ -612,7 +612,7 @@ int main(
   rtlsdr_dev_t * dev=NULL;
   double fs_programmed = 1920000; // in case not initialized by config_usb
   bool dongle_used = (!use_recorded_data) && (strlen(load_bin_filename)==0);
-  if ( dongle_used )
+  if ( dongle_used && freq_start!=9999e6)
     config_usb(sampling_carrier_twist,correction,device_index,freq_start,dev,fs_programmed);
 
   if (use_recorded_data)
@@ -627,10 +627,7 @@ int main(
     fc_search_set=itpp_ext::matlab_range(freq_start,100e3,freq_end);
     freq_correction = freq_start*(correction-1)/correction;
   } else { // if frequency scanning range is not specified. a file is as input
-    if (strlen(load_bin_filename)==0) {// if no binary file is specified
-      cerr << "Neither frequency nor captured bin file is specified!\n";
-      ABORT(-1);
-    } else { // when binary file is used, it means there is only one frequency
+    if (strlen(load_bin_filename)!=0) { // use captured bin file
       double fc_requested_tmp, fc_programmed_tmp, fs_requested_tmp, fs_programmed_tmp;
       if ( read_header_from_bin( load_bin_filename, fc_requested_tmp, fc_programmed_tmp, fs_requested_tmp, fs_programmed_tmp) ) {
         cerr << "main: read_header_from_bin failed.\n";
@@ -641,10 +638,30 @@ int main(
         ABORT(-1);
       } else {
         freq_start = fc_requested_tmp;
+        freq_end = freq_start;
         fc_search_set.set_length(1, false);
         fc_search_set[0] = fc_requested_tmp;
         freq_correction = fc_requested_tmp*(correction-1)/correction;
       }
+    } else if (use_recorded_data){ // use captured .it file
+
+      stringstream filename;
+      filename << data_dir << "/capbuf_" << setw(4) << setfill('0') << 0 << ".it";
+      it_ifile itf(filename.str());
+      itf.seek("fc");
+      ivec fc_v;
+      itf>>fc_v;
+      itf.close();
+
+      freq_start = fc_v(0);
+      freq_end = freq_start;
+      fc_search_set.set_length(1, false);
+      fc_search_set[0] = freq_start;
+      freq_correction = freq_start*(correction-1)/correction;
+
+    } else {
+      cerr << "Neither frequency nor captured file is specified!\n";
+      ABORT(-1);
     }
   }
 

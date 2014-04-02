@@ -116,8 +116,8 @@
 using namespace itpp;
 using namespace std;
 
-//#define DBG(CODE) CODE
-#define DBG(CODE)
+#define DBG(CODE) CODE
+//#define DBG(CODE)
 
 //#define USE_OPENCL // just for debug purpose. It should be removed before formal release
 
@@ -2108,8 +2108,8 @@ void sampling_ppm_f_search_set_by_pss(
       }
     }
 
-    if ( (double)(last_idx-first_idx) < (double)num_peak*2.0/3.0  ) {
-      DBG( cout << "Too few peak at i=" << i << " of total " << len_sort_idx << "\n"; );
+    if ( (double)(last_idx-first_idx) < (double)num_peak*1.0/2.0  ) {
+      DBG( cout << "Too few peak (actual " << (last_idx-first_idx) << ", need " << ((double)num_peak*1.0/2.0) <<") at i=" << i << " of total " << len_sort_idx << "\n"; );
       continue;
     } else {
       DBG( cout << "Hit num forPPM " << (last_idx-first_idx) << "\n"; )
