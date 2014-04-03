@@ -102,6 +102,11 @@ void print_usage() {
   cout << "      crystal remaining PPM error" << endl;
   cout << "    -c --correction c" << endl;
   cout << "      crystal correction factor" << endl;
+  cout << "  Capture buffer save/ load options:" << endl;
+  cout << "    -z --recbin" << endl;
+  cout << "      save captured data in the bin file. (only supports single frequency scanning)" << endl;
+  cout << "    -y --loadbin" << endl;
+  cout << "      used data in captured bin file. (only supports single frequency scanning)" << endl;
   // Hidden option...
   //cout << "    -x --expert" << endl;
   //cout << "      enable expert mode display" << endl;
@@ -437,13 +442,13 @@ void parse_commandline(
   // Second order command line checking. Ensure that command line options
   // are consistent.
   if (fc==-1) {
-    if (!sampling_carrier_twist) {
+//    if (!sampling_carrier_twist) {
       fc=9999e6; // fake
       cout << "Warning: Frequency not specified. Make sure you are working on captured file.\n";
-    } else {
-      cerr << "Error: must specify a start frequency. (Try --help)" << endl;
-      ABORT(-1);
-    }
+//    } else {
+//      cerr << "Error: must specify a start frequency. (Try --help)" << endl;
+//      ABORT(-1);
+//    }
   }
   // Start and end frequencies should be on a 100kHz raster.
   if (fc<1e6) {
@@ -483,7 +488,7 @@ void parse_commandline(
 
   if (verbosity>=1) {
     cout << "OpenCL LTE Tracker v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " (" << BUILD_TYPE << ") beginning. 1.0 to 1.1: TDD/OpenCL/ext-LNB/faster added by Jiao Xianjun(putaoshu@gmail.com)" << endl;
-    cout << "  Search frequency: " << fc/1e6 << " MHz" << endl;
+//    cout << "  Search frequency: " << fc/1e6 << " MHz" << endl;
 //    if (sampling_carrier_twist) {
       cout << "  PPM: " << ppm << endl;
       stringstream temp;
@@ -565,6 +570,8 @@ static void rtlsdr_callback_temp(unsigned char *buf, uint32 len, void *ctx) {
 
 // Open the USB device
 void config_usb(
+  const bool & sampling_carrier_twist,
+  const double & correction,
   const int32 & device_index_cmdline,
   const double & fc,
   rtlsdr_dev_t * & dev,
@@ -599,26 +606,30 @@ void config_usb(
     ABORT(-1);
   }
 
-  // Set sampling frequency.
-  uint32 fs_requested=1920000;
-  if (rtlsdr_set_sample_rate(dev,fs_requested)<0) {
+  double sampling_rate = 0;
+  if (sampling_carrier_twist)
+    sampling_rate = 1920000*correction;
+  else
+    sampling_rate = 1920000;
+  // Sampling frequency
+  if (rtlsdr_set_sample_rate(dev,itpp::round(sampling_rate))<0) {
     cerr << "Error: unable to set sampling rate" << endl;
     ABORT(-1);
   }
 
   // Calculate the actual fs that was programmed
-  uint32 xtal=28800000;
-  uint32 divider=itpp::round((xtal*pow(2.0,22.0))/fs_requested);
-  divider&=~3;
-  fs_programmed=(xtal*pow(2.0,22.0))/divider;
-  // Using the API will have a maximum frequency error of 1Hz... Should
-  // be enough, right???
-  //fs_programmed=(double)rtlsdr_get_sample_rate(dev);
+  fs_programmed=(double)rtlsdr_get_sample_rate(dev);
 
   // Center frequency
-  if (rtlsdr_set_center_freq(dev,itpp::round(fc))<0) {
-    cerr << "Error: unable to set center frequency" << endl;
-    ABORT(-1);
+  uint8 n_fail=0;
+  while (rtlsdr_set_center_freq(dev,itpp::round(fc*correction))<0) {
+    n_fail++;
+    if (n_fail>=5) {
+      cerr << "Error: unable to set center frequency" << endl;
+      ABORT(-1);
+    }
+    cerr << "Unable to set center frequency... retrying..." << endl;
+    sleep(1);
   }
 
   // Turn on AGC
@@ -688,10 +699,11 @@ void read_datafile(
 // This code can probably be rolled into the searcher so as to eliminate
 // some duplicated code.
 double kalibrate(
-  const double & fc_requested,
+  double & fc_requested,
   const double & fs_programmed,
   const double & ppm,
   const double & correction,
+  double & correction_new,
   const bool & use_recorded_data,
   const string & filename,
   const bool & rtl_sdr_format,
@@ -714,19 +726,74 @@ double kalibrate(
     cout << "Calibrating local oscillator." << endl;
   }
 
+  string data_dir=".";
+
+  bool dongle_used = (!use_recorded_data) && (strlen(load_bin_filename)==0);
+
+  double fc_requested_tmp, fc_programmed_tmp, fs_requested_tmp, fs_programmed_tmp;
+  if ( dongle_used && fc_requested!=9999e6) {
+    fc_programmed_tmp = calculate_fc_programmed_in_context(fc_requested, use_recorded_data, load_bin_filename, dev);
+  } else {
+    if (strlen(load_bin_filename)!=0) { // use captured bin file
+      if ( read_header_from_bin( load_bin_filename, fc_requested_tmp, fc_programmed_tmp, fs_requested_tmp, fs_programmed_tmp) ) {
+        cerr << "main: read_header_from_bin failed.\n";
+        ABORT(-1);
+      }
+      if (fc_requested_tmp==NAN) { //  no valid header information is found
+        cerr << "Neither frequency nor valid bin file header information is specified!\n";
+        ABORT(-1);
+      }
+    } else if (use_recorded_data){ // use captured .it file
+
+      stringstream filename;
+      filename << data_dir << "/capbuf_" << setw(4) << setfill('0') << 0 << ".it";
+      it_ifile itf(filename.str());
+
+      itf.seek("fc");
+      ivec fc_v;
+      itf>>fc_v;
+
+      itf.seek("fcp");
+      ivec fc_p;
+      itf>>fc_p;
+
+      itf.close();
+
+      fc_requested_tmp = fc_v(0);
+      fc_programmed_tmp = fc_p(0);
+
+    }
+  }
+
+  fc_requested = fc_requested_tmp;
+
+  vec fc_search_set(1);
+  fc_search_set(0) = fc_requested;
+
+  double freq_correction = fc_programmed_tmp*(correction-1)/correction;
+
+  cout << "    Search frequency: " << fc_search_set(0)/1e6 << " to " <<  fc_search_set( length(fc_search_set)-1 )/1e6 << " MHz" << endl;
+  cout << "with freq correction: " << freq_correction/1e3 << " kHz" << endl;
+
   // Generate a list of frequency offsets that should be searched for each
   // center frequency.
   cmat pss_fo_set;// pre-generate frequencies offseted pss time domain sequence
   vec f_search_set;
   if (sampling_carrier_twist) { // original mode
-    const uint16 n_extra=floor_i((fc_requested*ppm/1e6+2.5e3)/5e3);
-    f_search_set=(fc_requested*correction-fc_requested)+to_vec(itpp_ext::matlab_range(-n_extra*5000,5000,n_extra*5000));
-
-    fc_programmed = calculate_fc_programmed_in_context(fc_requested, use_recorded_data, load_bin_filename, dev);
+    const uint16 n_extra=floor_i((fc_programmed_tmp*ppm/1e6+2.5e3)/5e3);
+    f_search_set=to_vec(itpp_ext::matlab_range( -n_extra*5000,5000, (n_extra-1)*5000));
   } else {
-    // since we have frequency step is 100e3, why not have sub search set limited by this regardless PPM?
-    f_search_set=to_vec(itpp_ext::matlab_range(-60000,5000,55000)); // 2*65kHz > 100kHz, overlap adjacent frequencies
+    if (length(fc_search_set)==1) {//when only one frequency is specified, whole PPM range should be covered
+      const uint16 n_extra=floor_i((fc_programmed_tmp*ppm/1e6+2.5e3)/5e3);
+      f_search_set=to_vec(itpp_ext::matlab_range( -n_extra*5000,5000, (n_extra-1)*5000));
+    } else {
+      // since we have frequency step is 100e3, why not have sub search set limited by this regardless PPM?
+      f_search_set=to_vec(itpp_ext::matlab_range(-60000,5000,55000)); // 2*65kHz > 100kHz, overlap adjacent frequencies
+    }
   }
+
+  cout << "    Search PSS at fo: " << f_search_set(0)/1e3 << " to " << f_search_set( length(f_search_set)-1 )/1e3 << " kHz" << endl;
+
   pss_fo_set_gen(f_search_set, pss_fo_set);
 
   vec coef(( sizeof( chn_6RB_filter_coef )/sizeof(float) ));
@@ -809,6 +876,10 @@ double kalibrate(
     if (run_out_of_data){
       cerr << "Run out of data.\n";
       ABORT(-1);
+    }
+
+    if (!dongle_used) { // if dongle is not used, do correction explicitly. Because if dongle is used, the correction is done when tuning dongle's frequency.
+      capbuf = fshift(capbuf,-freq_correction,fs_programmed);
     }
 
     //cout << "Capbuf power: " << db10(sigpower(capbuf)) << " dB" << endl;
@@ -972,12 +1043,13 @@ double kalibrate(
 
   // Calculate the correction factor.
   // This is where we know the carrier is located
-  const double true_location=fc_requested;
+//  const double true_location=fc_requested;
+  const double true_location=fc_programmed;
   // We can calculate the RTLSDR's actual frequency
   const double crystal_freq_actual=fc_programmed-best.freq_superfine;
   // Calculate correction factors
-  double correction_residual=(true_location/fc_requested*fc_programmed)/crystal_freq_actual;
-  //const double correction_new=correction*correction_residual;
+  double correction_residual=true_location/crystal_freq_actual;
+  correction_new=correction*correction_residual;
 
 //  if (!sampling_carrier_twist) {
 //    correction_residual = best.k_factor;
@@ -988,7 +1060,7 @@ double kalibrate(
     cout << "   Residual frequency offset: " << best.freq_superfine << " Hz" << endl;
     cout << "   New correction factor: ";
     stringstream ss;
-    ss << setprecision(20) << correction_residual;
+    ss << setprecision(20) << correction_new;
     cout << ss.str() << endl;
   }
 
@@ -1049,7 +1121,7 @@ int main(
   rtlsdr_dev_t * dev=NULL;
   double fs_programmed;
   if ( (!use_recorded_data) && (strlen(load_bin_filename)==0) ) {
-    config_usb(device_index,fc_requested,dev,fs_programmed);
+    config_usb(initial_sampling_carrier_twist, correction,device_index,fc_requested,dev,fs_programmed);
   } else {
     fs_programmed=correction*1.92e6;
   }
@@ -1057,9 +1129,9 @@ int main(
   // Calibrate the dongle's oscillator. This is similar to running the
   // program CellSearch with only one center frequency. All information
   // is discarded except for the frequency offset.
-  double fc_programmed;
+  double fc_programmed, correction_new;
   double initial_k_factor = 1;
-  double initial_freq_offset=kalibrate(fc_requested,fs_programmed,ppm,correction,use_recorded_data,filename,rtl_sdr_format,noise_power,drop_secs,repeat,dev,fc_programmed,initial_sampling_carrier_twist,initial_k_factor,record_bin_filename,load_bin_filename,opencl_platform,opencl_device,filter_workitem,xcorr_workitem,num_reserve);
+  double initial_freq_offset=kalibrate(fc_requested,fs_programmed,ppm,correction,correction_new,use_recorded_data,filename,rtl_sdr_format,noise_power,drop_secs,repeat,dev,fc_programmed,initial_sampling_carrier_twist,initial_k_factor,record_bin_filename,load_bin_filename,opencl_platform,opencl_device,filter_workitem,xcorr_workitem,num_reserve);
 
   // Data shared between threads
   sampbuf_sync_t sampbuf_sync;
@@ -1076,6 +1148,7 @@ int main(
   global_thread_data.main_thread_id=syscall(SYS_gettid);
   global_thread_data.frequency_offset(initial_freq_offset);
   global_thread_data.k_factor(initial_k_factor);
+  global_thread_data.correction(correction_new);
   global_thread_data.sampling_carrier_twist(initial_sampling_carrier_twist);
   global_thread_data.filter_workitem(filter_workitem);
   global_thread_data.xcorr_workitem(filter_workitem/4);

@@ -131,6 +131,7 @@ void searcher_thread(
 
   const bool sampling_carrier_twist = global_thread_data.sampling_carrier_twist();
   double k_factor = global_thread_data.k_factor();
+  double correction = global_thread_data.correction();
   uint16 opencl_platform = global_thread_data.opencl_platform();
   uint16 opencl_device = global_thread_data.opencl_device();
 

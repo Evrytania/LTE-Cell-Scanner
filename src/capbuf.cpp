@@ -80,10 +80,14 @@ double calculate_fc_programmed_in_context(
   double fc_programmed;
   bool load_bin_flag = (strlen(load_bin_filename)>4);
   if (use_recorded_data) {
-    fc_programmed=fc_requested; // be careful about this!
+    fc_programmed=fc_requested; // be careful about this! You should get fc_requested elsewhere
+    cerr << "calculate_fc_programmed_in_context should not be called to calculate fc_programmed when using captured file.\n";
+    ABORT(-1);
   }
   else if (load_bin_flag) {
-    fc_programmed=fc_requested; // be careful about this!
+    fc_programmed=fc_requested; // be careful about this! You should get fc_requested elsewhere
+    cerr << "calculate_fc_programmed_in_context should not be called to calculate fc_programmed when using captured file.\n";
+    ABORT(-1);
   } else {
     if (rtlsdr_get_tuner_type(dev)==RTLSDR_TUNER_E4000) {
       // This does not return the true center frequency, only the requested
@@ -99,6 +103,8 @@ double calculate_fc_programmed_in_context(
       //fc_programmed=fc_requested;
     } else {
       // Unsupported tuner...
+      cout << "capture_data Warning: It is not RTLSDR_TUNER_E4000\n";
+      cout << "set fc_programmed=fc_requested\n";
       fc_programmed=fc_requested;
     }
   }
@@ -286,9 +292,15 @@ int capture_data(
     it_ifile itf(filename.str());
     itf.seek("capbuf");
     itf>>capbuf;
+
     itf.seek("fc");
     ivec fc_v;
     itf>>fc_v;
+
+    itf.seek("fcp");
+    ivec fc_p;
+    itf>>fc_p;
+
     if (fc_requested!=fc_v(0)) {
       cout << "capture_data Warning: while reading capture buffer " << capture_number << ", the read" << endl;
       cout << "center frequency did not match the expected center frequency." << endl;
@@ -296,7 +308,8 @@ int capture_data(
     itf.close();
 
 //    fc_programmed=fc_requested; // be careful about this!
-    fc_programmed = calculate_fc_programmed_in_context(fc_requested, use_recorded_data, load_bin_filename, dev);
+//    fc_programmed = calculate_fc_programmed_in_context(fc_requested, use_recorded_data, load_bin_filename, dev);
+    fc_programmed = fc_p(0);
 
   } else if (load_bin_flag) {
     // Read data from load_bin_filename. Do not use live data.
@@ -393,15 +406,20 @@ int capture_data(
     delete[] capbuf_raw;
 
 //    fc_programmed=fc_requested; // be careful about this!
-    fc_programmed = calculate_fc_programmed_in_context(fc_requested, use_recorded_data, load_bin_filename, dev);
+//    fc_programmed = calculate_fc_programmed_in_context(fc_requested, use_recorded_data, load_bin_filename, dev);
+    fc_programmed = fc_programmed_tmp;
   } else {
     if (verbosity>=2) {
       cout << "Capturing live data" << endl;
     }
 
+    // Calculate the actual center frequency that was programmed.
+    fc_programmed = calculate_fc_programmed_in_context(fc_requested, use_recorded_data, load_bin_filename, dev);
+
     // Center frequency
     uint8 n_fail=0;
-    while (rtlsdr_set_center_freq(dev,itpp::round(fc_requested*correction))<0) {
+//    while (rtlsdr_set_center_freq(dev,itpp::round(fc_requested*correction))<0) {
+    while (rtlsdr_set_center_freq(dev,itpp::round(fc_programmed*correction))<0) {
       n_fail++;
       if (n_fail>=5) {
         cerr << "capture_data Error: unable to set center frequency" << endl;
@@ -411,31 +429,31 @@ int capture_data(
       sleep(1);
     }
 
-    // Calculate the actual center frequency that was programmed.
-    if (rtlsdr_get_tuner_type(dev)==RTLSDR_TUNER_E4000) {
-      // This does not return the true center frequency, only the requested
-      // center frequency.
-      //fc_programmed=(double)rtlsdr_get_center_freq(dev);
-      // Directly call some rtlsdr frequency calculation routines.
-      fc_programmed=compute_fc_programmed(28.8e6,fc_requested);
-      // For some reason, this will tame the slow time offset drift.
-      // I don't know if this is a problem caused by the hardware or a problem
-      // with the tracking algorithm.
-      fc_programmed=fc_programmed+58;
-      //MARK;
-      //fc_programmed=fc_requested;
-    } else {
-      // Unsupported tuner...
-      cout << "capture_data Warning: It is not RTLSDR_TUNER_E4000\n";
-      cout << "set fc_programmed=fc_requested";
-      fc_programmed=fc_requested;
-    }
-
-    // Reset the buffer
-    if (rtlsdr_reset_buffer(dev)<0) {
-      cerr << "capture_data Error: unable to reset RTLSDR buffer" << endl;
-      ABORT(-1);
-    }
+//    // Calculate the actual center frequency that was programmed.
+//    if (rtlsdr_get_tuner_type(dev)==RTLSDR_TUNER_E4000) {
+//      // This does not return the true center frequency, only the requested
+//      // center frequency.
+//      //fc_programmed=(double)rtlsdr_get_center_freq(dev);
+//      // Directly call some rtlsdr frequency calculation routines.
+//      fc_programmed=compute_fc_programmed(28.8e6,fc_requested);
+//      // For some reason, this will tame the slow time offset drift.
+//      // I don't know if this is a problem caused by the hardware or a problem
+//      // with the tracking algorithm.
+//      fc_programmed=fc_programmed+58;
+//      //MARK;
+//      //fc_programmed=fc_requested;
+//    } else {
+//      // Unsupported tuner...
+//      cout << "capture_data Warning: It is not RTLSDR_TUNER_E4000\n";
+//      cout << "set fc_programmed=fc_requested\n";
+//      fc_programmed=fc_requested;
+//    }
+//
+//    // Reset the buffer
+//    if (rtlsdr_reset_buffer(dev)<0) {
+//      cerr << "capture_data Error: unable to reset RTLSDR buffer" << endl;
+//      ABORT(-1);
+//    }
 
     // Read and store the data.
     // This will block until the call to rtlsdr_cancel_async().
@@ -474,9 +492,15 @@ int capture_data(
     }
     it_file itf(filename.str(),true);
     itf << Name("capbuf") << capbuf;
+
     ivec fc_v(1);
     fc_v(0)=fc_requested;
     itf << Name("fc") << fc_v;
+
+    ivec fc_p(1);
+    fc_p(0)=fc_programmed;
+    itf << Name("fcp") << fc_p;
+
     itf.close();
   }
 

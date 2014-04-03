@@ -611,9 +611,44 @@ int main(
   // Open the USB device (if necessary).
   rtlsdr_dev_t * dev=NULL;
   double fs_programmed = 1920000; // in case not initialized by config_usb
+  double fc_programmed; // for correction frequency calculation
+  double fc_requested, fc_requested_tmp, fc_programmed_tmp, fs_requested_tmp, fs_programmed_tmp;
+
   bool dongle_used = (!use_recorded_data) && (strlen(load_bin_filename)==0);
-  if ( dongle_used && freq_start!=9999e6)
+  if ( dongle_used && freq_start!=9999e6) {
     config_usb(sampling_carrier_twist,correction,device_index,freq_start,dev,fs_programmed);
+    fc_programmed_tmp = calculate_fc_programmed_in_context(freq_start, use_recorded_data, load_bin_filename, dev);
+  } else {
+    if (strlen(load_bin_filename)!=0) { // use captured bin file
+      if ( read_header_from_bin( load_bin_filename, fc_requested_tmp, fc_programmed_tmp, fs_requested_tmp, fs_programmed_tmp) ) {
+        cerr << "main: read_header_from_bin failed.\n";
+        ABORT(-1);
+      }
+      if (fc_requested_tmp==NAN) { //  no valid header information is found
+        cerr << "Neither frequency nor valid bin file header information is specified!\n";
+        ABORT(-1);
+      }
+    } else if (use_recorded_data){ // use captured .it file
+
+      stringstream filename;
+      filename << data_dir << "/capbuf_" << setw(4) << setfill('0') << 0 << ".it";
+      it_ifile itf(filename.str());
+
+      itf.seek("fc");
+      ivec fc_v;
+      itf>>fc_v;
+
+      itf.seek("fcp");
+      ivec fc_p;
+      itf>>fc_p;
+
+      itf.close();
+
+      fc_requested_tmp = fc_v(0);
+      fc_programmed_tmp = fc_p(0);
+
+    }
+  }
 
   if (use_recorded_data)
     num_try=1; // compatible to .it file case
@@ -625,45 +660,20 @@ int main(
   double freq_correction = 0;
   if (freq_start!=9999e6) { // if frequency scanning range is specified
     fc_search_set=itpp_ext::matlab_range(freq_start,100e3,freq_end);
-    freq_correction = freq_start*(correction-1)/correction;
   } else { // if frequency scanning range is not specified. a file is as input
-    if (strlen(load_bin_filename)!=0) { // use captured bin file
-      double fc_requested_tmp, fc_programmed_tmp, fs_requested_tmp, fs_programmed_tmp;
-      if ( read_header_from_bin( load_bin_filename, fc_requested_tmp, fc_programmed_tmp, fs_requested_tmp, fs_programmed_tmp) ) {
-        cerr << "main: read_header_from_bin failed.\n";
-        ABORT(-1);
-      }
-      if (fc_requested_tmp==NAN) { //  no valid header information is found
-        cerr << "Neither frequency nor valid bin file header information is specified!\n";
-        ABORT(-1);
-      } else {
+    if (strlen(load_bin_filename)!=0 || use_recorded_data) { // use captured file
+
         freq_start = fc_requested_tmp;
         freq_end = freq_start;
         fc_search_set.set_length(1, false);
         fc_search_set[0] = fc_requested_tmp;
-        freq_correction = fc_requested_tmp*(correction-1)/correction;
-      }
-    } else if (use_recorded_data){ // use captured .it file
-
-      stringstream filename;
-      filename << data_dir << "/capbuf_" << setw(4) << setfill('0') << 0 << ".it";
-      it_ifile itf(filename.str());
-      itf.seek("fc");
-      ivec fc_v;
-      itf>>fc_v;
-      itf.close();
-
-      freq_start = fc_v(0);
-      freq_end = freq_start;
-      fc_search_set.set_length(1, false);
-      fc_search_set[0] = freq_start;
-      freq_correction = freq_start*(correction-1)/correction;
 
     } else {
       cerr << "Neither frequency nor captured file is specified!\n";
       ABORT(-1);
     }
   }
+  freq_correction = fc_programmed_tmp*(correction-1)/correction;
 
   cout << "    Search frequency: " << fc_search_set(0)/1e6 << " to " <<  fc_search_set( length(fc_search_set)-1 )/1e6 << " MHz" << endl;
   cout << "with freq correction: " << freq_correction/1e3 << " kHz" << endl;
@@ -671,14 +681,14 @@ int main(
   cmat pss_fo_set;// pre-generate frequencies offseted pss time domain sequence
   vec f_search_set;
   if (sampling_carrier_twist) { // original mode
-    const uint16 n_extra=floor_i((freq_start*ppm/1e6+2.5e3)/5e3);
+    const uint16 n_extra=floor_i((fc_programmed_tmp*ppm/1e6+2.5e3)/5e3);
     f_search_set=to_vec(itpp_ext::matlab_range( -n_extra*5000,5000, (n_extra-1)*5000));
     // for graphic card which has limited mem, you should turn num_loop on if OpenCL reports -4: CL_MEM_OBJECT_ALLOCATION_FAILURE
 //    if (num_loop == 0) // it is not so useful
 //      num_loop = length(f_search_set)/2;
   } else {
     if (length(fc_search_set)==1) {//when only one frequency is specified, whole PPM range should be covered
-      const uint16 n_extra=floor_i((freq_start*ppm/1e6+2.5e3)/5e3);
+      const uint16 n_extra=floor_i((fc_programmed_tmp*ppm/1e6+2.5e3)/5e3);
       f_search_set=to_vec(itpp_ext::matlab_range( -n_extra*5000,5000, (n_extra-1)*5000));
     } else {
       // since we have frequency step is 100e3, why not have sub search set limited by this regardless PPM?
@@ -770,7 +780,7 @@ int main(
   vector < list<Cell> > detected_cells(n_fc);
   // Loop for each center frequency.
   for (uint32 fci=0;fci<n_fc_multi_try;fci++) {
-    double fc_requested=fc_search_set_multi_try(fci);
+    fc_requested=fc_search_set_multi_try(fci);
     uint32 fc_idx = fci/num_try;
     uint32 try_idx = fci - fc_idx*num_try;
 
@@ -779,7 +789,6 @@ int main(
     }
 
     // Fill capture buffer
-    double fc_programmed;
     int run_out_of_data = capture_data(fc_requested,correction,save_cap,record_bin_filename,use_recorded_data,load_bin_filename,data_dir,dev,capbuf,fc_programmed, false);
     if (run_out_of_data){
       fci = n_fc_multi_try; // end of loop
@@ -798,10 +807,6 @@ int main(
       filter_my(coef, capbuf);
     #endif
     cout << "6RB filter cost " << tt.get_time() << "s\n";
-//    it_file itf("capbuf.it",true);
-//    itf << Name("capbuf") << capbuf;
-//    itf.close();
-//    continue;
 
     vec dynamic_f_search_set = f_search_set; // don't touch the original
     double xcorr_pss_time;
@@ -972,9 +977,9 @@ int main(
 
       // Calculate the correction factor.
       // This is where we know the carrier is located
-      const double true_location=(*it).fc_requested;
+      const double true_location=(*it).fc_programmed;
       // We can calculate the RTLSDR's actualy frequency
-      const double crystal_freq_actual=(*it).fc_requested-(*it).freq_superfine;
+      const double crystal_freq_actual=(*it).fc_programmed-(*it).freq_superfine;
       // Calculate correction factors
       const double correction_residual=true_location/crystal_freq_actual;
       double correction_new=correction*correction_residual;

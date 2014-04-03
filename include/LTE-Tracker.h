@@ -226,6 +226,17 @@ class global_thread_data_t {
       boost::mutex::scoped_lock lock(sampling_carrier_twist_mutex);
       sampling_carrier_twist_private=f;
     }
+
+    inline double correction() {
+      boost::mutex::scoped_lock lock(correction_mutex);
+      double r=correction_private;
+      return r;
+    }
+    inline void correction(const double & f) {
+      boost::mutex::scoped_lock lock(correction_mutex);
+      correction_private=f;
+    }
+
     inline double k_factor() {
       boost::mutex::scoped_lock lock(k_factor_mutex);
       double r=k_factor_private;
@@ -235,6 +246,7 @@ class global_thread_data_t {
       boost::mutex::scoped_lock lock(k_factor_mutex);
       k_factor_private=f;
     }
+
     inline double frequency_offset() {
       boost::mutex::scoped_lock lock(frequency_offset_mutex);
       double r=frequency_offset_private;
@@ -283,22 +295,34 @@ class global_thread_data_t {
     // continuously.
     boost::mutex opencl_platform_mutex;
     uint16 opencl_platform_private;
+
     boost::mutex opencl_device_mutex;
     uint16 opencl_device_private;
+
     boost::mutex xcorr_workitem_mutex;
     uint16 xcorr_workitem_private;
+
     boost::mutex filter_workitem_mutex;
     uint16 filter_workitem_private;
+
     boost::mutex sampling_carrier_twist_mutex;
     bool sampling_carrier_twist_private;
+
+    boost::mutex correction_mutex;
+    double correction_private;
+
     boost::mutex k_factor_mutex;
     double k_factor_private;
+
     boost::mutex frequency_offset_mutex;
     double frequency_offset_private;
+
     boost::mutex searcher_cycle_time_mutex;
     double searcher_cycle_time_private;
+
     boost::mutex cell_seconds_dropped_mutex;
     uint32 cell_seconds_dropped_private;
+
     boost::mutex raw_seconds_dropped_mutex;
     uint32 raw_seconds_dropped_private;
 };

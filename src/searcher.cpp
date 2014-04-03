@@ -116,8 +116,8 @@
 using namespace itpp;
 using namespace std;
 
-#define DBG(CODE) CODE
-//#define DBG(CODE)
+//#define DBG(CODE) CODE
+#define DBG(CODE)
 
 //#define USE_OPENCL // just for debug purpose. It should be removed before formal release
 
@@ -1374,7 +1374,8 @@ void xc_combine(
     // Combine incoherently
     const double f_off=f_search_set[foi];
     if (sampling_carrier_twist) {
-        k_factor=(fc_requested-f_off)/fc_programmed;
+//        k_factor=(fc_requested-f_off)/fc_programmed;
+        k_factor=(fc_programmed-f_off)/fc_programmed;
     } else {
         k_factor = k_factor_in;
     }
@@ -2721,7 +2722,8 @@ void peak_search(
     cell.n_id_2=peak_n_id_2;
 
     if (sampling_carrier_twist) {
-      cell.k_factor = (fc_requested-cell.freq)/fc_programmed;
+//      cell.k_factor = (fc_requested-cell.freq)/fc_programmed;
+      cell.k_factor = (fc_programmed-cell.freq)/fc_programmed;
     }
     else {
       cell.k_factor = k_factor;
@@ -2808,7 +2810,8 @@ void sss_detect_getce_sss(
 
   double k_factor;
   if (sampling_carrier_twist) {
-      k_factor=(fc_requested-peak_freq)/fc_programmed;
+//      k_factor=(fc_requested-peak_freq)/fc_programmed;
+      k_factor=(fc_programmed-peak_freq)/fc_programmed;
   } else {
       k_factor = cell.k_factor;
   }
@@ -3016,7 +3019,8 @@ Cell sss_detect(
   // It is expected (not guaranteed!) that a DFT performed at this
   // location will have a measured time offset of 2 samples.
   if (sampling_carrier_twist==1) {
-    k_factor=(fc_requested-cell.freq)/fc_programmed;
+//    k_factor=(fc_requested-cell.freq)/fc_programmed;
+    k_factor=(fc_programmed-cell.freq)/fc_programmed;
   } else {
     k_factor = cell.k_factor;
   }
@@ -3075,7 +3079,8 @@ Cell pss_sss_foe(
 ) {
   double k_factor;
   if (sampling_carrier_twist){
-    k_factor=(fc_requested-cell_in.freq)/fc_programmed;
+//    k_factor=(fc_requested-cell_in.freq)/fc_programmed;
+    k_factor=(fc_programmed-cell_in.freq)/fc_programmed;
   } else {
     k_factor = cell_in.k_factor;
   }
@@ -3198,7 +3203,8 @@ void extract_tfg(
   // fc*k_factor is the receiver's actual RX center frequency.
   double k_factor;
   if (sampling_carrier_twist){
-    k_factor=(fc_requested-cell.freq_fine)/fc_programmed;
+//    k_factor=(fc_requested-cell.freq_fine)/fc_programmed;
+    k_factor=(fc_programmed-cell.freq_fine)/fc_programmed;
   } else {
     k_factor = cell.k_factor;
   }
@@ -3318,7 +3324,8 @@ Cell tfoec(
   }
   double k_factor;
   if (sampling_carrier_twist) {
-    k_factor=(fc_requested-cell.freq_fine)/fc_programmed;
+//    k_factor=(fc_requested-cell.freq_fine)/fc_programmed;
+    k_factor=(fc_programmed-cell.freq_fine)/fc_programmed;
   }
   else {
     k_factor = cell.k_factor;
@@ -3328,7 +3335,8 @@ Cell tfoec(
   // Perform FOC. Does not fix ICI!
   double k_factor_residual;
   if (sampling_carrier_twist){
-    k_factor_residual=(fc_requested-residual_f)/fc_programmed;
+//    k_factor_residual=(fc_requested-residual_f)/fc_programmed;
+    k_factor_residual=(fc_programmed-residual_f)/fc_programmed;
   } else {
 //    k_factor_residual = cell.k_factor;
     k_factor_residual = 1.0;
@@ -3410,7 +3418,8 @@ Cell tfoec(
   Cell cell_out(cell);
   cell_out.freq_superfine=cell_out.freq_fine+residual_f;
   if (sampling_carrier_twist){
-    cell_out.k_factor=(fc_requested-cell_out.freq_superfine)/fc_programmed;
+//    cell_out.k_factor=(fc_requested-cell_out.freq_superfine)/fc_programmed;
+    cell_out.k_factor=(fc_programmed-cell_out.freq_superfine)/fc_programmed;
   }
   return cell_out;
 }
