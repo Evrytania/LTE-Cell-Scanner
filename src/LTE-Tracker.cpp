@@ -700,7 +700,7 @@ void read_datafile(
 // some duplicated code.
 double kalibrate(
   double & fc_requested,
-  const double & fs_programmed,
+  double & fs_programmed,
   const double & ppm,
   const double & correction,
   double & correction_new,
@@ -733,6 +733,7 @@ double kalibrate(
   double fc_requested_tmp, fc_programmed_tmp, fs_requested_tmp, fs_programmed_tmp;
   if ( dongle_used && fc_requested!=9999e6) {
     fc_programmed_tmp = calculate_fc_programmed_in_context(fc_requested, use_recorded_data, load_bin_filename, dev);
+    cout << "Use dongle begin with " << ( fc_requested/1e6 ) << "MHz actual " << (fc_programmed_tmp/1e6) << "MHz " << fs_programmed_tmp << "MHz\n";
   } else {
     if (strlen(load_bin_filename)!=0) { // use captured bin file
       if ( read_header_from_bin( load_bin_filename, fc_requested_tmp, fc_programmed_tmp, fs_requested_tmp, fs_programmed_tmp) ) {
@@ -757,12 +758,19 @@ double kalibrate(
       ivec fc_p;
       itf>>fc_p;
 
+      itf.seek("fsp");
+      ivec fs_p;
+      itf>>fs_p;
+
       itf.close();
 
       fc_requested_tmp = fc_v(0);
       fc_programmed_tmp = fc_p(0);
+      fs_programmed_tmp = fs_p(0);
 
     }
+    fs_programmed = fs_programmed_tmp;
+    cout << "Use file begin with " << ( fc_requested_tmp/1e6 ) << "MHz actual " << (fc_programmed_tmp/1e6) << "MHz " << fs_programmed_tmp << "MHz\n";
   }
 
   fc_requested = fc_requested_tmp;
@@ -872,15 +880,14 @@ double kalibrate(
 //    } else {
 //      capture_data(fc_requested,1.0,false,"no",false,"no",".",dev,capbuf,fc_programmed);
 //    }
-    int run_out_of_data = capture_data(fc_requested,correction,false,record_bin_filename,use_recorded_data,load_bin_filename,".",dev,capbuf,fc_programmed,false);
+    int run_out_of_data = capture_data(fc_requested,correction,false,record_bin_filename,use_recorded_data,load_bin_filename,".",dev,capbuf,fc_programmed,fs_programmed,false);
     if (run_out_of_data){
       cerr << "Run out of data.\n";
       ABORT(-1);
     }
 
-    if (!dongle_used) { // if dongle is not used, do correction explicitly. Because if dongle is used, the correction is done when tuning dongle's frequency.
-      capbuf = fshift(capbuf,-freq_correction,fs_programmed);
-    }
+    freq_correction = fc_programmed*(correction-1)/correction;
+    capbuf = fshift(capbuf,-freq_correction,fs_programmed);
 
     //cout << "Capbuf power: " << db10(sigpower(capbuf)) << " dB" << endl;
     if (noise_power)
@@ -1123,7 +1130,7 @@ int main(
   if ( (!use_recorded_data) && (strlen(load_bin_filename)==0) ) {
     config_usb(initial_sampling_carrier_twist, correction,device_index,fc_requested,dev,fs_programmed);
   } else {
-    fs_programmed=correction*1.92e6;
+    fs_programmed=correction*(FS_LTE/16);
   }
 
   // Calibrate the dongle's oscillator. This is similar to running the
@@ -1152,6 +1159,8 @@ int main(
   global_thread_data.sampling_carrier_twist(initial_sampling_carrier_twist);
   global_thread_data.filter_workitem(filter_workitem);
   global_thread_data.xcorr_workitem(filter_workitem/4);
+  global_thread_data.opencl_platform(opencl_platform);
+  global_thread_data.opencl_device(opencl_device);
 
   // Start the cell searcher thread.
   // Now that the oscillator has been calibrated, we can perform
@@ -1177,7 +1186,7 @@ int main(
     cvec file_data;
 //    read_datafile(filename,rtl_sdr_format,drop_secs,file_data);
 //    //cout << db10(sigpower(file_data)) << endl;
-    capture_data(fc_requested,correction,false,record_bin_filename,use_recorded_data,load_bin_filename,".",dev,file_data,fc_programmed,true);
+    capture_data(fc_requested,correction,false,record_bin_filename,use_recorded_data,load_bin_filename,".",dev,file_data,fc_programmed,fs_programmed,true);
 
     uint32 offset=0;
     while (true) {

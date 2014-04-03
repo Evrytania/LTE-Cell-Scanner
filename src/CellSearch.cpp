@@ -519,10 +519,10 @@ void config_usb(
   }
 
   double sampling_rate = 0;
-  if (sampling_carrier_twist)
-    sampling_rate = 1920000*correction;
-  else
-    sampling_rate = 1920000;
+//  if (sampling_carrier_twist)
+    sampling_rate = (FS_LTE/16)*correction;
+//  else
+//    sampling_rate = 1920000;
   // Sampling frequency
   if (rtlsdr_set_sample_rate(dev,itpp::round(sampling_rate))<0) {
     cerr << "Error: unable to set sampling rate" << endl;
@@ -610,7 +610,7 @@ int main(
 
   // Open the USB device (if necessary).
   rtlsdr_dev_t * dev=NULL;
-  double fs_programmed = 1920000; // in case not initialized by config_usb
+  double fs_programmed = FS_LTE/16; // in case not initialized by config_usb
   double fc_programmed; // for correction frequency calculation
   double fc_requested, fc_requested_tmp, fc_programmed_tmp, fs_requested_tmp, fs_programmed_tmp;
 
@@ -618,6 +618,7 @@ int main(
   if ( dongle_used && freq_start!=9999e6) {
     config_usb(sampling_carrier_twist,correction,device_index,freq_start,dev,fs_programmed);
     fc_programmed_tmp = calculate_fc_programmed_in_context(freq_start, use_recorded_data, load_bin_filename, dev);
+    cout << "Use dongle begin with " << ( freq_start/1e6 ) << "MHz actual " << (fc_programmed_tmp/1e6) << "MHz " << fs_programmed << "MHz\n";
   } else {
     if (strlen(load_bin_filename)!=0) { // use captured bin file
       if ( read_header_from_bin( load_bin_filename, fc_requested_tmp, fc_programmed_tmp, fs_requested_tmp, fs_programmed_tmp) ) {
@@ -642,12 +643,19 @@ int main(
       ivec fc_p;
       itf>>fc_p;
 
+      itf.seek("fsp");
+      ivec fs_p;
+      itf>>fs_p;
+
       itf.close();
 
       fc_requested_tmp = fc_v(0);
       fc_programmed_tmp = fc_p(0);
+      fs_programmed_tmp = fs_p(0);
 
     }
+    fs_programmed = fs_programmed_tmp;
+    cout << "Use file begin with " << ( fc_requested_tmp/1e6 ) << "MHz actual " << (fc_programmed_tmp/1e6) << "MHz " << fs_programmed_tmp << "MHz\n";
   }
 
   if (use_recorded_data)
@@ -789,15 +797,16 @@ int main(
     }
 
     // Fill capture buffer
-    int run_out_of_data = capture_data(fc_requested,correction,save_cap,record_bin_filename,use_recorded_data,load_bin_filename,data_dir,dev,capbuf,fc_programmed, false);
+    int run_out_of_data = capture_data(fc_requested,correction,save_cap,record_bin_filename,use_recorded_data,load_bin_filename,data_dir,dev,capbuf,fc_programmed, fs_programmed, false);
     if (run_out_of_data){
       fci = n_fc_multi_try; // end of loop
       continue;
     }
 
-    if (!dongle_used) { // if dongle is not used, do correction explicitly. Because if dongle is used, the correction is done when tuning dongle's frequency.
+    freq_correction = fc_programmed*(correction-1)/correction;
+//    if (!dongle_used) { // if dongle is not used, do correction explicitly. Because if dongle is used, the correction is done when tuning dongle's frequency.
       capbuf = fshift(capbuf,-freq_correction,fs_programmed);
-    }
+//    }
 
     // 6RB filter to improve SNR
     tt.tic();

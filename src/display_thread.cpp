@@ -117,16 +117,18 @@ void display_cell(
   attron(COLOR_PAIR(BLUE));
   if (tracked_cell.duplex_mode==0)
   {
-      printw("[FDD Cell ID %3i][TO: %7.1lf]",
+      printw("[FDD Cell ID %3i][TO: %7.1lf][FO: %5.1fHz]",
         tracked_cell.n_id_cell,
-        tracked_cell.frame_timing()
+        tracked_cell.frame_timing(),
+        tracked_cell.freq_superfine()
       );
   }
   else
   {
-      printw("[TDD Cell ID %3i][TO: %7.1lf]",
+      printw("[TDD Cell ID %3i][TO: %7.1lf][FO: %5.1fHz]",
         tracked_cell.n_id_cell,
-        tracked_cell.frame_timing()
+        tracked_cell.frame_timing(),
+        tracked_cell.freq_superfine()
       );
   }
 
@@ -567,7 +569,7 @@ void display_thread(
         printw("\n");
       }
       attron(COLOR_PAIR(MAGENTA));
-      printw("[FO: %6.0lf Hz]",global_thread_data.frequency_offset());
+      printw("[Calib. FO: %6.0lf Hz]",global_thread_data.frequency_offset());
       //attron(A_BOLD);
 //      printw("[searcher delay: %.1lf s]",global_thread_data.searcher_cycle_time());
       printw("[searcher delay: %f s]",global_thread_data.searcher_cycle_time());

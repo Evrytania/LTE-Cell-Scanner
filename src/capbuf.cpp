@@ -237,7 +237,7 @@ int read_header_from_bin(
     fc_programmed = tmp[1];
     fs_requested = tmp[2];
     fs_programmed = tmp[3];
-    cout << "Read file header fc_requested " << fc_requested/1e6 << "MHz fc_programmed " << fc_programmed/1e6 << "MHz fs_requested " << fs_requested/1e6 << "MHz fs_programmed " << fs_programmed/1e6 << "MHz\n";
+//    cout << "Read file header fc_requested " << fc_requested/1e6 << "MHz fc_programmed " << fc_programmed/1e6 << "MHz fs_requested " << fs_requested/1e6 << "MHz fs_programmed " << fs_programmed/1e6 << "MHz\n";
     ret = 0;
   } else {
     cout << "Read file header failed.\n";
@@ -266,6 +266,7 @@ int capture_data(
   // Output
   cvec & capbuf,
   double & fc_programmed,
+  double & fs_programmed,
   const bool & read_all_in_bin // only for .bin file! if it is true, all data in bin file will be read in one time.
 ) {
   // Filename used for recording or loading captured data.
@@ -301,6 +302,10 @@ int capture_data(
     ivec fc_p;
     itf>>fc_p;
 
+    itf.seek("fs");
+    ivec fs_p;
+    itf>>fs_p;
+
     if (fc_requested!=fc_v(0)) {
       cout << "capture_data Warning: while reading capture buffer " << capture_number << ", the read" << endl;
       cout << "center frequency did not match the expected center frequency." << endl;
@@ -310,6 +315,7 @@ int capture_data(
 //    fc_programmed=fc_requested; // be careful about this!
 //    fc_programmed = calculate_fc_programmed_in_context(fc_requested, use_recorded_data, load_bin_filename, dev);
     fc_programmed = fc_p(0);
+    fs_programmed = fs_p(0);
 
   } else if (load_bin_flag) {
     // Read data from load_bin_filename. Do not use live data.
@@ -408,6 +414,7 @@ int capture_data(
 //    fc_programmed=fc_requested; // be careful about this!
 //    fc_programmed = calculate_fc_programmed_in_context(fc_requested, use_recorded_data, load_bin_filename, dev);
     fc_programmed = fc_programmed_tmp;
+    fs_programmed = fs_programmed_tmp;
   } else {
     if (verbosity>=2) {
       cout << "Capturing live data" << endl;
@@ -501,6 +508,10 @@ int capture_data(
     fc_p(0)=fc_programmed;
     itf << Name("fcp") << fc_p;
 
+    ivec fs_p(1);
+    fs_p(0)=fs_programmed;
+    itf << Name("fsp") << fs_p;
+
     itf.close();
   }
 
@@ -522,7 +533,7 @@ int capture_data(
     }
 
     if (capture_number==0){ // write bin file header
-      int ret = write_header_to_bin(fp, fc_requested,fc_programmed,(const double &)1920000,(const double &)1920000); // not use fs. it seems always 1920000
+      int ret = write_header_to_bin(fp, fc_requested,fc_programmed,(const double &)1920000,fs_programmed); // not use fs. it seems always 1920000
       if (ret) {
         cerr << "capture_data Error: unable write header info to file: " << record_bin_filename << endl;
         ABORT(-1);

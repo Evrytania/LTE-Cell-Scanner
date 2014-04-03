@@ -78,6 +78,11 @@ void searcher_thread(
   const double & fc_requested=global_thread_data.fc_requested;
   const double & fc_programmed=global_thread_data.fc_programmed;
   const double & fs_programmed=global_thread_data.fs_programmed;
+  double freq_correction;
+
+  const bool sampling_carrier_twist = global_thread_data.sampling_carrier_twist();
+  double k_factor = global_thread_data.k_factor();
+  double correction = global_thread_data.correction();
 
   vec coef(( sizeof( chn_6RB_filter_coef )/sizeof(float) ));
   for (uint16 i=0; i<length(coef); i++) {
@@ -126,22 +131,23 @@ void searcher_thread(
   // Get the current frequency offset (because it won't change anymore after main thread launches this thread, so move it outside loop)
   vec f_search_set(1);
   cmat pss_fo_set;// pre-generate frequencies offseted pss time domain sequence
-  f_search_set(0)=global_thread_data.frequency_offset();
+    // because it is already included in global_thread_data.frequency_offset();
+//  f_search_set(0)=global_thread_data.frequency_offset();
+  f_search_set(0)=0;
   pss_fo_set_gen(f_search_set, pss_fo_set);
 
-  const bool sampling_carrier_twist = global_thread_data.sampling_carrier_twist();
-  double k_factor = global_thread_data.k_factor();
-  double correction = global_thread_data.correction();
+  freq_correction = fc_programmed*(correction-1)/correction;
+
+//  cout << opencl_platform << " " << opencl_device <<  " " << sampling_carrier_twist << "\n";
   uint16 opencl_platform = global_thread_data.opencl_platform();
   uint16 opencl_device = global_thread_data.opencl_device();
-
   lte_opencl_t lte_ocl(opencl_platform, opencl_device);
 
   #ifdef USE_OPENCL
   uint16 filter_workitem = global_thread_data.filter_workitem();
   uint16 xcorr_workitem = global_thread_data.xcorr_workitem();
-  lte_ocl.setup_filter_my((string)"filter_my_kernels.cl", CAPLENGTH, filter_workitem);
   lte_ocl.setup_filter_mchn((string)"filter_mchn_kernels.cl", CAPLENGTH, length(f_search_set)*3, pss_fo_set.cols(), xcorr_workitem);
+  lte_ocl.setup_filter_my((string)"filter_my_kernels.cl", CAPLENGTH, filter_workitem);
   #endif
 
   // Loop forever.
@@ -163,6 +169,8 @@ void searcher_thread(
 
     // Local reference to the capture buffer.
     cvec &capbuf=capbuf_sync.capbuf;
+
+    capbuf = fshift(capbuf,-freq_correction,fs_programmed);
 
     #ifdef USE_OPENCL
       lte_ocl.filter_my(capbuf); // be careful! capbuf.zeros() will slow down the xcorr part pretty much!
@@ -196,14 +204,6 @@ void searcher_thread(
     Cell cell_temp(*iterator);
     while (iterator!=detected_cells.end()) {
       // Detect SSS if possible
-//      vec sss_h1_np_est_meas;
-//      vec sss_h2_np_est_meas;
-//      cvec sss_h1_nrm_est_meas;
-//      cvec sss_h2_nrm_est_meas;
-//      cvec sss_h1_ext_est_meas;
-//      cvec sss_h2_ext_est_meas;
-//      mat log_lik_nrm;
-//      mat log_lik_ext;
 #define THRESH2_N_SIGMA 3
       int tdd_flag = 0;
       cell_temp = (*iterator);
@@ -287,8 +287,10 @@ void searcher_thread(
         (*iterator).phich_duration,
         (*iterator).phich_resource,
         (*iterator).frame_start*(FS_LTE/16)/(fs_programmed*k_factor)+capbuf_sync.late,
-        serial_num((*iterator).n_id_cell())
+        serial_num((*iterator).n_id_cell()),
+        (*iterator).freq_superfine
       );
+
       serial_num((*iterator).n_id_cell())++;
       // Cannot launch thread here. If thread was launched here, it would
       // have the same (low) priority as the searcher thread.
@@ -307,6 +309,10 @@ void searcher_thread(
 
       ++iterator;
     }
+//          new_cell->freq_superfine((*( iterator-1) ).freq_superfine);
+//      cout << (*( --iterator)).freq_superfine << "\n";
+
+
     global_thread_data.searcher_cycle_time(tt.toc());
 //    global_thread_data.searcher_cycle_time(xcorr_pss_time);
   }

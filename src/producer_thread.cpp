@@ -99,7 +99,7 @@ void producer_thread(
     const bool sampling_carrier_twist = global_thread_data.sampling_carrier_twist();
     double k_factor = 1.0; // if not twisted, make k_factor useless
     if (sampling_carrier_twist){
-      k_factor=(global_thread_data.fc_requested-frequency_offset)/global_thread_data.fc_programmed;
+      k_factor=(global_thread_data.fc_programmed-frequency_offset)/global_thread_data.fc_programmed;
     }
     //const double k_factor_inv=1/k_factor;
     const double & fs_programmed=global_thread_data.fs_programmed;

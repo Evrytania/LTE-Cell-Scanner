@@ -28,7 +28,8 @@ class tracked_cell_t {
       const phich_duration_t::phich_duration_t & phich_duration,
       const phich_resource_t::phich_resource_t & phich_resource,
       const double & ft,
-      const uint32 & serial_num
+      const uint32 & serial_num,
+      const double & freq_superfine
     ) :
       n_id_1(floor(n_id_cell/3.0)),
       n_id_2(n_id_cell-3*floor(n_id_cell/3.0)),
@@ -41,6 +42,7 @@ class tracked_cell_t {
       phich_resource(phich_resource),
       serial_num(serial_num)
     {
+      freq_superfine_private=freq_superfine;
       frame_timing_private=ft;
       fifo_peak_size=0;
       kill_me=false;
@@ -84,6 +86,7 @@ class tracked_cell_t {
     const phich_duration_t::phich_duration_t phich_duration;
     const phich_resource_t::phich_resource_t phich_resource;
     const uint32 serial_num;
+//    const double freq_superfine;
 
     // Do we need this?
     boost::thread thread;
@@ -139,6 +142,18 @@ class tracked_cell_t {
       frame_timing_private=ft;
     }
 
+    inline double freq_superfine() {
+      boost::mutex::scoped_lock lock(freq_superfine_mutex);
+      double r=freq_superfine_private;
+      return r;
+    }
+
+    void freq_superfine(const double & fs) {
+      boost::mutex::scoped_lock lock(freq_superfine_mutex);
+      freq_superfine_private=fs;
+//      freq_superfine_private++;
+    }
+
     bool kill_me;
 
   private:
@@ -146,6 +161,9 @@ class tracked_cell_t {
     // threads.
     boost::mutex frame_timing_mutex;
     double frame_timing_private;
+
+    boost::mutex freq_superfine_mutex;
+    double freq_superfine_private;
 };
 
 // Structure that stores the list of all the tracked cells.
@@ -181,48 +199,48 @@ class global_thread_data_t {
     // Read/write frequency offset, k_factor, sampling_carrier_twist (via mutex).
     // Mutex makes sure that no read or write is interrupted when
     // only part of the data has been read.
-    inline double opencl_device() {
+    inline uint16 opencl_device() {
       boost::mutex::scoped_lock lock(opencl_device_mutex);
-      double r=opencl_device_private;
+      uint16 r=opencl_device_private;
       return r;
     }
-    inline void opencl_device(const double & f) {
+    inline void opencl_device(const uint16 & f) {
       boost::mutex::scoped_lock lock(opencl_device_mutex);
       opencl_device_private=f;
     }
-    inline double opencl_platform() {
+    inline uint16 opencl_platform() {
       boost::mutex::scoped_lock lock(opencl_platform_mutex);
-      double r=opencl_platform_private;
+      uint16 r=opencl_platform_private;
       return r;
     }
-    inline void opencl_platform(const double & f) {
+    inline void opencl_platform(const uint16 & f) {
       boost::mutex::scoped_lock lock(opencl_platform_mutex);
       opencl_platform_private=f;
     }
-    inline double filter_workitem() {
+    inline uint16 filter_workitem() {
       boost::mutex::scoped_lock lock(filter_workitem_mutex);
-      double r=filter_workitem_private;
+      uint16 r=filter_workitem_private;
       return r;
     }
-    inline void filter_workitem(const double & f) {
+    inline void filter_workitem(const uint16 & f) {
       boost::mutex::scoped_lock lock(filter_workitem_mutex);
       filter_workitem_private=f;
     }
-    inline double xcorr_workitem() {
+    inline uint16 xcorr_workitem() {
       boost::mutex::scoped_lock lock(xcorr_workitem_mutex);
-      double r=xcorr_workitem_private;
+      uint16 r=xcorr_workitem_private;
       return r;
     }
-    inline void xcorr_workitem(const double & f) {
+    inline void xcorr_workitem(const uint16 & f) {
       boost::mutex::scoped_lock lock(xcorr_workitem_mutex);
       xcorr_workitem_private=f;
     }
-    inline double sampling_carrier_twist() {
+    inline bool sampling_carrier_twist() {
       boost::mutex::scoped_lock lock(sampling_carrier_twist_mutex);
-      double r=sampling_carrier_twist_private;
+      bool r=sampling_carrier_twist_private;
       return r;
     }
-    inline void sampling_carrier_twist(const double & f) {
+    inline void sampling_carrier_twist(const bool & f) {
       boost::mutex::scoped_lock lock(sampling_carrier_twist_mutex);
       sampling_carrier_twist_private=f;
     }

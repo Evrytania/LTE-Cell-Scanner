@@ -54,6 +54,7 @@ int capture_data(
   // Output
   itpp::cvec & capbuf,
   double & fc_programmed,
+  double & fs_programmed,
   const bool & read_all_in_bin
 );
 
