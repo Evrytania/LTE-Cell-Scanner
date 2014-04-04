@@ -1405,6 +1405,29 @@ void xc_combine(
   }
 }
 
+
+mat circshift_mat_to_left(
+  mat & a,
+  const uint32 n
+) {
+  uint num_col = a.cols() - n;
+  mat tmp_mat = a.get_cols(0, n-1);
+  a.set_cols(0, a.get_cols(n, a.cols()-1));
+  a.set_cols(num_col, tmp_mat);
+  return a;
+}
+
+mat circshift_mat_to_right(
+  mat & a,
+  const uint32 n
+) {
+  uint num_col = a.cols() - n;
+  mat tmp_mat = a.get_cols(num_col, a.cols()-1);
+  a.set_cols(n, a.get_cols(0, num_col-1));
+  a.set_cols(0, tmp_mat);
+  return a;
+}
+
 // Combine adjacent taps that likely come from the same channel.
 // Simply: xc_incoherent(t,idx,foi)=mean(xc_incoherent_single(t,idx-ds_comb_arm:idx+ds_comb_arm,foi);
 void xc_delay_spread(
@@ -1426,28 +1449,47 @@ void xc_delay_spread(
   xc_incoherent[1].set_size(n_f, 9600);
   xc_incoherent[2].set_size(n_f, 9600);
 
-  for (uint16 foi=0;foi<n_f;foi++) {
-    for (uint8 t=0;t<3;t++) {
-//      for (uint16 idx=0;idx<9600;idx++) {
-//        xc_incoherent[t][idx][foi]=xc_incoherent_single[t][idx][foi];
+
+//  for (uint16 foi=0;foi<n_f;foi++) {
+//    for (uint8 t=0;t<3;t++) {
+////      for (uint16 idx=0;idx<9600;idx++) {
+////        xc_incoherent[t][idx][foi]=xc_incoherent_single[t][idx][foi];
+////      }
+//      xc_incoherent[t].set_row(foi, xc_incoherent_single[t].get_row(foi));
+//    }
+//    for (uint8 t=1;t<=ds_comb_arm;t++) {
+//      for (uint8 k=0;k<3;k++) {
+//        for (uint16 idx=0;idx<9600;idx++) {
+//          xc_incoherent[k](foi, idx)+=xc_incoherent_single[k](foi, itpp_ext::matlab_mod(idx-t,9600))+xc_incoherent_single[k](foi,itpp_ext::matlab_mod(idx+t,9600));
+//        }
 //      }
-      xc_incoherent[t].set_row(foi, xc_incoherent_single[t].get_row(foi));
+//    }
+//    // Normalize
+//    for (uint8 t=0;t<3;t++) {
+////      for (uint16 idx=0;idx<9600;idx++) {
+////        xc_incoherent[t][idx][foi]=xc_incoherent[t][idx][foi]/(2*ds_comb_arm+1);
+////      }
+//      xc_incoherent[t].set_row( foi, xc_incoherent[t].get_row(foi)/(2*ds_comb_arm+1) );
+//    }
+//  }
+
+// //  try to have new and faster code-------------------------------------
+
+  mat tmp1(n_f, 9600);
+  mat tmp2(n_f, 9600);
+
+  for (uint8 t=0; t<3; t++) {
+    xc_incoherent[t] = xc_incoherent_single[t];
+
+    for (uint8 s=1;s<=ds_comb_arm;s++) {
+      tmp1 = xc_incoherent_single[t];
+      tmp2 = xc_incoherent_single[t];
+      xc_incoherent[t] = xc_incoherent[t] + circshift_mat_to_left(tmp1, s) + circshift_mat_to_right(tmp2, s);
     }
-    for (uint8 t=1;t<=ds_comb_arm;t++) {
-      for (uint8 k=0;k<3;k++) {
-        for (uint16 idx=0;idx<9600;idx++) {
-          xc_incoherent[k](foi, idx)+=xc_incoherent_single[k](foi, itpp_ext::matlab_mod(idx-t,9600))+xc_incoherent_single[k](foi,itpp_ext::matlab_mod(idx+t,9600));
-        }
-      }
-    }
-    // Normalize
-    for (uint8 t=0;t<3;t++) {
-//      for (uint16 idx=0;idx<9600;idx++) {
-//        xc_incoherent[t][idx][foi]=xc_incoherent[t][idx][foi]/(2*ds_comb_arm+1);
-//      }
-      xc_incoherent[t].set_row( foi, xc_incoherent[t].get_row(foi)/(2*ds_comb_arm+1) );
-    }
+
+    xc_incoherent[t] = xc_incoherent[t]/(2*ds_comb_arm+1);
   }
+
 }
 
 // Search for the peak correlation among all frequency offsets.
@@ -1744,28 +1786,6 @@ void pss_moving_corr(
 //    cout << hit_corr_val << "\n";
 //    cout << hit_time_idx << "\n";
   }
-}
-
-mat circshift_mat_to_left(
-  mat & a,
-  const uint32 n
-) {
-  uint num_col = a.cols() - n;
-  mat tmp_mat = a.get_cols(0, n-1);
-  a.set_cols(0, a.get_cols(n, a.cols()-1));
-  a.set_cols(num_col, tmp_mat);
-  return a;
-}
-
-mat circshift_mat_to_right(
-  mat & a,
-  const uint32 n
-) {
-  uint num_col = a.cols() - n;
-  mat tmp_mat = a.get_cols(num_col, a.cols()-1);
-  a.set_cols(n, a.get_cols(0, num_col-1));
-  a.set_cols(0, tmp_mat);
-  return a;
 }
 
 void conv_capbuf_with_pss(
