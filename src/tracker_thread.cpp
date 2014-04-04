@@ -89,6 +89,7 @@ typedef struct {
 // Pop 128 time domain samples from the fifo, convert to the frequency
 // domain, and extract the 72 desired subcarriers.
 void get_fd(
+  global_thread_data_t & global_thread_data,
   tracked_cell_t & tracked_cell,
   const double & fc_requested,
   const double & fc_programmed,
@@ -126,7 +127,14 @@ void get_fd(
   // Also perform FOC to remove ICI
   frequency_offset=pdu.frequency_offset;
   frame_timing=pdu.frame_timing;
-  double k_factor=(fc_requested-frequency_offset)/fc_programmed;
+
+  double k_factor;
+  if (global_thread_data.sampling_carrier_twist()) {
+  //  double k_factor=(fc_requested-frequency_offset)/fc_programmed;
+    k_factor=(fc_programmed-frequency_offset)/fc_programmed;
+  } else {
+    k_factor=global_thread_data.k_factor();
+  }
 
   // Directly manipulate data on the fifo to minimize vector copies.
   // Remove ICI
@@ -226,7 +234,15 @@ void do_foe(
 
   // Update system frequency offset.
   double frequency_offset=rs_prev.frequency_offset;
-  double k_factor=(global_thread_data.fc_requested-frequency_offset)/global_thread_data.fc_programmed;
+
+  double k_factor;
+  if (global_thread_data.sampling_carrier_twist()) {
+  //  double k_factor=(global_thread_data.fc_requested-frequency_offset)/global_thread_data.fc_programmed;
+    k_factor=(global_thread_data.fc_programmed-frequency_offset)/global_thread_data.fc_programmed;
+  } else {
+    k_factor = global_thread_data.k_factor();
+  }
+
   double residual_f=arg(foe_comb)/(2*pi)/(0.0005+WRAP(rs_next.frame_timing-rs_prev.frame_timing,-19200.0/2,19200.0/2)*(1/(global_thread_data.fs_programmed*k_factor)));
   double residual_f_np=MAX(foe_comb_np/2,.001);
   //residual_f+=1000;
@@ -236,10 +252,8 @@ void do_foe(
   // possible that between the read and the write, a different thread will
   // perform a write. This isn't a problem because the worst that will happen
   // is that we will lose one of many (millions?) of updates.
-  global_thread_data.frequency_offset((
-    global_thread_data.frequency_offset()*(1/.000001)+
-    (frequency_offset+residual_f)*(1/residual_f_np)
-  )/(1/.000001+1/residual_f_np));
+  global_thread_data.frequency_offset(
+  ( global_thread_data.frequency_offset()*(1/.000001) + (frequency_offset+residual_f)*(1/residual_f_np) )/(1/.000001+1/residual_f_np) );
 }
 
 void do_toe_v2(
@@ -872,7 +886,7 @@ void tracker_thread(
     double frequency_offset;
     double frame_timing;
     //get_fd(tracked_cell,global_thread_data.fc,slot_num,sym_num,cn,bulk_phase_offset,syms,frequency_offset,frame_timing);
-    get_fd(tracked_cell,global_thread_data.fc_requested,global_thread_data.fc_programmed,global_thread_data.fs_programmed,slot_num,sym_num,bulk_phase_offset,syms,frequency_offset,frame_timing);
+    get_fd(global_thread_data,tracked_cell,global_thread_data.fc_requested,global_thread_data.fc_programmed,global_thread_data.fs_programmed,slot_num,sym_num,bulk_phase_offset,syms,frequency_offset,frame_timing);
 
     // Save this information into the data fifo for further processing
     // once channel estimates are ready. Channel estimates for this OFDM

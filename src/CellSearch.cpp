@@ -398,7 +398,7 @@ void parse_commandline(
   }
 
   if (verbosity>=1) {
-    cout << "OpenCL LTE CellSearch v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " (" << BUILD_TYPE << ") beginning. 1.0 to 1.1: TDD/OpenCL/ext-LNB/faster added by Jiao Xianjun(putaoshu@gmail.com)" << endl;
+    cout << "OpenCL LTE CellSearch v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " (" << BUILD_TYPE << ") beginning. 1.0 to 1.1: OpenCL/TDD/ext-LNB added by Jiao Xianjun(putaoshu@gmail.com)" << endl;
 
 // //    frequency information will be displayed in main() function.
 //    if (freq_start==freq_end) {

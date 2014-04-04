@@ -117,18 +117,16 @@ void display_cell(
   attron(COLOR_PAIR(BLUE));
   if (tracked_cell.duplex_mode==0)
   {
-      printw("[FDD Cell ID %3i][TO: %7.1lf][FO: %5.1fHz]",
+      printw("[FDD Cell ID %3i][TO: %7.1lf]",
         tracked_cell.n_id_cell,
-        tracked_cell.frame_timing(),
-        tracked_cell.freq_superfine()
+        tracked_cell.frame_timing()
       );
   }
   else
   {
-      printw("[TDD Cell ID %3i][TO: %7.1lf][FO: %5.1fHz]",
+      printw("[TDD Cell ID %3i][TO: %7.1lf]",
         tracked_cell.n_id_cell,
-        tracked_cell.frame_timing(),
-        tracked_cell.freq_superfine()
+        tracked_cell.frame_timing()
       );
   }
 
@@ -537,7 +535,7 @@ void display_thread(
       // Header and footer
       {
         stringstream ss;
-        ss << "OpenCL LTE-Tracker v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " -- www.evrytania.com; 1.0 to 1.1: TDD/OpenCL/ext-LNB/faster added by Jiao X.J.(putaoshu@gmail.com).";
+        ss << "OpenCL LTE-Tracker v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " -- www.evrytania.com; 1.0 to 1.1: OpenCL/TDD/ext-LNB added by Jiao X.J.(putaoshu@gmail.com).";
         move(0,0);
         attron(COLOR_PAIR(CYAN));
         print_center(ss.str());
@@ -569,10 +567,10 @@ void display_thread(
         printw("\n");
       }
       attron(COLOR_PAIR(MAGENTA));
-      printw("[Calib. FO: %6.0lf Hz]",global_thread_data.frequency_offset());
+      printw("[init. FO: %6.0lfHz][track FO: %6.2lfHz]",global_thread_data.initial_frequency_offset(), global_thread_data.frequency_offset()-global_thread_data.initial_frequency_offset());
       //attron(A_BOLD);
 //      printw("[searcher delay: %.1lf s]",global_thread_data.searcher_cycle_time());
-      printw("[searcher delay: %f s]",global_thread_data.searcher_cycle_time());
+      printw("[searcher delay: %f s][rqst %5.2lfMHz][prog %5.2lfMHz][fs %5.4lfMHz][k %f][twist %d]",global_thread_data.searcher_cycle_time(), global_thread_data.fc_requested/1e6, global_thread_data.fc_programmed/1e6, global_thread_data.fs_programmed/1e6, global_thread_data.k_factor(), global_thread_data.sampling_carrier_twist());
       //attroff(A_BOLD);
 
       if (fifo_status) {

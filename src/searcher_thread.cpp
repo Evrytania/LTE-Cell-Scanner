@@ -78,11 +78,11 @@ void searcher_thread(
   const double & fc_requested=global_thread_data.fc_requested;
   const double & fc_programmed=global_thread_data.fc_programmed;
   const double & fs_programmed=global_thread_data.fs_programmed;
-  double freq_correction;
+//  double freq_correction;
 
   const bool sampling_carrier_twist = global_thread_data.sampling_carrier_twist();
   double k_factor = global_thread_data.k_factor();
-  double correction = global_thread_data.correction();
+//  double correction = global_thread_data.correction();
 
   vec coef(( sizeof( chn_6RB_filter_coef )/sizeof(float) ));
   for (uint16 i=0; i<length(coef); i++) {
@@ -132,11 +132,10 @@ void searcher_thread(
   vec f_search_set(1);
   cmat pss_fo_set;// pre-generate frequencies offseted pss time domain sequence
     // because it is already included in global_thread_data.frequency_offset();
-//  f_search_set(0)=global_thread_data.frequency_offset();
-  f_search_set(0)=0;
+  f_search_set(0)=global_thread_data.frequency_offset();
   pss_fo_set_gen(f_search_set, pss_fo_set);
 
-  freq_correction = fc_programmed*(correction-1)/correction;
+//  freq_correction = fc_programmed*(correction-1)/correction;
 
 //  cout << opencl_platform << " " << opencl_device <<  " " << sampling_carrier_twist << "\n";
   uint16 opencl_platform = global_thread_data.opencl_platform();
@@ -170,7 +169,7 @@ void searcher_thread(
     // Local reference to the capture buffer.
     cvec &capbuf=capbuf_sync.capbuf;
 
-    capbuf = fshift(capbuf,-freq_correction,fs_programmed);
+//    capbuf = fshift(capbuf,-freq_correction,fs_programmed);
 
     #ifdef USE_OPENCL
       lte_ocl.filter_my(capbuf); // be careful! capbuf.zeros() will slow down the xcorr part pretty much!
@@ -276,6 +275,9 @@ void searcher_thread(
       }
       */
 
+//      cout << ((*iterator).frame_start) <<  " " << k_factor << " " << capbuf_sync.late << (*iterator).k_factor <<  "\n";
+//      (*iterator).frame_start = 3619.95;
+//      capbuf_sync.late = 0;
       // Launch a cell tracker process!
       //tracked_cell_t * new_cell = new tracked_cell_t((*iterator).n_id_cell(),(*iterator).n_ports,(*iterator).cp_type,(*iterator).frame_start/k_factor+capbuf_sync.late,serial_num((*iterator).n_id_cell()));
       tracked_cell_t * new_cell = new tracked_cell_t(
@@ -287,8 +289,8 @@ void searcher_thread(
         (*iterator).phich_duration,
         (*iterator).phich_resource,
         (*iterator).frame_start*(FS_LTE/16)/(fs_programmed*k_factor)+capbuf_sync.late,
-        serial_num((*iterator).n_id_cell()),
-        (*iterator).freq_superfine
+        serial_num((*iterator).n_id_cell())//,
+//        (*iterator).freq_superfine
       );
 
       serial_num((*iterator).n_id_cell())++;
@@ -309,9 +311,6 @@ void searcher_thread(
 
       ++iterator;
     }
-//          new_cell->freq_superfine((*( iterator-1) ).freq_superfine);
-//      cout << (*( --iterator)).freq_superfine << "\n";
-
 
     global_thread_data.searcher_cycle_time(tt.toc());
 //    global_thread_data.searcher_cycle_time(xcorr_pss_time);

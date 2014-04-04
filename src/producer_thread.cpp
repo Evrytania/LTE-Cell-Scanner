@@ -96,11 +96,15 @@ void producer_thread(
   while (true) {
     // Each iteration of this loop processes one block of data.
     const double frequency_offset=global_thread_data.frequency_offset();
-    const bool sampling_carrier_twist = global_thread_data.sampling_carrier_twist();
     double k_factor = 1.0; // if not twisted, make k_factor useless
-    if (sampling_carrier_twist){
-      k_factor=(global_thread_data.fc_programmed-frequency_offset)/global_thread_data.fc_programmed;
-    }
+
+//    //!!!!!!!!DON'T KNOW WHY values other than 1 will cause tracker loop divergence!!!!!!
+//    if (global_thread_data.sampling_carrier_twist()){
+//      k_factor=(global_thread_data.fc_programmed-frequency_offset)/global_thread_data.fc_programmed;
+//    } else {
+//      k_factor=global_thread_data.k_factor();
+//    }
+
     //const double k_factor_inv=1/k_factor;
     const double & fs_programmed=global_thread_data.fs_programmed;
 

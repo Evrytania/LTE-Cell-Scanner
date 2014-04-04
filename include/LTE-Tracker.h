@@ -28,8 +28,8 @@ class tracked_cell_t {
       const phich_duration_t::phich_duration_t & phich_duration,
       const phich_resource_t::phich_resource_t & phich_resource,
       const double & ft,
-      const uint32 & serial_num,
-      const double & freq_superfine
+      const uint32 & serial_num//,
+//      const double & freq_superfine
     ) :
       n_id_1(floor(n_id_cell/3.0)),
       n_id_2(n_id_cell-3*floor(n_id_cell/3.0)),
@@ -42,7 +42,7 @@ class tracked_cell_t {
       phich_resource(phich_resource),
       serial_num(serial_num)
     {
-      freq_superfine_private=freq_superfine;
+//      freq_superfine_private=freq_superfine;
       frame_timing_private=ft;
       fifo_peak_size=0;
       kill_me=false;
@@ -142,17 +142,17 @@ class tracked_cell_t {
       frame_timing_private=ft;
     }
 
-    inline double freq_superfine() {
-      boost::mutex::scoped_lock lock(freq_superfine_mutex);
-      double r=freq_superfine_private;
-      return r;
-    }
-
-    void freq_superfine(const double & fs) {
-      boost::mutex::scoped_lock lock(freq_superfine_mutex);
-      freq_superfine_private=fs;
-//      freq_superfine_private++;
-    }
+//    inline double freq_superfine() {
+//      boost::mutex::scoped_lock lock(freq_superfine_mutex);
+//      double r=freq_superfine_private;
+//      return r;
+//    }
+//
+//    void freq_superfine(const double & fs) {
+//      boost::mutex::scoped_lock lock(freq_superfine_mutex);
+//      freq_superfine_private=fs;
+////      freq_superfine_private++;
+//    }
 
     bool kill_me;
 
@@ -162,8 +162,8 @@ class tracked_cell_t {
     boost::mutex frame_timing_mutex;
     double frame_timing_private;
 
-    boost::mutex freq_superfine_mutex;
-    double freq_superfine_private;
+//    boost::mutex freq_superfine_mutex;
+//    double freq_superfine_private;
 };
 
 // Structure that stores the list of all the tracked cells.
@@ -274,6 +274,17 @@ class global_thread_data_t {
       boost::mutex::scoped_lock lock(frequency_offset_mutex);
       frequency_offset_private=f;
     }
+
+    inline double initial_frequency_offset() {
+      boost::mutex::scoped_lock lock(initial_frequency_offset_mutex);
+      double r=initial_frequency_offset_private;
+      return r;
+    }
+    inline void initial_frequency_offset(const double & f) {
+      boost::mutex::scoped_lock lock(initial_frequency_offset_mutex);
+      initial_frequency_offset_private=f;
+    }
+
     // Read/write searcher cycle time (via mutex).
     // Mutex makes sure that no read or write is interrupted when
     // only part of the data has been read.
@@ -334,6 +345,9 @@ class global_thread_data_t {
 
     boost::mutex frequency_offset_mutex;
     double frequency_offset_private;
+
+    boost::mutex initial_frequency_offset_mutex;
+    double initial_frequency_offset_private;
 
     boost::mutex searcher_cycle_time_mutex;
     double searcher_cycle_time_private;

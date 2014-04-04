@@ -487,7 +487,7 @@ void parse_commandline(
   }
 
   if (verbosity>=1) {
-    cout << "OpenCL LTE Tracker v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " (" << BUILD_TYPE << ") beginning. 1.0 to 1.1: TDD/OpenCL/ext-LNB/faster added by Jiao Xianjun(putaoshu@gmail.com)" << endl;
+    cout << "OpenCL LTE Tracker v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " (" << BUILD_TYPE << ") beginning. 1.0 to 1.1: OpenCL/TDD/ext-LNB added by Jiao Xianjun(putaoshu@gmail.com)" << endl;
 //    cout << "  Search frequency: " << fc/1e6 << " MHz" << endl;
 //    if (sampling_carrier_twist) {
       cout << "  PPM: " << ppm << endl;
@@ -1130,7 +1130,7 @@ int main(
   if ( (!use_recorded_data) && (strlen(load_bin_filename)==0) ) {
     config_usb(initial_sampling_carrier_twist, correction,device_index,fc_requested,dev,fs_programmed);
   } else {
-    fs_programmed=correction*(FS_LTE/16);
+    fs_programmed=correction*(FS_LTE/16); // will be updated in kalibrate.
   }
 
   // Calibrate the dongle's oscillator. This is similar to running the
@@ -1153,7 +1153,10 @@ int main(
   cout << "fs_programmed-1.92e6 = " << fs_programmed-1.92e6 << endl;
   */
   global_thread_data.main_thread_id=syscall(SYS_gettid);
+
   global_thread_data.frequency_offset(initial_freq_offset);
+  global_thread_data.initial_frequency_offset(initial_freq_offset);
+
   global_thread_data.k_factor(initial_k_factor);
   global_thread_data.correction(correction_new);
   global_thread_data.sampling_carrier_twist(initial_sampling_carrier_twist);
@@ -1192,7 +1195,8 @@ int main(
     while (true) {
       {
         boost::mutex::scoped_lock lock(sampbuf_sync.mutex);
-        for (uint32 t=0;t<192000;t++) {
+//        for (uint32 t=0;t<192000;t++) {
+        for (uint32 t=0;t<(uint32)( file_data.length() );t++) {
           complex <double> samp=file_data[offset]+randn_c()*sqrt(noise_power);
           uint8 samp_real=RAIL(round_i(real(samp)*128.0+128.0),0,255); // 127 should be 128?
           uint8 samp_imag=RAIL(round_i(imag(samp)*128.0+128.0),0,255); // 127 should be 128?
