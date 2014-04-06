@@ -22,6 +22,10 @@
 #include "lte_lib.h"
 #include "constants.h"
 
+#ifdef HAVE_HACKRF
+#include "hackrf.h"
+#endif
+
 // Instantiate the tables
 Rom_tables ROM_TABLES;
 

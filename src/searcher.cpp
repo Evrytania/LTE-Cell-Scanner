@@ -70,6 +70,10 @@
 #include "filter_coef.h"
 #include "capbuf.h"
 
+#ifdef HAVE_HACKRF
+#include "hackrf.h"
+#endif
+
 // This LTE cell search algorithm was designed under the following guidelines:
 //
 // 1) Low performance hardware

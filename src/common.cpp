@@ -23,6 +23,10 @@
 #include "itpp_ext.h"
 #include "dsp.h"
 
+#ifdef HAVE_HACKRF
+#include "hackrf.h"
+#endif
+
 using namespace std;
 
 // Cell class member functions

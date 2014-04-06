@@ -28,13 +28,41 @@
 #include "itpp_ext.h"
 #include "dsp.h"
 
+#ifdef HAVE_HACKRF
+#include "hackrf.h"
+#endif
+
 using namespace itpp;
 using namespace std;
 
-typedef struct {
-  vector <unsigned char> * buf;
-  rtlsdr_dev_t * dev;
-} callback_package_t;
+#ifdef HAVE_HACKRF
+
+static int capbuf_hackrf_callback(hackrf_transfer* transfer) {
+  callback_hackrf_package_t * cp_p=(callback_hackrf_package_t *)transfer->rx_ctx;
+  callback_hackrf_package_t & cp=*cp_p;
+  vector <unsigned char> * capbuf_raw_p=cp.buf;
+  vector <unsigned char> & capbuf_raw=*capbuf_raw_p;
+  hackrf_device * dev=cp.dev;
+
+  if (transfer->valid_length==0) {
+    cerr << "Error: received no samples from HACKRF device..." << endl;
+    ABORT(-1);
+  }
+
+  for (uint32 t=0;t<(uint32)( transfer->valid_length );t++) {
+    if (capbuf_raw.size()<CAPLENGTH*2) {
+      capbuf_raw.push_back(transfer->buffer[t]);
+    }
+    if (capbuf_raw.size()==CAPLENGTH*2) {
+      hackrf_stop_rx(dev);
+      break;
+    }
+  }
+  return(0);
+}
+
+#endif
+
 static void capbuf_rtlsdr_callback(
   unsigned char * buf,
   uint32_t len,
@@ -263,6 +291,8 @@ int capture_data(
   const char * load_bin_filename,
   const string & data_dir,
   rtlsdr_dev_t * & dev,
+  hackrf_device * & hackrf_dev,
+  const dev_type_t::dev_type_t & dev_use,
   // Output
   cvec & capbuf,
   double & fc_programmed,
@@ -420,76 +450,109 @@ int capture_data(
       cout << "Capturing live data" << endl;
     }
 
-    // Calculate the actual center frequency that was programmed.
-    fc_programmed = calculate_fc_programmed_in_context(fc_requested, use_recorded_data, load_bin_filename, dev);
+    if (dev_use == dev_type_t::RTLSDR) {
+      // Calculate the actual center frequency that was programmed.
+      fc_programmed = calculate_fc_programmed_in_context(fc_requested, use_recorded_data, load_bin_filename, dev);
 
-    // Center frequency
-    uint8 n_fail=0;
-//    while (rtlsdr_set_center_freq(dev,itpp::round(fc_requested*correction))<0) {
-    while (rtlsdr_set_center_freq(dev,itpp::round(fc_programmed*correction))<0) {
-      n_fail++;
-      if (n_fail>=5) {
-        cerr << "capture_data Error: unable to set center frequency" << endl;
+      // Center frequency
+      uint8 n_fail=0;
+  //    while (rtlsdr_set_center_freq(dev,itpp::round(fc_requested*correction))<0) {
+      while (rtlsdr_set_center_freq(dev,itpp::round(fc_programmed*correction))<0) {
+        n_fail++;
+        if (n_fail>=5) {
+          cerr << "capture_data Error: unable to set center frequency" << endl;
+          ABORT(-1);
+        }
+        cerr << "capture_data: Unable to set center frequency... retrying..." << endl;
+        sleep(1);
+      }
+
+  //    // Calculate the actual center frequency that was programmed.
+  //    if (rtlsdr_get_tuner_type(dev)==RTLSDR_TUNER_E4000) {
+  //      // This does not return the true center frequency, only the requested
+  //      // center frequency.
+  //      //fc_programmed=(double)rtlsdr_get_center_freq(dev);
+  //      // Directly call some rtlsdr frequency calculation routines.
+  //      fc_programmed=compute_fc_programmed(28.8e6,fc_requested);
+  //      // For some reason, this will tame the slow time offset drift.
+  //      // I don't know if this is a problem caused by the hardware or a problem
+  //      // with the tracking algorithm.
+  //      fc_programmed=fc_programmed+58;
+  //      //MARK;
+  //      //fc_programmed=fc_requested;
+  //    } else {
+  //      // Unsupported tuner...
+  //      cout << "capture_data Warning: It is not RTLSDR_TUNER_E4000\n";
+  //      cout << "set fc_programmed=fc_requested\n";
+  //      fc_programmed=fc_requested;
+  //    }
+  //
+  //    // Reset the buffer
+  //    if (rtlsdr_reset_buffer(dev)<0) {
+  //      cerr << "capture_data Error: unable to reset RTLSDR buffer" << endl;
+  //      ABORT(-1);
+  //    }
+
+      // Read and store the data.
+      // This will block until the call to rtlsdr_cancel_async().
+      vector <unsigned char> capbuf_raw;
+      capbuf_raw.reserve(CAPLENGTH*2);
+      callback_package_t cp;
+      cp.buf=&capbuf_raw;
+      cp.dev=dev;
+
+      rtlsdr_read_async(dev,capbuf_rtlsdr_callback,(void *)&cp,0,0);
+
+      // Convert to complex
+      capbuf.set_size(CAPLENGTH);
+  #ifndef NDEBUG
+      capbuf=NAN;
+  #endif
+      for (uint32 t=0;t<CAPLENGTH;t++) {
+        // Normal
+        capbuf(t)=complex<double>((((double)capbuf_raw[(t<<1)])-128.0)/128.0,(((double)capbuf_raw[(t<<1)+1])-128.0)/128.0);
+        //// 127 --> 128.
+        // Conjugate
+        //capbuf(t)=complex<double>((capbuf_raw[(t<<1)]-127.0)/128.0,-(capbuf_raw[(t<<1)+1]-127.0)/128.0);
+        // Swap I/Q
+        //capbuf(t)=complex<double>((capbuf_raw[(t<<1)+1]-127.0)/128.0,(capbuf_raw[(t<<1)]-127.0)/128.0);
+        // Swap I/Q and conjugate
+        //capbuf(t)=complex<double>((capbuf_raw[(t<<1)+1]-127.0)/128.0,-(capbuf_raw[(t<<1)]-127.0)/128.0);
+      }
+      //cout << "capbuf power: " << db10(sigpower(capbuf)) << " dB" << endl;
+    } else if (dev_use == dev_type_t::HACKRF) {
+
+      #ifdef HAVE_HACKRF
+
+      fc_programmed = fc_requested;
+
+      // Center frequency
+      int result = hackrf_set_freq(hackrf_dev, fc_requested);
+      if( result != HACKRF_SUCCESS ) {
+        printf("hackrf_set_freq() failed: %s (%d)\n", hackrf_error_name((hackrf_error)result), result);
         ABORT(-1);
       }
-      cerr << "capture_data: Unable to set center frequency... retrying..." << endl;
-      sleep(1);
+
+      vector <unsigned char> capbuf_raw;
+      capbuf_raw.reserve(CAPLENGTH*2);
+      callback_hackrf_package_t cp;
+      cp.buf=&capbuf_raw;
+      cp.dev=hackrf_dev;
+      result = hackrf_start_rx(hackrf_dev, capbuf_hackrf_callback, (void *)&cp);
+
+      if( result != HACKRF_SUCCESS ) {
+        printf("hackrf_start_rx() failed: %s (%d)\n", hackrf_error_name((hackrf_error)result), result);
+        ABORT(-1);
+      }
+
+      // Convert to complex
+      capbuf.set_size(CAPLENGTH);
+      for (uint32 t=0;t<CAPLENGTH;t++) {
+        capbuf(t)=complex<double>((((double)capbuf_raw[(t<<1)])-128.0)/128.0,(((double)capbuf_raw[(t<<1)+1])-128.0)/128.0);
+      }
+
+      #endif
     }
-
-//    // Calculate the actual center frequency that was programmed.
-//    if (rtlsdr_get_tuner_type(dev)==RTLSDR_TUNER_E4000) {
-//      // This does not return the true center frequency, only the requested
-//      // center frequency.
-//      //fc_programmed=(double)rtlsdr_get_center_freq(dev);
-//      // Directly call some rtlsdr frequency calculation routines.
-//      fc_programmed=compute_fc_programmed(28.8e6,fc_requested);
-//      // For some reason, this will tame the slow time offset drift.
-//      // I don't know if this is a problem caused by the hardware or a problem
-//      // with the tracking algorithm.
-//      fc_programmed=fc_programmed+58;
-//      //MARK;
-//      //fc_programmed=fc_requested;
-//    } else {
-//      // Unsupported tuner...
-//      cout << "capture_data Warning: It is not RTLSDR_TUNER_E4000\n";
-//      cout << "set fc_programmed=fc_requested\n";
-//      fc_programmed=fc_requested;
-//    }
-//
-//    // Reset the buffer
-//    if (rtlsdr_reset_buffer(dev)<0) {
-//      cerr << "capture_data Error: unable to reset RTLSDR buffer" << endl;
-//      ABORT(-1);
-//    }
-
-    // Read and store the data.
-    // This will block until the call to rtlsdr_cancel_async().
-    vector <unsigned char> capbuf_raw;
-    capbuf_raw.reserve(CAPLENGTH*2);
-    callback_package_t cp;
-    cp.buf=&capbuf_raw;
-    cp.dev=dev;
-
-    rtlsdr_read_async(dev,capbuf_rtlsdr_callback,(void *)&cp,0,0);
-
-    // Convert to complex
-    capbuf.set_size(CAPLENGTH);
-#ifndef NDEBUG
-    capbuf=NAN;
-#endif
-    for (uint32 t=0;t<CAPLENGTH;t++) {
-      // Normal
-      capbuf(t)=complex<double>((((double)capbuf_raw[(t<<1)])-128.0)/128.0,(((double)capbuf_raw[(t<<1)+1])-128.0)/128.0);
-      //// 127 --> 128.
-      // Conjugate
-      //capbuf(t)=complex<double>((capbuf_raw[(t<<1)]-127.0)/128.0,-(capbuf_raw[(t<<1)+1]-127.0)/128.0);
-      // Swap I/Q
-      //capbuf(t)=complex<double>((capbuf_raw[(t<<1)+1]-127.0)/128.0,(capbuf_raw[(t<<1)]-127.0)/128.0);
-      // Swap I/Q and conjugate
-      //capbuf(t)=complex<double>((capbuf_raw[(t<<1)+1]-127.0)/128.0,-(capbuf_raw[(t<<1)]-127.0)/128.0);
-    }
-    //cout << "capbuf power: " << db10(sigpower(capbuf)) << " dB" << endl;
-
   }
 
   // Save the capture data, if requested.

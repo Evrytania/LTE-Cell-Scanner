@@ -31,6 +31,10 @@
 #include "itpp_ext.h"
 #include "dsp.h"
 
+#ifdef HAVE_HACKRF
+#include "hackrf.h"
+#endif
+
 using namespace itpp;
 using namespace std;
 

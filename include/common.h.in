@@ -3,6 +3,8 @@
 
 #define @USE_OPENCL@
 
+#define @HAVE_HACKRF@
+
 // This is filled in by cmake
 #define MAJOR_VERSION @CellSearch_MAJOR_VERSION@
 #define MINOR_VERSION @CellSearch_MINOR_VERSION@
@@ -47,6 +49,11 @@ typedef std::vector < std::vector < float > > vf2d;
 
 // Some enums must be enclosed in their own namespace because their
 // names conflict with each other and also with ITPP declared enums.
+
+namespace dev_type_t {
+  enum dev_type_t { UNKNOWN = -4321, RTLSDR=9832, HACKRF=432134 };
+}
+
 namespace cp_type_t {
   enum cp_type_t { UNKNOWN = 0, NORMAL, EXTENDED };
 }

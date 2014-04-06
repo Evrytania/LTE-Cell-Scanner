@@ -25,6 +25,10 @@
 #include "common.h"
 #include "macros.h"
 
+#ifdef HAVE_HACKRF
+#include "hackrf.h"
+#endif
+
 // 'Extensions' to itpp that probably should have been included in itpp.
 namespace itpp_ext {
 

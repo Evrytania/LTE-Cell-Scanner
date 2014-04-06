@@ -39,6 +39,11 @@
 #include <sys/types.h>
 #include <curses.h>
 #include "rtl-sdr.h"
+
+#ifdef HAVE_HACKRF
+#include "hackrf.h"
+#endif
+
 #include "common.h"
 #include "macros.h"
 #include "lte_lib.h"
@@ -47,9 +52,12 @@
 #include "itpp_ext.h"
 #include "searcher.h"
 #include "dsp.h"
-#include "rtl-sdr.h"
 #include "LTE-Tracker.h"
 #include "filter_coef.h"
+
+#ifdef HAVE_HACKRF
+#include "hackrf.h"
+#endif
 
 using namespace itpp;
 using namespace std;
@@ -568,13 +576,13 @@ static void rtlsdr_callback_temp(unsigned char *buf, uint32 len, void *ctx) {
 }
 */
 
-// Open the USB device
-void config_usb(
+// Open the RTLSDR device
+int config_usb(
   const bool & sampling_carrier_twist,
   const double & correction,
   const int32 & device_index_cmdline,
   const double & fc,
-  rtlsdr_dev_t * & dev,
+  rtlsdr_dev_t *& dev,
   double & fs_programmed
 ) {
   int32 device_index=device_index_cmdline;
@@ -582,7 +590,8 @@ void config_usb(
   int8 n_rtlsdr=rtlsdr_get_device_count();
   if (n_rtlsdr==0) {
     cerr << "Error: no RTL-SDR USB devices found..." << endl;
-    ABORT(-1);
+//    ABORT(-1);
+    return(1);
   }
 
   // Choose which device to use
@@ -597,24 +606,27 @@ void config_usb(
       rtlsdr_get_device_usb_strings(t,vendor,product,serial);
       cerr << "Device index " << t << ": [Vendor: " << vendor << "] [Product: " << product << "] [Serial#: " << serial << "]" << endl;
     }
-    ABORT(-1);
+//    ABORT(-1);
+    return(1);
   }
 
   // Open device
   if (rtlsdr_open(&dev,device_index)<0) {
     cerr << "Error: unable to open RTLSDR device" << endl;
-    ABORT(-1);
+//    ABORT(-1);
+    return(1);
   }
 
   double sampling_rate = 0;
-  if (sampling_carrier_twist)
-    sampling_rate = 1920000*correction;
-  else
-    sampling_rate = 1920000;
+//  if (sampling_carrier_twist)
+    sampling_rate = (FS_LTE/16)*correction;
+//  else
+//    sampling_rate = 1920000;
   // Sampling frequency
   if (rtlsdr_set_sample_rate(dev,itpp::round(sampling_rate))<0) {
     cerr << "Error: unable to set sampling rate" << endl;
-    ABORT(-1);
+//    ABORT(-1);
+    return(1);
   }
 
   // Calculate the actual fs that was programmed
@@ -626,7 +638,8 @@ void config_usb(
     n_fail++;
     if (n_fail>=5) {
       cerr << "Error: unable to set center frequency" << endl;
-      ABORT(-1);
+//      ABORT(-1);
+      return(1);
     }
     cerr << "Unable to set center frequency... retrying..." << endl;
     sleep(1);
@@ -635,42 +648,120 @@ void config_usb(
   // Turn on AGC
   if (rtlsdr_set_tuner_gain_mode(dev,0)<0) {
     cerr << "Error: unable to enter AGC mode" << endl;
-    ABORT(-1);
+//    ABORT(-1);
+    return(1);
   }
 
   // Reset the buffer
   if (rtlsdr_reset_buffer(dev)<0) {
     cerr << "Error: unable to reset RTLSDR buffer" << endl;
-    ABORT(-1);
+//    ABORT(-1);
+    return(1);
   }
 
-  // Discard several seconds worth of data to give the AGC time to converge
+  // Discard about 1.5s worth of data to give the AGC time to converge
   if (verbosity>=2) {
     cout << "Waiting for AGC to converge..." << endl;
   }
   uint32 n_read=0;
   int n_read_current;
-#define BLOCK_SIZE (16*16384)
+#define BLOCK_SIZE 16*16384
   uint8 * buffer=(uint8 *)malloc(BLOCK_SIZE*sizeof(uint8));
   while (true) {
-    // sync mode is unreliable in that it may drop samples. However, in this
-    // case we can still use it because we don't care about the data and sync
-    // mode will still gurantee a minimum number of samples have been
-    // discarded.
     if (rtlsdr_read_sync(dev,buffer,BLOCK_SIZE,&n_read_current)<0) {
       cerr << "Error: synchronous read failed" << endl;
-      ABORT(-1);
+//      ABORT(-1);
+      return(1);
     }
     if (n_read_current<BLOCK_SIZE) {
       cerr << "Error: short read; samples lost" << endl;
-      ABORT(-1);
+//      ABORT(-1);
+      return(1);
     }
     n_read+=n_read_current;
     if (n_read>2880000*2)
       break;
   }
   free(buffer);
+
+  return(0);
 }
+
+#ifdef HAVE_HACKRF
+
+// Open the HACKRF device
+int config_hackrf(
+  const bool & sampling_carrier_twist,
+  const double & correction,
+  const int32 & device_index_cmdline,
+  const double & fc,
+  hackrf_device *& device,
+  double & fs_programmed
+) {
+  unsigned int lna_gain=8; // default value
+  unsigned int vga_gain=20; // default value
+
+  int result = hackrf_init();
+	if( result != HACKRF_SUCCESS ) {
+		printf("hackrf_init() failed: %s (%d)\n", hackrf_error_name((hackrf_error)result), result);
+//		ABORT(-1);
+    return(result);
+	}
+
+	result = hackrf_open(&device);
+	if( result != HACKRF_SUCCESS ) {
+		printf("hackrf_open() failed: %s (%d)\n", hackrf_error_name((hackrf_error)result), result);
+//		ABORT(-1);
+    return(result);
+	}
+
+  double sampling_rate =  (FS_LTE/16)*correction;
+
+  // Sampling frequency
+  result = hackrf_set_sample_rate_manual(device, sampling_rate, 1);
+	if( result != HACKRF_SUCCESS ) {
+		printf("hackrf_sample_rate_set() failed: %s (%d)\n", hackrf_error_name((hackrf_error)result), result);
+//		ABORT(-1);
+    return(result);
+	}
+
+  // Need to handle in the future
+  fs_programmed=sampling_rate;
+
+  result = hackrf_set_baseband_filter_bandwidth(device, 1.45e6);
+	if( result != HACKRF_SUCCESS ) {
+		printf("hackrf_baseband_filter_bandwidth_set() failed: %s (%d)\n", hackrf_error_name((hackrf_error)result), result);
+//		ABORT(-1);
+		return(result);
+	}
+
+  result = hackrf_set_vga_gain(device, vga_gain);
+	result |= hackrf_set_lna_gain(device, lna_gain);
+
+  if( result != HACKRF_SUCCESS ) {
+		printf("hackrf_set_vga_gain hackrf_set_lna_gain failed: %s (%d)\n", hackrf_error_name((hackrf_error)result), result);
+//		ABORT(-1);
+		return(result);
+	}
+
+  // Center frequency
+  result = hackrf_set_freq(device, fc);
+  if( result != HACKRF_SUCCESS ) {
+    printf("hackrf_set_freq() failed: %s (%d)\n", hackrf_error_name((hackrf_error)result), result);
+//    ABORT(-1);
+    return(result);
+  }
+
+  // test read samples from dev
+  cvec capbuf(CAPLENGTH);
+  double fc_programmed;
+  rtlsdr_dev *fake_rtlsdr_dev = NULL;
+  capture_data(fc, 1, false, " ", false, " ", " ",fake_rtlsdr_dev,device,dev_type_t::HACKRF, capbuf, fc_programmed, fs_programmed,0);
+
+  return(result);
+}
+
+#endif
 
 // Read a file either in rtlsdr format or itpp format.
 void read_datafile(
@@ -711,6 +802,8 @@ double kalibrate(
   const double & drop_secs,
   const bool & repeat,
   rtlsdr_dev_t * & dev,
+  hackrf_device * & hackrf_dev,
+  const dev_type_t::dev_type_t & dev_use,
   double & fc_programmed,
   const bool & sampling_carrier_twist,
   double & k_factor,
@@ -732,7 +825,11 @@ double kalibrate(
 
   double fc_requested_tmp, fc_programmed_tmp, fs_requested_tmp, fs_programmed_tmp;
   if ( dongle_used && fc_requested!=9999e6) {
-    fc_programmed_tmp = calculate_fc_programmed_in_context(fc_requested, use_recorded_data, load_bin_filename, dev);
+    if (dev_use == dev_type_t::RTLSDR)
+      fc_programmed_tmp = calculate_fc_programmed_in_context(fc_requested, use_recorded_data, load_bin_filename, dev);
+    else  if (dev_use == dev_type_t::HACKRF)
+      fc_programmed_tmp = fc_requested;
+
     cout << "Use dongle begin with " << ( fc_requested/1e6 ) << "MHz actual " << (fc_programmed_tmp/1e6) << "MHz " << fs_programmed_tmp << "MHz\n";
   } else {
     if (strlen(load_bin_filename)!=0) { // use captured bin file
@@ -770,10 +867,9 @@ double kalibrate(
 
     }
     fs_programmed = fs_programmed_tmp;
+    fc_requested = fc_requested_tmp;
     cout << "Use file begin with " << ( fc_requested_tmp/1e6 ) << "MHz actual " << (fc_programmed_tmp/1e6) << "MHz " << fs_programmed_tmp << "MHz\n";
   }
-
-  fc_requested = fc_requested_tmp;
 
   vec fc_search_set(1);
   fc_search_set(0) = fc_requested;
@@ -880,7 +976,7 @@ double kalibrate(
 //    } else {
 //      capture_data(fc_requested,1.0,false,"no",false,"no",".",dev,capbuf,fc_programmed);
 //    }
-    int run_out_of_data = capture_data(fc_requested,correction,false,record_bin_filename,use_recorded_data,load_bin_filename,".",dev,capbuf,fc_programmed,fs_programmed,false);
+    int run_out_of_data = capture_data(fc_requested,correction,false,record_bin_filename,use_recorded_data,load_bin_filename,".",dev,hackrf_dev, dev_use,capbuf,fc_programmed,fs_programmed,false);
     if (run_out_of_data){
       cerr << "Run out of data.\n";
       ABORT(-1);
@@ -1123,12 +1219,53 @@ int main(
   uint16 num_reserve;
   // Get search parameters from the user
   parse_commandline(argc,argv,fc_requested,ppm,correction,device_index,expert_mode,use_recorded_data,filename,repeat,drop_secs,rtl_sdr_format,noise_power,initial_sampling_carrier_twist,record_bin_filename,load_bin_filename,opencl_platform,opencl_device,filter_workitem,xcorr_workitem,num_reserve);
-//  cout << load_bin_filename << "\n";
+
   // Open the USB device.
+  dev_type_t::dev_type_t dev_use = dev_type_t::UNKNOWN;
   rtlsdr_dev_t * dev=NULL;
+  hackrf_device * hackrf_dev = NULL;
+
   double fs_programmed;
   if ( (!use_recorded_data) && (strlen(load_bin_filename)==0) ) {
-    config_usb(initial_sampling_carrier_twist, correction,device_index,fc_requested,dev,fs_programmed);
+    int rtlsdr_exist = 0;
+    if ( config_usb(initial_sampling_carrier_twist,correction,device_index,fc_requested,dev,fs_programmed) == 0 ) {
+      rtlsdr_exist = 1;
+      cout << "RTLSDR device FOUND!\n";
+    }
+
+    int hackrf_exist = 0;
+    #ifdef HAVE_HACKRF
+      if ( config_hackrf(initial_sampling_carrier_twist,correction,device_index,fc_requested,hackrf_dev,fs_programmed) == 0 ) {
+        hackrf_exist = 1;
+        cout << "HACKRF device FOUND!\n";
+      }
+    #endif
+
+    if (rtlsdr_exist && !hackrf_exist) {
+      dev_use = dev_type_t::RTLSDR;
+    } else if ( !rtlsdr_exist && hackrf_exist) {
+      dev_use = dev_type_t::HACKRF;
+    } else if ( !rtlsdr_exist && !hackrf_exist) {
+      cerr << "NO SDR DEVICE FOUND!\n";
+      ABORT(-1);
+    } else {
+      if ( device_index<1000 && device_index>=-1){
+        dev_use = dev_type_t::RTLSDR;
+      } else {
+        dev_use = dev_type_t::HACKRF;
+      }
+    }
+
+    if (dev_use == dev_type_t::RTLSDR) {
+      cout << "RTLSDR will be used.\n";
+    }
+    else if (dev_use == dev_type_t::HACKRF) {
+      cout << "HACKRF will be used.\n";
+    } else {
+      cout << "No valid device present.\n";
+      ABORT(-1);
+    }
+
   } else {
     fs_programmed=correction*(FS_LTE/16); // will be updated in kalibrate.
   }
@@ -1138,7 +1275,7 @@ int main(
   // is discarded except for the frequency offset.
   double fc_programmed, correction_new;
   double initial_k_factor = 1;
-  double initial_freq_offset=kalibrate(fc_requested,fs_programmed,ppm,correction,correction_new,use_recorded_data,filename,rtl_sdr_format,noise_power,drop_secs,repeat,dev,fc_programmed,initial_sampling_carrier_twist,initial_k_factor,record_bin_filename,load_bin_filename,opencl_platform,opencl_device,filter_workitem,xcorr_workitem,num_reserve);
+  double initial_freq_offset=kalibrate(fc_requested,fs_programmed,ppm,correction,correction_new,use_recorded_data,filename,rtl_sdr_format,noise_power,drop_secs,repeat,dev,hackrf_dev,dev_use,fc_programmed,initial_sampling_carrier_twist,initial_k_factor,record_bin_filename,load_bin_filename,opencl_platform,opencl_device,filter_workitem,xcorr_workitem,num_reserve);
 
   // Data shared between threads
   sampbuf_sync_t sampbuf_sync;
@@ -1189,7 +1326,7 @@ int main(
     cvec file_data;
 //    read_datafile(filename,rtl_sdr_format,drop_secs,file_data);
 //    //cout << db10(sigpower(file_data)) << endl;
-    capture_data(fc_requested,correction,false,record_bin_filename,use_recorded_data,load_bin_filename,".",dev,file_data,fc_programmed,fs_programmed,true);
+    capture_data(fc_requested,correction,false,record_bin_filename,use_recorded_data,load_bin_filename,".",dev,hackrf_dev, dev_use,file_data,fc_programmed,fs_programmed,true);
 
     uint32 offset=0;
     while (true) {

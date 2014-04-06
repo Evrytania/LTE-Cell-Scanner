@@ -15,11 +15,33 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+
+#ifdef HAVE_HACKRF
+#include "hackrf.h"
+#else
+typedef struct hackrf_device hackrf_device;
+#endif
+
 #ifndef HAVE_CAPBUF_H
 #define HAVE_CAPBUF_H
 
 // Number of complex samples to capture.
 #define CAPLENGTH 153600
+
+
+typedef struct {
+  std::vector <unsigned char> * buf;
+  rtlsdr_dev_t * dev;
+} callback_package_t;
+
+#ifdef HAVE_HACKRF
+
+typedef struct {
+  std::vector <unsigned char> * buf;
+  hackrf_device * dev;
+} callback_hackrf_package_t;
+
+#endif
 
 double calculate_fc_programmed_in_context(
   // Inputs
@@ -51,6 +73,8 @@ int capture_data(
   const char * load_bin_filename,
   const std::string & str,
   rtlsdr_dev_t * & dev,
+  hackrf_device * & hackrf_dev,
+  const dev_type_t::dev_type_t & dev_use,
   // Output
   itpp::cvec & capbuf,
   double & fc_programmed,

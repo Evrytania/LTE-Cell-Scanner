@@ -39,8 +39,11 @@
 #include "itpp_ext.h"
 #include "searcher.h"
 #include "dsp.h"
-#include "rtl-sdr.h"
 #include "LTE-Tracker.h"
+
+#ifdef HAVE_HACKRF
+#include "hackrf.h"
+#endif
 
 using namespace itpp;
 using namespace std;
@@ -98,12 +101,11 @@ void producer_thread(
     const double frequency_offset=global_thread_data.frequency_offset();
     double k_factor = 1.0; // if not twisted, make k_factor useless
 
-//    //!!!!!!!!DON'T KNOW WHY values other than 1 will cause tracker loop divergence!!!!!!
-//    if (global_thread_data.sampling_carrier_twist()){
-//      k_factor=(global_thread_data.fc_programmed-frequency_offset)/global_thread_data.fc_programmed;
-//    } else {
-//      k_factor=global_thread_data.k_factor();
-//    }
+    if (global_thread_data.sampling_carrier_twist()){
+      k_factor=(global_thread_data.fc_programmed-frequency_offset)/global_thread_data.fc_programmed;
+    } else {
+      k_factor=global_thread_data.k_factor(); // !!!!!!BE CAREFUL OF UPDATING K_FACTOR IN NON-TWIST MODE
+    }
 
     //const double k_factor_inv=1/k_factor;
     const double & fs_programmed=global_thread_data.fs_programmed;

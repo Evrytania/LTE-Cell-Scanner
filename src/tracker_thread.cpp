@@ -38,8 +38,11 @@
 #include "itpp_ext.h"
 #include "searcher.h"
 #include "dsp.h"
-#include "rtl-sdr.h"
 #include "LTE-Tracker.h"
+
+#ifdef HAVE_HACKRF
+#include "hackrf.h"
+#endif
 
 using namespace itpp;
 using namespace std;
