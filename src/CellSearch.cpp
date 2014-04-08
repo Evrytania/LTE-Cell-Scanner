@@ -946,13 +946,13 @@ int main(
 //    }
 
     // 6RB filter to improve SNR
-    tt.tic();
+//    tt.tic();
     #ifdef USE_OPENCL
       lte_ocl.filter_my(capbuf); // be careful! capbuf.zeros() will slow down the xcorr part pretty much!
     #else
       filter_my(coef, capbuf);
     #endif
-    cout << "6RB filter cost " << tt.get_time() << "s\n";
+//    cout << "6RB filter cost " << tt.get_time() << "s\n";
 
     vec dynamic_f_search_set = f_search_set; // don't touch the original
     double xcorr_pss_time;
@@ -987,7 +987,9 @@ int main(
         if (verbosity>=2) {
           cout << "  Calculating PSS correlations" << endl;
         }
+//        tt.tic();
         xcorr_pss(capbuf,tmp_f_search,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,tmp_xc,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist,(const double)k_factor_set[i]);
+//        cout << "PSS post cost " << tt.get_time() << "s\n";
 
         // Calculate the threshold vector
         double R_th1=chi2cdf_inv(1-pow(10.0,-thresh1_n_nines),2*n_comb_xc*(2*DS_COMB_ARM+1));
@@ -997,8 +999,9 @@ int main(
         if (verbosity>=2) {
           cout << "  Searching for and examining correlation peaks..." << endl;
         }
+//        tt.tic();
         peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,tmp_f_search,fc_requested,fc_programmed,xc_incoherent_single,DS_COMB_ARM,sampling_carrier_twist,(const double)k_factor_set[i],peak_search_cells);
-
+//        cout << "peak_search cost " << tt.get_time() << "s\n";
       }
 
     } else {
@@ -1009,7 +1012,9 @@ int main(
       if (verbosity>=2) {
         cout << "  Calculating PSS correlations" << endl;
       }
+//      tt.tic();
       xcorr_pss(capbuf,dynamic_f_search_set,DS_COMB_ARM,fc_requested,fc_programmed,fs_programmed,xc,xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,xc_incoherent_single,xc_incoherent,sp_incoherent,sp,n_comb_xc,n_comb_sp,sampling_carrier_twist,NAN);
+//      cout << "PSS post cost " << tt.get_time() << "s\n";
 
       // Calculate the threshold vector
       double R_th1=chi2cdf_inv(1-pow(10.0,-thresh1_n_nines),2*n_comb_xc*(2*DS_COMB_ARM+1));
@@ -1019,8 +1024,9 @@ int main(
       if (verbosity>=2) {
         cout << "  Searching for and examining correlation peaks..." << endl;
       }
+//      tt.tic();
       peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,dynamic_f_search_set,fc_requested,fc_programmed,xc_incoherent_single,DS_COMB_ARM,sampling_carrier_twist,NAN,peak_search_cells);
-
+//      cout << "peak_search cost " << tt.get_time() << "s\n";
     }
 
     detected_cells[fc_idx]=peak_search_cells;
@@ -1038,7 +1044,9 @@ int main(
       cell_temp = (*iterator);
       for(tdd_flag=0;tdd_flag<2;tdd_flag++)
       {
+//        tt.tic();
         (*iterator)=sss_detect(cell_temp,capbuf,THRESH2_N_SIGMA,fc_requested,fc_programmed,fs_programmed,sss_h1_np_est_meas,sss_h2_np_est_meas,sss_h1_nrm_est_meas,sss_h2_nrm_est_meas,sss_h1_ext_est_meas,sss_h2_ext_est_meas,log_lik_nrm,log_lik_ext,sampling_carrier_twist,tdd_flag);
+//        cout << "sss_detect cost " << tt.get_time() << "s\n";
         if ((*iterator).n_id_1!=-1)
             break;
       }
@@ -1048,19 +1056,27 @@ int main(
         continue;
       }
       // Fine FOE
+//      tt.tic();
       (*iterator)=pss_sss_foe((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,sampling_carrier_twist,tdd_flag);
+//      cout << "pss_sss_foe cost " << tt.get_time() << "s\n";
 
       // Extract time and frequency grid
+//      tt.tic();
       extract_tfg((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,tfg,tfg_timestamp,sampling_carrier_twist);
+//      cout << "extract_tfg cost " << tt.get_time() << "s\n";
 
       // Create object containing all RS
       RS_DL rs_dl((*iterator).n_id_cell(),6,(*iterator).cp_type);
 
       // Compensate for time and frequency offsets
+//      tt.tic();
       (*iterator)=tfoec((*iterator),tfg,tfg_timestamp,fc_requested,fc_programmed,rs_dl,tfg_comp,tfg_comp_timestamp,sampling_carrier_twist);
+//      cout << "tfoec cost " << tt.get_time() << "s\n";
 
       // Finally, attempt to decode the MIB
+//      tt.tic();
       (*iterator)=decode_mib((*iterator),tfg_comp,rs_dl);
+//      cout << "decode_mib cost " << tt.get_time() << "s\n";
       if ((*iterator).n_rb_dl==-1) {
         // No MIB could be successfully decoded.
         iterator=detected_cells[fc_idx].erase(iterator);

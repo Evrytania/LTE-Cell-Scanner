@@ -990,13 +990,13 @@ double kalibrate(
       capbuf+=blnoise(length(capbuf))*sqrt(noise_power);
 
     // 6RB filter to improve SNR
-    tt.tic();
+//    tt.tic();
     #ifdef USE_OPENCL
       lte_ocl.filter_my(capbuf); // be careful! capbuf.zeros() will slow down the xcorr part pretty much!
     #else
       filter_my(coef, capbuf);
     #endif
-    cout << "6RB filter cost " << tt.get_time() << "s\n";
+//    cout << "6RB filter cost " << tt.get_time() << "s\n";
 
     vec dynamic_f_search_set = f_search_set; // don't touch the original
     double xcorr_pss_time;
