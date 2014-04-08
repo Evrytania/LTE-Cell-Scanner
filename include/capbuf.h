@@ -16,17 +16,21 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-#ifdef HAVE_HACKRF
-#include "hackrf.h"
-#else
-typedef struct hackrf_device hackrf_device;
-#endif
-
 #ifndef HAVE_CAPBUF_H
 #define HAVE_CAPBUF_H
 
 // Number of complex samples to capture.
 #define CAPLENGTH 153600
+
+#ifdef HAVE_HACKRF
+#include "hackrf.h"
+
+//uint8 hackrf_rx_buf[CAPLENGTH*2]; // used for capture_data() and hackrf rx callback
+//int hackrf_rx_count; // used for capture_data() and hackrf rx callback
+
+#else
+typedef struct hackrf_device hackrf_device;
+#endif
 
 
 typedef struct {

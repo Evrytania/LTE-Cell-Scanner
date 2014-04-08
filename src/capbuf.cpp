@@ -37,28 +37,27 @@ using namespace std;
 
 #ifdef HAVE_HACKRF
 
+uint8 hackrf_rx_buf[CAPLENGTH*2];  // used for capture_data() and hackrf rx callback
+int hackrf_rx_count;  // used for capture_data() and hackrf rx callback
+
 static int capbuf_hackrf_callback(hackrf_transfer* transfer) {
-  callback_hackrf_package_t * cp_p=(callback_hackrf_package_t *)transfer->rx_ctx;
-  callback_hackrf_package_t & cp=*cp_p;
-  vector <unsigned char> * capbuf_raw_p=cp.buf;
-  vector <unsigned char> & capbuf_raw=*capbuf_raw_p;
-  hackrf_device * dev=cp.dev;
+  int ret = 0;
+  size_t bytes_to_write;
+	int hackrf_rx_count_old = hackrf_rx_count;
 
-  if (transfer->valid_length==0) {
-    cerr << "Error: received no samples from HACKRF device..." << endl;
-    ABORT(-1);
+  hackrf_rx_count += transfer->valid_length;
+
+  int count_left = (CAPLENGTH*2) - hackrf_rx_count;
+  if ( count_left <= 0 ) {
+    bytes_to_write = transfer->valid_length + count_left;
+    ret = -1; // indicate enough!
+  } else {
+    bytes_to_write = transfer->valid_length;
   }
 
-  for (uint32 t=0;t<(uint32)( transfer->valid_length );t++) {
-    if (capbuf_raw.size()<CAPLENGTH*2) {
-      capbuf_raw.push_back(transfer->buffer[t]);
-    }
-    if (capbuf_raw.size()==CAPLENGTH*2) {
-      hackrf_stop_rx(dev);
-      break;
-    }
-  }
-  return(0);
+  memcpy( hackrf_rx_buf+hackrf_rx_count_old, transfer->buffer, bytes_to_write );
+
+  return(ret);
 }
 
 #endif
@@ -533,22 +532,26 @@ int capture_data(
         ABORT(-1);
       }
 
-      vector <unsigned char> capbuf_raw;
-      capbuf_raw.reserve(CAPLENGTH*2);
-      callback_hackrf_package_t cp;
-      cp.buf=&capbuf_raw;
-      cp.dev=hackrf_dev;
-      result = hackrf_start_rx(hackrf_dev, capbuf_hackrf_callback, (void *)&cp);
+      hackrf_rx_count = 0; // clear counter
+      result = hackrf_start_rx(hackrf_dev, capbuf_hackrf_callback, NULL);
 
       if( result != HACKRF_SUCCESS ) {
         printf("hackrf_start_rx() failed: %s (%d)\n", hackrf_error_name((hackrf_error)result), result);
         ABORT(-1);
       }
 
+      while( hackrf_rx_count<(CAPLENGTH*2) );
+
+      result = hackrf_stop_rx(hackrf_dev);
+      if( result != HACKRF_SUCCESS ) {
+        printf("hackrf_stop_rx() failed: %s (%d)\n", hackrf_error_name((hackrf_error)result), result);
+        ABORT(-1);
+      }
+
       // Convert to complex
       capbuf.set_size(CAPLENGTH);
       for (uint32 t=0;t<CAPLENGTH;t++) {
-        capbuf(t)=complex<double>((((double)capbuf_raw[(t<<1)])-128.0)/128.0,(((double)capbuf_raw[(t<<1)+1])-128.0)/128.0);
+        capbuf(t)=complex<double>((((double)hackrf_rx_buf[(t<<1)])-128.0)/128.0,(((double)hackrf_rx_buf[(t<<1)+1])-128.0)/128.0);
       }
 
       #endif
