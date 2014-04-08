@@ -939,7 +939,7 @@ int main(
       fci = n_fc_multi_try; // end of loop
       continue;
     }
-    cout << capbuf(0, 100) << "\n";
+//    cout << capbuf(0, 100) << "\n";
     freq_correction = fc_programmed*(correction-1)/correction;
 //    if (!dongle_used) { // if dongle is not used, do correction explicitly. Because if dongle is used, the correction is done when tuning dongle's frequency.
       capbuf = fshift(capbuf,-freq_correction,fs_programmed);
