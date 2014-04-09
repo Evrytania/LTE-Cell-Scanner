@@ -27,10 +27,9 @@ __kernel void skip2cols( __global float2* in,
   const size_t sub_len = len_in/n;
   const size_t base_idx = m*sub_len;
 
-  size_t i, new_base_idx;
+  size_t i;
   for (i=0; i<sub_len; i++) {
-    new_base_idx = i*n;
-    out[new_base_idx + m] = in[base_idx + i];
+    out[i*n + m] = in[base_idx + i];
   }
 }
 
@@ -49,7 +48,7 @@ __kernel void multi_filter( __global float2* in,
   const size_t base_coef = m1*len_coef;
   const size_t base_out = m1*sub_len_out*n;
 
-  float2 coef_tmp;
+  float2 coef_tmp, acc, in_tmp;
   size_t i, j, base_idx, coef_idx;
   if (m==0){
     for (i=(sub_len_out-filter_len+1); i<sub_len_out; i++){
@@ -59,13 +58,14 @@ __kernel void multi_filter( __global float2* in,
   }
 
   for (i=0; i<filter_len-1; i++){
-    float2 acc = (float2)(0.0f, 0.0f);
+    acc = (float2)(0.0f, 0.0f);
 
     for (j=0; j<i+1; j++) {
       base_idx = j*n;
       coef_idx = (filter_len-1)-i+j;
       coef_tmp = coef[base_coef+ coef_idx];
-      acc = acc + (float2)( in[base_idx + m].x*coef_tmp.x - in[base_idx + m].y*coef_tmp.y,  in[base_idx + m].x*coef_tmp.y + in[base_idx + m].y*coef_tmp.x );
+      in_tmp = in[base_idx + m];
+      acc = acc + (float2)( in_tmp.x*coef_tmp.x - in_tmp.y*coef_tmp.y,  in_tmp.x*coef_tmp.y +in_tmp.y*coef_tmp.x );
     }
 
     base_idx = i*n;
@@ -73,13 +73,14 @@ __kernel void multi_filter( __global float2* in,
   }
 
   for (i=filter_len-1; i<=sub_len_in-1; i++){
-    float2 acc = (float2)(0.0f, 0.0f);
+    acc = (float2)(0.0f, 0.0f);
 
     for (j=0; j<filter_len; j++) {
       base_idx = (i-(filter_len-1)+j)*n;
       coef_idx = j;
       coef_tmp = coef[base_coef+ coef_idx];
-      acc = acc + (float2)( in[base_idx + m].x*coef_tmp.x - in[base_idx + m].y*coef_tmp.y,  in[base_idx + m].x*coef_tmp.y + in[base_idx + m].y*coef_tmp.x );
+      in_tmp = in[base_idx + m];
+      acc = acc + (float2)( in_tmp.x*coef_tmp.x - in_tmp.y*coef_tmp.y,  in_tmp.x*coef_tmp.y + in_tmp.y*coef_tmp.x );
     }
 
     base_idx = i*n;
@@ -87,13 +88,14 @@ __kernel void multi_filter( __global float2* in,
   }
 
   for (i=sub_len_in; i<sub_len_out; i++){
-    float2 acc = (float2)(0.0f, 0.0f);
+    acc = (float2)(0.0f, 0.0f);
 
     for (j=0; j<sub_len_out-i; j++) {
       base_idx = (i-(filter_len-1)+j)*n;
       coef_idx = j;
       coef_tmp = coef[base_coef+ coef_idx];
-      acc = acc + (float2)( in[base_idx + m].x*coef_tmp.x - in[base_idx + m].y*coef_tmp.y,  in[base_idx + m].x*coef_tmp.y + in[base_idx + m].y*coef_tmp.x );
+      in_tmp = in[base_idx + m];
+      acc = acc + (float2)( in_tmp.x*coef_tmp.x - in_tmp.y*coef_tmp.y,  in_tmp.x*coef_tmp.y + in_tmp.y*coef_tmp.x );
     }
 
     base_idx = i*n;
