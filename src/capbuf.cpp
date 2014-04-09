@@ -37,7 +37,7 @@ using namespace std;
 
 #ifdef HAVE_HACKRF
 
-uint8 hackrf_rx_buf[CAPLENGTH*2];  // used for capture_data() and hackrf rx callback
+int8 hackrf_rx_buf[CAPLENGTH*2];  // used for capture_data() and hackrf rx callback
 int hackrf_rx_count;  // used for capture_data() and hackrf rx callback
 
 static int capbuf_hackrf_callback(hackrf_transfer* transfer) {
