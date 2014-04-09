@@ -123,7 +123,7 @@ using namespace std;
 //#define DBG(CODE) CODE
 #define DBG(CODE)
 
-//#define USE_OPENCL // just for debug purpose. It should be removed before formal release
+#define USE_OPENCL // just for debug purpose. It should be removed before formal release
 
 #ifdef USE_OPENCL
 
@@ -792,11 +792,11 @@ int lte_opencl_t::filter_mchn(const cvec & capbuf, const cmat & pss_fo_set, mat 
 
   cl_event write_done;
 //  cout << filter_mchn_capbuf_length << " " << filter_mchn_buf_in_len << "\n";
-  Real_Timer tt;
-  tt.tic();
+//  Real_Timer tt;
+//  tt.tic();
   ret = clEnqueueWriteBuffer(cmdQueue, filter_mchn_orig, CL_FALSE, 0, 2*filter_mchn_buf_in_len*sizeof(float),filter_mchn_in_host, 0, NULL, &write_done);
-  clFinish(cmdQueue);
-  cout << "write input cost " << tt.get_time() << "s\n";
+//  clFinish(cmdQueue);
+//  cout << "write input cost " << tt.get_time() << "s\n";
   if (ret!=0) {
     cout << "clEnqueueWriteBuffer filter_mchn_orig " << ret << "\n";
     ABORT(-1);
@@ -805,19 +805,19 @@ int lte_opencl_t::filter_mchn(const cvec & capbuf, const cmat & pss_fo_set, mat 
   global_work_size[0] = filter_mchn_workitem; global_work_size[1] = 1;  global_work_size[2] = 1;
   local_work_size[0] = 1;                      local_work_size[1] = 1;   local_work_size[2] = 1;
   cl_event multi_filter_pre[2];
-  tt.tic();
+//  tt.tic();
   ret = clEnqueueNDRangeKernel(cmdQueue, filter_mchn_skip2cols, 1, NULL, global_work_size, local_work_size, 1, &write_done, &(multi_filter_pre[0]));
-  clFinish(cmdQueue);
-  cout << "kernel1 cost " << tt.get_time() << "s\n";
+//  clFinish(cmdQueue);
+//  cout << "kernel1 cost " << tt.get_time() << "s\n";
   if (ret!=0) {
     cout << "clEnqueueNDRangeKernel filter_mchn_skip2cols " << ret << "\n";
     ABORT(-1);
   }
 
-  tt.tic();
+//  tt.tic();
   ret = clEnqueueWriteBuffer(cmdQueue, filter_mchn_coef, CL_FALSE, 0, 2*filter_mchn_buf_coef_len*sizeof(float),filter_mchn_coef_host, 0, NULL, &(multi_filter_pre[1]));
-  clFinish(cmdQueue);
-  cout << "write coef cost " << tt.get_time() << "s\n";
+//  clFinish(cmdQueue);
+//  cout << "write coef cost " << tt.get_time() << "s\n";
   if (ret!=0) {
     cout << "clEnqueueWriteBuffer filter_mchn_coef " << ret << "\n";
     ABORT(-1);
@@ -826,10 +826,10 @@ int lte_opencl_t::filter_mchn(const cvec & capbuf, const cmat & pss_fo_set, mat 
   global_work_size[0] = filter_mchn_workitem; global_work_size[1] = filter_mchn_num_chn;  global_work_size[2] = 1;
   local_work_size[0] = 1;                      local_work_size[1] = 1;                    local_work_size[2] = 1;
   cl_event multi_filter_done;
-  tt.tic();
+//  tt.tic();
   ret = clEnqueueNDRangeKernel(cmdQueue, filter_mchn_multi_filter, 2, NULL, global_work_size, local_work_size, 2, multi_filter_pre, &multi_filter_done);
-  clFinish(cmdQueue);
-  cout << "kernel2 cost " << tt.get_time() << "s\n";
+//  clFinish(cmdQueue);
+//  cout << "kernel2 cost " << tt.get_time() << "s\n";
   if (ret!=0) {
     cout << "clEnqueueNDRangeKernel filter_mchn_multi_filter " << ret << "\n";
     ABORT(-1);
@@ -838,19 +838,19 @@ int lte_opencl_t::filter_mchn(const cvec & capbuf, const cmat & pss_fo_set, mat 
   global_work_size[0] = filter_mchn_workitem; global_work_size[1] = filter_mchn_num_chn;  global_work_size[2] = 1;
   local_work_size[0] = 1;                      local_work_size[1] = 1;                    local_work_size[2] = 1;
   cl_event result_combine_done;
-  tt.tic();
+//  tt.tic();
   ret = clEnqueueNDRangeKernel(cmdQueue, filter_mchn_result_combine, 2, NULL, global_work_size, local_work_size, 1, &multi_filter_done, &result_combine_done);
-  clFinish(cmdQueue);
-  cout << "kernel3 cost " << tt.get_time() << "s\n";
+//  clFinish(cmdQueue);
+//  cout << "kernel3 cost " << tt.get_time() << "s\n";
   if (ret!=0) {
     cout << "clEnqueueNDRangeKernel filter_mchn_result_combine " << ret << "\n";
     ABORT(-1);
   }
 
-  tt.tic();
+//  tt.tic();
   ret = clEnqueueReadBuffer(cmdQueue, filter_mchn_out_abs2, CL_FALSE, 0, filter_mchn_buf_out_len*sizeof(float), filter_mchn_out_abs2_host, 1, &result_combine_done, NULL);
-  clFinish(cmdQueue);
-  cout << "buf read cost " << tt.get_time() << "s\n";
+//  clFinish(cmdQueue);
+//  cout << "buf read cost " << tt.get_time() << "s\n";
   if (ret!=0) {
     cout << "clEnqueueReadBuffer filter_mchn_out" << ret << "\n";
     ABORT(-1);
