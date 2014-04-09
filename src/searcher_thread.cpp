@@ -148,7 +148,11 @@ void searcher_thread(
   #ifdef USE_OPENCL
   uint16 filter_workitem = global_thread_data.filter_workitem();
   uint16 xcorr_workitem = global_thread_data.xcorr_workitem();
+  #ifdef FILTER_MCHN_SIMPLE_KERNEL
+  lte_ocl.setup_filter_mchn((string)"filter_mchn_simple_kernel.cl", CAPLENGTH, length(f_search_set)*3, pss_fo_set.cols(), xcorr_workitem);
+  #else
   lte_ocl.setup_filter_mchn((string)"filter_mchn_kernels.cl", CAPLENGTH, length(f_search_set)*3, pss_fo_set.cols(), xcorr_workitem);
+  #endif
   lte_ocl.setup_filter_my((string)"filter_my_kernels.cl", CAPLENGTH, filter_workitem);
   #endif
 

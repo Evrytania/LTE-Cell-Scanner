@@ -43,7 +43,7 @@ __kernel void multi_filter( __global float2* in,
       acc = acc + (float2)( in_tmp.x*coef_tmp.x - in_tmp.y*coef_tmp.y,  in_tmp.x*coef_tmp.y + in_tmp.y*coef_tmp.x );
     }
 
-    out[base_out+i] = acc.x*acc.x + acc.y*acc.y;;
+    out[base_out+i] = acc.x*acc.x + acc.y*acc.y;
   }
 
 }

@@ -51,7 +51,7 @@ static int capbuf_hackrf_callback(hackrf_transfer* transfer) {
     bytes_to_write = transfer->valid_length;
   }
 
-  cout << transfer->valid_length  << " " << hackrf_rx_count << " " << bytes_to_write << "\n";
+//  cout << transfer->valid_length  << " " << hackrf_rx_count << " " << bytes_to_write << "\n";
   if (bytes_to_write!=0)
   {
     memcpy( hackrf_rx_buf+hackrf_rx_count, transfer->buffer, bytes_to_write );
@@ -60,7 +60,7 @@ static int capbuf_hackrf_callback(hackrf_transfer* transfer) {
 //    }
     hackrf_rx_count = hackrf_rx_count + bytes_to_write;
   }
-  cout << transfer->valid_length  << " " << hackrf_rx_count << " " << bytes_to_write << "\n";
+//  cout << transfer->valid_length  << " " << hackrf_rx_count << " " << bytes_to_write << "\n";
 
   return(0);
 }
@@ -569,7 +569,7 @@ int capture_data(
       capbuf.set_size(CAPLENGTH);
       for (uint32 t=0;t<CAPLENGTH;t++) {
 //        capbuf(t)=complex<double>((((double)hackrf_rx_buf[(t<<1)])-128.0)/128.0,(((double)hackrf_rx_buf[(t<<1)+1])-128.0)/128.0);
-        capbuf(t)=complex<double>((((double)hackrf_rx_buf[(t<<1)])-0.0)/1.0,(((double)hackrf_rx_buf[(t<<1)+1])-0.0)/1.0);
+        capbuf(t)=complex<double>((((double)hackrf_rx_buf[(t<<1)])-0.0)/128.0,(((double)hackrf_rx_buf[(t<<1)+1])-0.0)/128.0);
       }
 
       #endif

@@ -698,8 +698,8 @@ int config_hackrf(
   hackrf_device *& device,
   double & fs_programmed
 ) {
-  unsigned int lna_gain=8; // default value
-  unsigned int vga_gain=20; // default value
+  unsigned int lna_gain=16; // default value
+  unsigned int vga_gain=60; // default value
 
   int result = hackrf_init();
 	if( result != HACKRF_SUCCESS ) {
@@ -910,7 +910,11 @@ double kalibrate(
 
   #ifdef USE_OPENCL
   lte_ocl.setup_filter_my((string)"filter_my_kernels.cl", CAPLENGTH, filter_workitem);
+  #ifdef FILTER_MCHN_SIMPLE_KERNEL
+  lte_ocl.setup_filter_mchn((string)"filter_mchn_simple_kernel.cl", CAPLENGTH, length(f_search_set)*3, pss_fo_set.cols(), xcorr_workitem);
+  #else
   lte_ocl.setup_filter_mchn((string)"filter_mchn_kernels.cl", CAPLENGTH, length(f_search_set)*3, pss_fo_set.cols(), xcorr_workitem);
+  #endif
   #endif
 
   vec period_ppm;

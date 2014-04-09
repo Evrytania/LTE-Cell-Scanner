@@ -608,8 +608,8 @@ int config_hackrf(
   double & fs_programmed
 ) {
 
-  unsigned int lna_gain=8; // default value
-  unsigned int vga_gain=20; // default value
+  unsigned int lna_gain=16; // default value
+  unsigned int vga_gain=60; // default value
 
   int result = hackrf_init();
 	if( result != HACKRF_SUCCESS ) {
@@ -944,6 +944,7 @@ int main(
       continue;
     }
 //    cout << capbuf(0, 100) << "\n";
+
     freq_correction = fc_programmed*(correction-1)/correction;
 //    if (!dongle_used) { // if dongle is not used, do correction explicitly. Because if dongle is used, the correction is done when tuning dongle's frequency.
       capbuf = fshift(capbuf,-freq_correction,fs_programmed);
