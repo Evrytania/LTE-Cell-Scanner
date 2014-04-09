@@ -123,7 +123,9 @@ using namespace std;
 //#define DBG(CODE) CODE
 #define DBG(CODE)
 
-#define USE_OPENCL // just for debug purpose. It should be removed before formal release
+//#define FILTER_MCHN_SIMPLE_KERNEL // just for debug purpose. It should be removed before formal release
+
+//#define USE_OPENCL // just for debug purpose. It should be removed before formal release
 
 #ifdef USE_OPENCL
 
@@ -189,6 +191,318 @@ device_id(device_id)
   setup_opencl();
 }
 
+#ifdef FILTER_MCHN_SIMPLE_KERNEL
+int lte_opencl_t::setup_filter_mchn(std::string filter_mchn_kernels_filename, const size_t & capbuf_length_in, const size_t & num_filter_in, const size_t & filter_length_in, const uint & xcorr_workitem_in)
+{
+  // in case setup multiple times----------------------------------------
+  if (filter_mchn_coef_host!=0) {
+    delete [] filter_mchn_coef_host;
+    filter_mchn_coef_host = 0;
+  }
+  if (filter_mchn_in_host!=0) {
+    delete [] filter_mchn_in_host;
+    filter_mchn_in_host = 0;
+  }
+  if (filter_mchn_out_abs2_host!=0) {
+    delete [] filter_mchn_out_abs2_host;
+    filter_mchn_out_abs2_host = 0;
+  }
+
+  if (filter_mchn_coef != 0) {
+     clReleaseMemObject(filter_mchn_coef);
+     filter_mchn_coef = 0;
+  }
+  if (filter_mchn_orig != 0) {
+     clReleaseMemObject(filter_mchn_orig);
+     filter_mchn_orig = 0;
+  }
+  if (filter_mchn_out_abs2 != 0) {
+     clReleaseMemObject(filter_mchn_out_abs2);
+     filter_mchn_out_abs2 = 0;
+  }
+
+  if (filter_mchn_multi_filter != 0)
+  {
+    clReleaseKernel(filter_mchn_multi_filter);
+    filter_mchn_multi_filter = 0;
+  }
+  // in case setup multiple times----------------------------------------
+
+  filter_mchn_length = filter_length_in;
+  filter_mchn_capbuf_length = capbuf_length_in;
+  filter_mchn_num_chn = num_filter_in;
+
+  filter_mchn_buf_coef_len = filter_mchn_num_chn * filter_mchn_length;
+  filter_mchn_buf_in_len = filter_mchn_capbuf_length;
+
+  filter_mchn_buf_out_len = filter_mchn_num_chn* ( filter_mchn_buf_in_len-filter_length_in+1 );
+
+  filter_mchn_in_host = new float[filter_mchn_buf_in_len*2]; // *2 for i&q
+  filter_mchn_out_abs2_host = new float[filter_mchn_buf_out_len];
+  filter_mchn_coef_host = new float[filter_mchn_buf_coef_len*2];
+
+  int ret = 0;
+
+  // ---------------------------------------gen kernels---------------------
+  std::ifstream kernel_file;
+
+  kernel_file.open(filter_mchn_kernels_filename.c_str());
+  if (!kernel_file.is_open())
+  {
+    cout << "setup_filter_mchn: open file failed! Please make sure program can find " << filter_mchn_kernels_filename << "\n";
+    ABORT(-1);
+  }
+  std::filebuf* pbuf = kernel_file.rdbuf();
+
+  std::size_t size = pbuf->pubseekoff (0,kernel_file.end,kernel_file.in);
+  pbuf->pubseekpos (0,kernel_file.in);
+
+  char* buffer=new char[size];
+
+  // get file data
+  pbuf->sgetn(buffer,size-1);
+  buffer[size-1] = 0;
+  kernel_file.close();
+
+  const char* kernel_string[1] = {buffer};
+  cl_program program = clCreateProgramWithSource(context, 1, kernel_string, NULL, &ret);
+  if (ret!=0) {
+    cout << "setup_filter_mchn clCreateProgramWithSource " << ret << "\n";
+    ABORT(-1);
+  }
+
+  ret = clBuildProgram(program, num_device, devices, NULL, NULL, NULL);
+  if (ret!=0) {
+    cout << "clBuildProgram " << ret << "\n";
+    char tmp_info[8192];
+    ret =  clGetProgramBuildInfo(program, devices[0], CL_PROGRAM_BUILD_LOG, 8192, tmp_info, NULL);
+    cout << tmp_info << "\n";
+    ABORT(-1);
+  }
+
+  filter_mchn_multi_filter = clCreateKernel(program, "multi_filter", &ret);
+  if (ret!=0) {
+    cout << "clCreateKernel filter_mchn_multi_filter " << ret << "\n";
+    ABORT(-1);
+  }
+
+  delete [] buffer;
+  // ---------------------------------------gen kernels---------------------
+
+  // ---------------------------------gen buffers---------------------------
+  filter_mchn_coef = clCreateBuffer(context, CL_MEM_READ_ONLY, 2*sizeof(float)*filter_mchn_buf_coef_len, NULL, &ret);
+  if (ret!=0) {
+    cout << "clCreateBuffer filter_mchn_coef " << ret << "\n";
+    ABORT(-1);
+  }
+
+  filter_mchn_orig = clCreateBuffer(context, CL_MEM_READ_ONLY, 2*sizeof(float)*filter_mchn_buf_in_len, NULL, &ret);
+  if (ret!=0) {
+    cout << "clCreateBuffer filter_mchn_orig " << ret << "\n";
+    ABORT(-1);
+  }
+
+  filter_mchn_out_abs2 = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(float)*filter_mchn_buf_out_len, NULL, &ret);
+  if (ret!=0) {
+    cout << "clCreateBuffer filter_mchn_out_abs2 " << ret << "\n";
+    ABORT(-1);
+  }
+  // ---------------------------------gen buffers---------------------------
+
+  // ------------------------------set buffers as kernel's args---------------------------
+  ret = clSetKernelArg(filter_mchn_multi_filter, 0, sizeof(cl_mem), &filter_mchn_orig);
+  if (ret!=0) {
+    cout << "clSetKernelArg filter_mchn_multi_filter 0 " << ret << "\n";
+    ABORT(-1);
+  }
+
+  ret = clSetKernelArg(filter_mchn_multi_filter, 1, sizeof(cl_mem), &filter_mchn_out_abs2);
+  if (ret!=0) {
+    cout << "clSetKernelArg filter_mchn_multi_filter 1 " << ret << "\n";
+    ABORT(-1);
+  }
+
+  ret = clSetKernelArg(filter_mchn_multi_filter, 2, sizeof(cl_mem), &filter_mchn_coef);
+  if (ret!=0) {
+    cout << "clSetKernelArg filter_mchn_multi_filter 2 " << ret << "\n";
+    ABORT(-1);
+  }
+  // ------------------------------set buffers as kernel's args---------------------------
+
+  return(ret);
+}
+
+lte_opencl_t::~lte_opencl_t()
+{
+  // for filter_my
+  if (filter_my_in_host!=0) {
+    delete [] filter_my_in_host;
+    filter_my_in_host = 0;
+  }
+
+  if (filter_my_out_host!=0) {
+    delete [] filter_my_out_host;
+    filter_my_out_host = 0;
+  }
+
+  if (filter_my_orig != 0) {
+     clReleaseMemObject(filter_my_orig);
+     filter_my_orig = 0;
+  }
+  if (filter_my_in != 0) {
+     clReleaseMemObject(filter_my_in);
+     filter_my_in = 0;
+  }
+  if (filter_my_out != 0) {
+     clReleaseMemObject(filter_my_out);
+     filter_my_out = 0;
+  }
+  if (filter_my_mid != 0) {
+     clReleaseMemObject(filter_my_mid);
+     filter_my_mid = 0;
+  }
+
+  if (filter_my_skip2cols != 0) {
+    clReleaseKernel(filter_my_skip2cols);
+    filter_my_skip2cols = 0;
+  }
+  if (filter_my_multi_filter != 0)
+  {
+    clReleaseKernel(filter_my_multi_filter);
+    filter_my_multi_filter = 0;
+  }
+  if (filter_my_result_combine != 0)
+  {
+    clReleaseKernel(filter_my_result_combine);
+    filter_my_result_combine = 0;
+  }
+
+  // for xcorr_pss
+  if (filter_mchn_coef_host!=0) {
+    delete [] filter_mchn_coef_host;
+    filter_mchn_coef_host = 0;
+  }
+  if (filter_mchn_in_host!=0) {
+    delete [] filter_mchn_in_host;
+    filter_mchn_in_host = 0;
+  }
+  if (filter_mchn_out_abs2_host!=0) {
+    delete [] filter_mchn_out_abs2_host;
+    filter_mchn_out_abs2_host = 0;
+  }
+
+  if (filter_mchn_coef != 0) {
+     clReleaseMemObject(filter_mchn_coef);
+     filter_mchn_coef = 0;
+  }
+  if (filter_mchn_orig != 0) {
+     clReleaseMemObject(filter_mchn_orig);
+     filter_mchn_orig = 0;
+  }
+  if (filter_mchn_out_abs2 != 0) {
+     clReleaseMemObject(filter_mchn_out_abs2);
+     filter_mchn_out_abs2 = 0;
+  }
+
+  if (filter_mchn_multi_filter != 0)
+  {
+    clReleaseKernel(filter_mchn_multi_filter);
+    filter_mchn_multi_filter = 0;
+  }
+
+  if (0!=cmdQueue)
+  {
+    clReleaseCommandQueue(cmdQueue);
+    cmdQueue=0;
+  }
+
+  if (0!=context)
+  {
+    clReleaseContext(context);
+    context=0;
+  }
+}
+
+int lte_opencl_t::filter_mchn(const cvec & capbuf, const cmat & pss_fo_set, mat & corr_store)
+{
+  int ret = 0;
+
+  size_t global_work_size[3];
+  size_t local_work_size[3];
+
+  for (size_t i=0; i<filter_mchn_capbuf_length; i++) {
+    filter_mchn_in_host[2*i+0] = real( capbuf(i) );
+    filter_mchn_in_host[2*i+1] = imag( capbuf(i) );
+  }
+
+  for (int j=0; j<pss_fo_set.rows(); j++) {
+    for (int i=0; i<pss_fo_set.cols(); i++) {
+      size_t idx = j*filter_mchn_length + i;
+      filter_mchn_coef_host[2*idx+0] = real( pss_fo_set(j,i) );
+      filter_mchn_coef_host[2*idx+1] = imag( pss_fo_set(j,i) );
+    }
+  }
+
+  cl_event write_done[2];
+//  cout << filter_mchn_capbuf_length << " " << filter_mchn_buf_in_len << "\n";
+//  Real_Timer tt;
+//  tt.tic();
+  ret = clEnqueueWriteBuffer(cmdQueue, filter_mchn_orig, CL_FALSE, 0, 2*filter_mchn_buf_in_len*sizeof(float),filter_mchn_in_host, 0, NULL, &(write_done[0]) );
+//  clFinish(cmdQueue);
+//  cout << "write input cost " << tt.get_time() << "s\n";
+  if (ret!=0) {
+    cout << "clEnqueueWriteBuffer filter_mchn_orig " << ret << "\n";
+    ABORT(-1);
+  }
+
+//  tt.tic();
+  ret = clEnqueueWriteBuffer(cmdQueue, filter_mchn_coef, CL_FALSE, 0, 2*filter_mchn_buf_coef_len*sizeof(float),filter_mchn_coef_host, 0, NULL, &(write_done[1]));
+//  clFinish(cmdQueue);
+//  cout << "write coef cost " << tt.get_time() << "s\n";
+  if (ret!=0) {
+    cout << "clEnqueueWriteBuffer filter_mchn_coef " << ret << "\n";
+    ABORT(-1);
+  }
+
+//  cout << filter_mchn_num_chn << "\n";
+  global_work_size[0] = filter_mchn_num_chn; global_work_size[1] = 1;  global_work_size[2] = 1;
+  local_work_size[0] = 1;                      local_work_size[1] = 1;                    local_work_size[2] = 1;
+  cl_event multi_filter_done;
+//  tt.tic();
+  ret = clEnqueueNDRangeKernel(cmdQueue, filter_mchn_multi_filter, 1, NULL, global_work_size, local_work_size, 2, write_done, &multi_filter_done);
+//  clFinish(cmdQueue);
+//  cout << "kernel2 cost " << tt.get_time() << "s\n";
+  if (ret!=0) {
+    cout << "clEnqueueNDRangeKernel filter_mchn_multi_filter " << ret << "\n";
+    ABORT(-1);
+  }
+
+//  tt.tic();
+  ret = clEnqueueReadBuffer(cmdQueue, filter_mchn_out_abs2, CL_FALSE, 0, filter_mchn_buf_out_len*sizeof(float), filter_mchn_out_abs2_host, 1, &multi_filter_done, NULL);
+//  clFinish(cmdQueue);
+//  cout << "buf read cost " << tt.get_time() << "s\n";
+  if (ret!=0) {
+    cout << "clEnqueueReadBuffer filter_mchn_out" << ret << "\n";
+    ABORT(-1);
+  }
+  clFinish(cmdQueue);
+
+  const int len_short = filter_mchn_capbuf_length - (filter_mchn_length-1);
+  if ( corr_store.rows()!=(int)filter_mchn_num_chn || corr_store.cols()!=len_short  ) {
+    cout << "Warning! OpenCL xcorr PSS: corr_store size incorrect. Reset it.\n";
+    cout << corr_store.rows() << " " << corr_store.cols() << "\n";
+    corr_store.set_size( filter_mchn_num_chn, len_short, false );
+  }
+  for (size_t j=0; j<filter_mchn_num_chn; j++) {
+    for (size_t i=0; i<(size_t)len_short; i++) {
+      size_t idx = j*len_short + i;
+      corr_store(j,i) = filter_mchn_out_abs2_host[idx];
+    }
+  }
+
+  return(ret);
+}
+#else
 int lte_opencl_t::setup_filter_mchn(std::string filter_mchn_kernels_filename, const size_t & capbuf_length_in, const size_t & num_filter_in, const size_t & filter_length_in, const uint & xcorr_workitem_in)
 {
   // in case setup multiple times----------------------------------------
@@ -448,215 +762,6 @@ int lte_opencl_t::setup_filter_mchn(std::string filter_mchn_kernels_filename, co
   return(ret);
 }
 
-int lte_opencl_t::setup_filter_my(std::string filter_my_kernels_filename, const size_t & capbuf_length_in, const uint & filter_workitem_in)
-{
-  // in case setup multiple times----------------------------------------
-  if (filter_my_in_host!=0) {
-    delete [] filter_my_in_host;
-    filter_my_in_host = 0;
-  }
-  if (filter_my_out_host!=0) {
-    delete [] filter_my_out_host;
-    filter_my_out_host = 0;
-  }
-
-  if (filter_my_orig != 0) {
-     clReleaseMemObject(filter_my_orig);
-     filter_my_orig = 0;
-  }
-  if (filter_my_in != 0) {
-     clReleaseMemObject(filter_my_in);
-     filter_my_in = 0;
-  }
-  if (filter_my_out != 0) {
-     clReleaseMemObject(filter_my_out);
-     filter_my_out = 0;
-  }
-  if (filter_my_mid != 0) {
-     clReleaseMemObject(filter_my_mid);
-     filter_my_mid = 0;
-  }
-
-  if (filter_my_skip2cols != 0) {
-    clReleaseKernel(filter_my_skip2cols);
-    filter_my_skip2cols = 0;
-  }
-  if (filter_my_multi_filter != 0)
-  {
-    clReleaseKernel(filter_my_multi_filter);
-    filter_my_multi_filter = 0;
-  }
-  if (filter_my_result_combine != 0)
-  {
-    clReleaseKernel(filter_my_result_combine);
-    filter_my_result_combine = 0;
-  }
-  // in case setup multiple times----------------------------------------
-
-  filter_my_length = sizeof(chn_6RB_filter_coef)/sizeof(float);
-
-  filter_my_capbuf_length = capbuf_length_in;
-  filter_my_workitem = filter_workitem_in;
-
-  filter_my_buf_in_len = filter_my_capbuf_length + (filter_my_length-1); // post padding
-  if ((filter_my_buf_in_len%filter_my_workitem)!=0) {
-    filter_my_buf_in_len = filter_my_buf_in_len + ( filter_my_workitem-(filter_my_buf_in_len%filter_my_workitem) );
-  }
-
-  uint len_in_subbuf = filter_my_buf_in_len/filter_my_workitem;
-  filter_my_buf_mid_len = (filter_my_workitem+1) * (len_in_subbuf + filter_my_length-1);
-
-  filter_my_buf_out_len = filter_my_buf_in_len;
-
-  filter_my_in_host = new float[filter_my_buf_in_len*2]; // *2 for i&q
-  filter_my_out_host = new float[filter_my_buf_out_len*2];
-
-  int ret = 0;
-
-  // ---------------------------------------gen kernels---------------------
-  std::ifstream kernel_file;
-
-  kernel_file.open(filter_my_kernels_filename.c_str());
-  if (!kernel_file.is_open())
-  {
-    cout << "setup_filter_my: open file failed! Please make sure program can find " << filter_my_kernels_filename << "\n";
-    ABORT(-1);
-  }
-  std::filebuf* pbuf = kernel_file.rdbuf();
-
-  std::size_t size = pbuf->pubseekoff (0,kernel_file.end,kernel_file.in);
-  pbuf->pubseekpos (0,kernel_file.in);
-
-  char* buffer=new char[size];
-
-  // get file data
-  pbuf->sgetn(buffer,size-1);
-  buffer[size-1] = 0;
-  kernel_file.close();
-
-  const char* kernel_string[1] = {buffer};
-  cl_program program = clCreateProgramWithSource(context, 1, kernel_string, NULL, &ret);
-  if (ret!=0) {
-    cout << "setup_filter_my clCreateProgramWithSource " << ret << "\n";
-    ABORT(-1);
-  }
-
-  ret = clBuildProgram(program, num_device, devices, NULL, NULL, NULL);
-  if (ret!=0) {
-    cout << "clBuildProgram " << ret << "\n";
-    char tmp_info[8192];
-    ret =  clGetProgramBuildInfo(program, devices[0], CL_PROGRAM_BUILD_LOG, 8192, tmp_info, NULL);
-    cout << tmp_info << "\n";
-    ABORT(-1);
-  }
-
-  filter_my_skip2cols = clCreateKernel(program, "skip2cols", &ret);
-  if (ret!=0) {
-    cout << "clCreateKernel filter_my_skip2cols " << ret << "\n";
-    ABORT(-1);
-  }
-
-  filter_my_multi_filter = clCreateKernel(program, "multi_filter", &ret);
-  if (ret!=0) {
-    cout << "clCreateKernel filter_my_multi_filter " << ret << "\n";
-    ABORT(-1);
-  }
-
-  filter_my_result_combine = clCreateKernel(program, "result_combine", &ret);
-  if (ret!=0) {
-    cout << "clCreateKernel filter_my_result_combine " << ret << "\n";
-    ABORT(-1);
-  }
-
-  delete [] buffer;
-  // ---------------------------------------gen kernels---------------------
-
-  // ---------------------------------gen buffers---------------------------
-  filter_my_orig = clCreateBuffer(context, CL_MEM_READ_ONLY, 2*sizeof(float)*filter_my_buf_in_len, NULL, &ret);
-  if (ret!=0) {
-    cout << "clCreateBuffer filter_my_orig " << ret << "\n";
-    ABORT(-1);
-  }
-
-  filter_my_in = clCreateBuffer(context, CL_MEM_READ_WRITE, 2*sizeof(float)*filter_my_buf_in_len, NULL, &ret);
-  if (ret!=0) {
-    cout << "clCreateBuffer filter_my_in " << ret << "\n";
-    ABORT(-1);
-  }
-
-  filter_my_mid = clCreateBuffer(context, CL_MEM_READ_WRITE, 2*sizeof(float)*filter_my_buf_mid_len, NULL, &ret);
-  if (ret!=0) {
-    cout << "clCreateBuffer filter_my_mid " << ret << "\n";
-    ABORT(-1);
-  }
-
-  filter_my_out = clCreateBuffer(context, CL_MEM_WRITE_ONLY, 2*sizeof(float)*filter_my_buf_out_len, NULL, &ret);
-  if (ret!=0) {
-    cout << "clCreateBuffer filter_my_out " << ret << "\n";
-    ABORT(-1);
-  }
-  // ---------------------------------gen buffers---------------------------
-
-  // ------------------------------set buffers as kernel's args---------------------------
-  ret = clSetKernelArg(filter_my_skip2cols, 0, sizeof(cl_mem), &filter_my_orig);
-  if (ret!=0) {
-    cout << "clSetKernelArg filter_my_skip2cols 0 " << ret << "\n";
-    ABORT(-1);
-  }
-
-  ret = clSetKernelArg(filter_my_skip2cols, 1, sizeof(cl_mem), &filter_my_in);
-  if (ret!=0) {
-    cout << "clSetKernelArg filter_my_skip2cols 1 " << ret << "\n";
-    ABORT(-1);
-  }
-
-  ret = clSetKernelArg(filter_my_skip2cols, 2, sizeof(uint), &filter_my_buf_in_len);
-  if (ret!=0) {
-    cout << "clSetKernelArg filter_my_skip2cols 2 " << ret << "\n";
-    ABORT(-1);
-  }
-
-
-  ret = clSetKernelArg(filter_my_multi_filter, 0, sizeof(cl_mem), &filter_my_in);
-  if (ret!=0) {
-    cout << "clSetKernelArg filter_my_multi_filter 0 " << ret << "\n";
-    ABORT(-1);
-  }
-
-  ret = clSetKernelArg(filter_my_multi_filter, 1, sizeof(cl_mem), &filter_my_mid);
-  if (ret!=0) {
-    cout << "clSetKernelArg filter_my_multi_filter 1 " << ret << "\n";
-    ABORT(-1);
-  }
-
-  ret = clSetKernelArg(filter_my_multi_filter, 2, sizeof(uint), &filter_my_buf_in_len);
-  if (ret!=0) {
-    cout << "clSetKernelArg filter_my_multi_filter 2 " << ret << "\n";
-    ABORT(-1);
-  }
-
-  ret = clSetKernelArg(filter_my_result_combine, 0, sizeof(cl_mem), &filter_my_mid);
-  if (ret!=0) {
-    cout << "clSetKernelArg filter_my_result_combine 0 " << ret << "\n";
-    ABORT(-1);
-  }
-
-  ret = clSetKernelArg(filter_my_result_combine, 1, sizeof(cl_mem), &filter_my_out);
-  if (ret!=0) {
-    cout << "clSetKernelArg filter_my_result_combine 1 " << ret << "\n";
-    ABORT(-1);
-  }
-
-  ret = clSetKernelArg(filter_my_result_combine, 2, sizeof(uint), &filter_my_buf_out_len);
-  if (ret!=0) {
-    cout << "clSetKernelArg filter_my_result_combine 2 " << ret << "\n";
-    ABORT(-1);
-  }
-  // ------------------------------set buffers as kernel's args---------------------------
-
-  return(ret);
-}
-
 lte_opencl_t::~lte_opencl_t()
 {
   // for filter_my
@@ -869,6 +974,216 @@ int lte_opencl_t::filter_mchn(const cvec & capbuf, const cmat & pss_fo_set, mat 
       corr_store(j,i-filter_mchn_length+1) = filter_mchn_out_abs2_host[idx];
     }
   }
+
+  return(ret);
+}
+#endif
+
+int lte_opencl_t::setup_filter_my(std::string filter_my_kernels_filename, const size_t & capbuf_length_in, const uint & filter_workitem_in)
+{
+  // in case setup multiple times----------------------------------------
+  if (filter_my_in_host!=0) {
+    delete [] filter_my_in_host;
+    filter_my_in_host = 0;
+  }
+  if (filter_my_out_host!=0) {
+    delete [] filter_my_out_host;
+    filter_my_out_host = 0;
+  }
+
+  if (filter_my_orig != 0) {
+     clReleaseMemObject(filter_my_orig);
+     filter_my_orig = 0;
+  }
+  if (filter_my_in != 0) {
+     clReleaseMemObject(filter_my_in);
+     filter_my_in = 0;
+  }
+  if (filter_my_out != 0) {
+     clReleaseMemObject(filter_my_out);
+     filter_my_out = 0;
+  }
+  if (filter_my_mid != 0) {
+     clReleaseMemObject(filter_my_mid);
+     filter_my_mid = 0;
+  }
+
+  if (filter_my_skip2cols != 0) {
+    clReleaseKernel(filter_my_skip2cols);
+    filter_my_skip2cols = 0;
+  }
+  if (filter_my_multi_filter != 0)
+  {
+    clReleaseKernel(filter_my_multi_filter);
+    filter_my_multi_filter = 0;
+  }
+  if (filter_my_result_combine != 0)
+  {
+    clReleaseKernel(filter_my_result_combine);
+    filter_my_result_combine = 0;
+  }
+  // in case setup multiple times----------------------------------------
+
+  filter_my_length = sizeof(chn_6RB_filter_coef)/sizeof(float);
+
+  filter_my_capbuf_length = capbuf_length_in;
+  filter_my_workitem = filter_workitem_in;
+
+  filter_my_buf_in_len = filter_my_capbuf_length + (filter_my_length-1); // post padding
+  if ((filter_my_buf_in_len%filter_my_workitem)!=0) {
+    filter_my_buf_in_len = filter_my_buf_in_len + ( filter_my_workitem-(filter_my_buf_in_len%filter_my_workitem) );
+  }
+
+  uint len_in_subbuf = filter_my_buf_in_len/filter_my_workitem;
+  filter_my_buf_mid_len = (filter_my_workitem+1) * (len_in_subbuf + filter_my_length-1);
+
+  filter_my_buf_out_len = filter_my_buf_in_len;
+
+  filter_my_in_host = new float[filter_my_buf_in_len*2]; // *2 for i&q
+  filter_my_out_host = new float[filter_my_buf_out_len*2];
+
+  int ret = 0;
+
+  // ---------------------------------------gen kernels---------------------
+  std::ifstream kernel_file;
+
+  kernel_file.open(filter_my_kernels_filename.c_str());
+  if (!kernel_file.is_open())
+  {
+    cout << "setup_filter_my: open file failed! Please make sure program can find " << filter_my_kernels_filename << "\n";
+    ABORT(-1);
+  }
+  std::filebuf* pbuf = kernel_file.rdbuf();
+
+  std::size_t size = pbuf->pubseekoff (0,kernel_file.end,kernel_file.in);
+  pbuf->pubseekpos (0,kernel_file.in);
+
+  char* buffer=new char[size];
+
+  // get file data
+  pbuf->sgetn(buffer,size-1);
+  buffer[size-1] = 0;
+  kernel_file.close();
+
+  const char* kernel_string[1] = {buffer};
+  cl_program program = clCreateProgramWithSource(context, 1, kernel_string, NULL, &ret);
+  if (ret!=0) {
+    cout << "setup_filter_my clCreateProgramWithSource " << ret << "\n";
+    ABORT(-1);
+  }
+
+  ret = clBuildProgram(program, num_device, devices, NULL, NULL, NULL);
+  if (ret!=0) {
+    cout << "clBuildProgram " << ret << "\n";
+    char tmp_info[8192];
+    ret =  clGetProgramBuildInfo(program, devices[0], CL_PROGRAM_BUILD_LOG, 8192, tmp_info, NULL);
+    cout << tmp_info << "\n";
+    ABORT(-1);
+  }
+
+  filter_my_skip2cols = clCreateKernel(program, "skip2cols", &ret);
+  if (ret!=0) {
+    cout << "clCreateKernel filter_my_skip2cols " << ret << "\n";
+    ABORT(-1);
+  }
+
+  filter_my_multi_filter = clCreateKernel(program, "multi_filter", &ret);
+  if (ret!=0) {
+    cout << "clCreateKernel filter_my_multi_filter " << ret << "\n";
+    ABORT(-1);
+  }
+
+  filter_my_result_combine = clCreateKernel(program, "result_combine", &ret);
+  if (ret!=0) {
+    cout << "clCreateKernel filter_my_result_combine " << ret << "\n";
+    ABORT(-1);
+  }
+
+  delete [] buffer;
+  // ---------------------------------------gen kernels---------------------
+
+  // ---------------------------------gen buffers---------------------------
+  filter_my_orig = clCreateBuffer(context, CL_MEM_READ_ONLY, 2*sizeof(float)*filter_my_buf_in_len, NULL, &ret);
+  if (ret!=0) {
+    cout << "clCreateBuffer filter_my_orig " << ret << "\n";
+    ABORT(-1);
+  }
+
+  filter_my_in = clCreateBuffer(context, CL_MEM_READ_WRITE, 2*sizeof(float)*filter_my_buf_in_len, NULL, &ret);
+  if (ret!=0) {
+    cout << "clCreateBuffer filter_my_in " << ret << "\n";
+    ABORT(-1);
+  }
+
+  filter_my_mid = clCreateBuffer(context, CL_MEM_READ_WRITE, 2*sizeof(float)*filter_my_buf_mid_len, NULL, &ret);
+  if (ret!=0) {
+    cout << "clCreateBuffer filter_my_mid " << ret << "\n";
+    ABORT(-1);
+  }
+
+  filter_my_out = clCreateBuffer(context, CL_MEM_WRITE_ONLY, 2*sizeof(float)*filter_my_buf_out_len, NULL, &ret);
+  if (ret!=0) {
+    cout << "clCreateBuffer filter_my_out " << ret << "\n";
+    ABORT(-1);
+  }
+  // ---------------------------------gen buffers---------------------------
+
+  // ------------------------------set buffers as kernel's args---------------------------
+  ret = clSetKernelArg(filter_my_skip2cols, 0, sizeof(cl_mem), &filter_my_orig);
+  if (ret!=0) {
+    cout << "clSetKernelArg filter_my_skip2cols 0 " << ret << "\n";
+    ABORT(-1);
+  }
+
+  ret = clSetKernelArg(filter_my_skip2cols, 1, sizeof(cl_mem), &filter_my_in);
+  if (ret!=0) {
+    cout << "clSetKernelArg filter_my_skip2cols 1 " << ret << "\n";
+    ABORT(-1);
+  }
+
+  ret = clSetKernelArg(filter_my_skip2cols, 2, sizeof(uint), &filter_my_buf_in_len);
+  if (ret!=0) {
+    cout << "clSetKernelArg filter_my_skip2cols 2 " << ret << "\n";
+    ABORT(-1);
+  }
+
+
+  ret = clSetKernelArg(filter_my_multi_filter, 0, sizeof(cl_mem), &filter_my_in);
+  if (ret!=0) {
+    cout << "clSetKernelArg filter_my_multi_filter 0 " << ret << "\n";
+    ABORT(-1);
+  }
+
+  ret = clSetKernelArg(filter_my_multi_filter, 1, sizeof(cl_mem), &filter_my_mid);
+  if (ret!=0) {
+    cout << "clSetKernelArg filter_my_multi_filter 1 " << ret << "\n";
+    ABORT(-1);
+  }
+
+  ret = clSetKernelArg(filter_my_multi_filter, 2, sizeof(uint), &filter_my_buf_in_len);
+  if (ret!=0) {
+    cout << "clSetKernelArg filter_my_multi_filter 2 " << ret << "\n";
+    ABORT(-1);
+  }
+
+  ret = clSetKernelArg(filter_my_result_combine, 0, sizeof(cl_mem), &filter_my_mid);
+  if (ret!=0) {
+    cout << "clSetKernelArg filter_my_result_combine 0 " << ret << "\n";
+    ABORT(-1);
+  }
+
+  ret = clSetKernelArg(filter_my_result_combine, 1, sizeof(cl_mem), &filter_my_out);
+  if (ret!=0) {
+    cout << "clSetKernelArg filter_my_result_combine 1 " << ret << "\n";
+    ABORT(-1);
+  }
+
+  ret = clSetKernelArg(filter_my_result_combine, 2, sizeof(uint), &filter_my_buf_out_len);
+  if (ret!=0) {
+    cout << "clSetKernelArg filter_my_result_combine 2 " << ret << "\n";
+    ABORT(-1);
+  }
+  // ------------------------------set buffers as kernel's args---------------------------
 
   return(ret);
 }

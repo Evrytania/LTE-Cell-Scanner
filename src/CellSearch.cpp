@@ -880,7 +880,11 @@ int main(
 //    ABORT(-1);
 //  }
 //  lte_ocl.setup_filter_mchn((string)"filter_mchn_kernels.cl", CAPLENGTH, length(f_search_set)*3/num_loop, pss_fo_set.cols(), xcorr_workitem);
+  #ifdef FILTER_MCHN_SIMPLE_KERNEL
+  lte_ocl.setup_filter_mchn((string)"filter_mchn_simple_kernel.cl", CAPLENGTH, length(f_search_set)*3, pss_fo_set.cols(), xcorr_workitem);
+  #else
   lte_ocl.setup_filter_mchn((string)"filter_mchn_kernels.cl", CAPLENGTH, length(f_search_set)*3, pss_fo_set.cols(), xcorr_workitem);
+  #endif
   #endif
 
   vec period_ppm;

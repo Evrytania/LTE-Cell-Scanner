@@ -24,7 +24,7 @@
 #ifndef HAVE_SEARCHER_H
 #define HAVE_SEARCHER_H
 
-//#define USE_OPENCL // just for debug purpose. It should be removed before formal release
+#define FILTER_MCHN_SIMPLE_KERNEL
 
 #ifdef USE_OPENCL
 
