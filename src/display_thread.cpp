@@ -535,7 +535,7 @@ void display_thread(
       // Header and footer
       {
         stringstream ss;
-        ss << "OpenCL LTE-Tracker v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " -- www.evrytania.com; 1.0 to 1.1: OpenCL/TDD/ext-LNB added by Jiao X.J.(putaoshu@gmail.com).";
+        ss << "OpenCL LTE-Tracker v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " -- www.evrytania.com; 1.0 to 1.1: OpenCL/TDD/HACKRF/ext-LNB added by Jiao X.J.(putaoshu@gmail.com).";
         move(0,0);
         attron(COLOR_PAIR(CYAN));
         print_center(ss.str());

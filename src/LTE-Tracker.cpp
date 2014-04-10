@@ -21,6 +21,7 @@
 // 3. fast pre-search frequencies (external mixer/LNB support)
 // 4. multiple tries at one frequency
 // 5. .bin file recording and replaying
+// 6. hackrf support
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -495,7 +496,7 @@ void parse_commandline(
   }
 
   if (verbosity>=1) {
-    cout << "OpenCL LTE Tracker v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " (" << BUILD_TYPE << ") beginning. 1.0 to 1.1: OpenCL/TDD/ext-LNB added by Jiao Xianjun(putaoshu@gmail.com)" << endl;
+    cout << "OpenCL LTE Tracker v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " (" << BUILD_TYPE << ") beginning. 1.0 to 1.1: OpenCL/TDD/HACKRF/ext-LNB added by Jiao Xianjun(putaoshu@gmail.com)" << endl;
 //    cout << "  Search frequency: " << fc/1e6 << " MHz" << endl;
 //    if (sampling_carrier_twist) {
       cout << "  PPM: " << ppm << endl;
