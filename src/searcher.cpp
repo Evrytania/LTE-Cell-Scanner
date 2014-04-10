@@ -2312,7 +2312,7 @@ void sampling_ppm_f_search_set_by_pss(
 
   ivec sort_idx = sort_index(max_peak_all);
   sort_idx = reverse(sort_idx); // from ascending to descending
-  DBG( cout << "Hit        PAR " << 10.0*log10( peak_to_avg.get( sort_idx(0, max_reserve-1) ) ) << "dB\n"; )
+  cout << "Hit        PAR " << 10.0*log10( peak_to_avg.get( sort_idx(0, max_reserve-1) ) ) << "dB\n";
 
   ivec above_par_idx = to_ivec( peak_to_avg.get( sort_idx(0, max_reserve-1) ) > pow(10.0, 8.5/10.0) );
   uint16 len_sort_idx = sum(above_par_idx);

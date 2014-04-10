@@ -698,8 +698,8 @@ int config_hackrf(
   hackrf_device *& device,
   double & fs_programmed
 ) {
-  unsigned int lna_gain=16; // default value
-  unsigned int vga_gain=60; // default value
+  unsigned int lna_gain=32; // default value
+  unsigned int vga_gain=40; // default value
 
   int result = hackrf_init();
 	if( result != HACKRF_SUCCESS ) {
@@ -1174,14 +1174,13 @@ double kalibrate(
   return best.freq_superfine;
 }
 
+sampbuf_sync_t sampbuf_sync;
+
 #ifdef HAVE_HACKRF
 
 static int hackrf_callback(hackrf_transfer* transfer)
-{
-  sampbuf_sync_t & sampbuf_sync=*((sampbuf_sync_t *)(transfer->rx_ctx));
-
-  //cout << "Callback with " << len << " samples" << endl;
-
+ {
+//  cout << "1\n";
   if (transfer->valid_length==0) {
     cerr << "Error: received no samples from HACKRF device..." << endl;
     ABORT(-1);
@@ -1189,10 +1188,11 @@ static int hackrf_callback(hackrf_transfer* transfer)
 
   boost::mutex::scoped_lock lock(sampbuf_sync.mutex);
   for (uint32 t=0;t<(uint32)transfer->valid_length;t++) {
-    sampbuf_sync.fifo.push_back(transfer->buffer[t]);
+    sampbuf_sync.fifo.push_back((int8)transfer->buffer[t]);
   }
   sampbuf_sync.fifo_peak_size=MAX(sampbuf_sync.fifo.size(),sampbuf_sync.fifo_peak_size);
   sampbuf_sync.condition.notify_one();
+
   return(0);
 }
 
@@ -1214,7 +1214,7 @@ static void rtlsdr_callback(
 
   boost::mutex::scoped_lock lock(sampbuf_sync.mutex);
   for (uint32 t=0;t<len;t++) {
-    sampbuf_sync.fifo.push_back(buf[t]);
+    sampbuf_sync.fifo.push_back(buf[t]-128);
   }
   sampbuf_sync.fifo_peak_size=MAX(sampbuf_sync.fifo.size(),sampbuf_sync.fifo_peak_size);
   sampbuf_sync.condition.notify_one();
@@ -1305,8 +1305,32 @@ int main(
   double initial_k_factor = 1;
   double initial_freq_offset=kalibrate(fc_requested,fs_programmed,ppm,correction,correction_new,use_recorded_data,filename,rtl_sdr_format,noise_power,drop_secs,repeat,dev,hackrf_dev,dev_use,fc_programmed,initial_sampling_carrier_twist,initial_k_factor,record_bin_filename,load_bin_filename,opencl_platform,opencl_device,filter_workitem,xcorr_workitem,num_reserve);
 
+//  // ---------------- stop and close hackrf
+//  Real_Timer tt;
+//  tt.tic();
+//  while(tt.get_time()<2) {;}
+//  if ( dev_use == dev_type_t::HACKRF ) {
+//  #ifdef HAVE_HACKRF
+//    int result = hackrf_stop_rx(hackrf_dev);
+//    if( result != HACKRF_SUCCESS ) {
+//      printf("hackrf_stop_rx() failed: %s (%d)\n", hackrf_error_name((hackrf_error)result), result);
+//      ABORT(-1);
+//    }
+//    result = hackrf_close(hackrf_dev);
+//    if( result != HACKRF_SUCCESS ) {
+//      printf("hackrf_close() failed: %s (%d)\n", hackrf_error_name((hackrf_error)result), result);
+//      ABORT(-1);
+//    }
+//    result = hackrf_exit();
+//    if( result != HACKRF_SUCCESS ) {
+//      printf("hackrf_exit() failed: %s (%d)\n", hackrf_error_name((hackrf_error)result), result);
+//      ABORT(-1);
+//    }
+//  #endif
+//  }
+
   // Data shared between threads
-  sampbuf_sync_t sampbuf_sync;
+//  sampbuf_sync_t sampbuf_sync;
   tracked_cell_list_t tracked_cell_list;
   capbuf_sync_t capbuf_sync;
   global_thread_data_t global_thread_data(fc_requested,fc_programmed,fs_programmed);
@@ -1321,6 +1345,8 @@ int main(
 
   global_thread_data.frequency_offset(initial_freq_offset);
   global_thread_data.initial_frequency_offset(initial_freq_offset);
+
+  global_thread_data.dev_use(dev_use);
 
   global_thread_data.k_factor(initial_k_factor);
   global_thread_data.correction(correction_new);
@@ -1363,8 +1389,10 @@ int main(
 //        for (uint32 t=0;t<192000;t++) {
         for (uint32 t=0;t<(uint32)( file_data.length() );t++) {
           complex <double> samp=file_data[offset]+randn_c()*sqrt(noise_power);
-          uint8 samp_real=RAIL(round_i(real(samp)*128.0+128.0),0,255); // 127 should be 128?
-          uint8 samp_imag=RAIL(round_i(imag(samp)*128.0+128.0),0,255); // 127 should be 128?
+//          uint8 samp_real=RAIL(round_i(real(samp)*128.0+128.0),0,255); // 127 should be 128?
+//          uint8 samp_imag=RAIL(round_i(imag(samp)*128.0+128.0),0,255); // 127 should be 128?
+          int8 samp_real=round_i(real(samp)*128.0); // 127 should be 128?
+          int8 samp_imag=round_i(imag(samp)*128.0); // 127 should be 128?
           sampbuf_sync.fifo.push_back(samp_real);
           sampbuf_sync.fifo.push_back(samp_imag);
           offset++;
@@ -1394,32 +1422,58 @@ int main(
       // Start the async read process. This should never return.
       rtlsdr_read_async(dev,rtlsdr_callback,(void *)&sampbuf_sync,0,0);
     } else if (dev_use == dev_type_t::HACKRF) {
-      #ifdef HAVE_HACKRF
-
-      int result = hackrf_stop_rx(hackrf_dev);
-      if( result != HACKRF_SUCCESS ) {
-        printf("hackrf_stop_rx() failed: %s (%d)\n", hackrf_error_name((hackrf_error)result), result);
-        ABORT(-1);
+      cvec capbuf;
+      while(1) {
+        capture_data(fc_requested,correction,false,record_bin_filename,use_recorded_data,load_bin_filename,".",dev,hackrf_dev, dev_use,capbuf,fc_programmed,fs_programmed,false);
+//        cout << "cap\n";
+        boost::mutex::scoped_lock lock(sampbuf_sync.mutex);
+        for (uint32 t=0;t<(uint32)length(capbuf);t++) {
+          sampbuf_sync.fifo.push_back( (int8)(round_i( real( capbuf[t] )*128) ) );
+          sampbuf_sync.fifo.push_back( (int8)(round_i( imag( capbuf[t] )*128) ) );
+        }
+        sampbuf_sync.fifo_peak_size=MAX(sampbuf_sync.fifo.size(),sampbuf_sync.fifo_peak_size);
+        sampbuf_sync.condition.notify_one();
       }
+//      #ifdef HAVE_HACKRF
+//
+//      tt.tic();
+//      while(tt.get_time()<10) {;}
+//      if ( config_hackrf(initial_sampling_carrier_twist,correction,device_index,fc_requested,hackrf_dev,fs_programmed) != 0 ) {
+//        cout << "HACKRF re-config failed!\n";
+//      }
+//      int result;
+//      result = hackrf_stop_rx(hackrf_dev);
+//      if( result != HACKRF_SUCCESS ) {
+//        printf("hackrf_stop_rx() failed: %s (%d)\n", hackrf_error_name((hackrf_error)result), result);
+//        ABORT(-1);
+//      }
+//
+//      result = hackrf_start_rx(hackrf_dev, hackrf_callback, NULL);
+//
+//      if( result != HACKRF_SUCCESS ) {
+//        printf("hackrf_start_rx() failed: %s (%d)\n", hackrf_error_name((hackrf_error)result), result);
+//        ABORT(-1);
+//      }
+//
+////      while(1);
+//      int tmp_count=0;
+//
+//      result = hackrf_is_streaming(hackrf_dev);
+//      printf("hackrf_is_streaming() failed: %s (%d)\n", hackrf_error_name((hackrf_error)result), result);
+//
+//      while(hackrf_is_streaming(hackrf_dev) == HACKRF_TRUE) {
+//        cout << (++tmp_count) << "\n";
+//      }
+//
+//      cout << "HACKRF streaming exit abnormally!\n";
+//      ABORT(-1);
 
-      result = hackrf_start_rx(hackrf_dev, hackrf_callback, (void *)&sampbuf_sync);
-
-      if( result != HACKRF_SUCCESS ) {
-        printf("hackrf_start_rx() failed: %s (%d)\n", hackrf_error_name((hackrf_error)result), result);
-        ABORT(-1);
-      }
-
-      while(hackrf_is_streaming(hackrf_dev) == HACKRF_TRUE) {;}
-
-      cout << "HACKRF streaming exit abnormally!\n";
-      ABORT(-1);
-
-      #else
-
-      cout << "HACKRF can't be used when lib is not included!\n";
-      ABORT(-1);
-
-      #endif
+//      #else
+//
+//      cout << "HACKRF can't be used when lib is not included!\n";
+//      ABORT(-1);
+//
+//      #endif
 
     } else {
       cout << "No valid device present.\n";

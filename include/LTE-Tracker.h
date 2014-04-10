@@ -208,6 +208,17 @@ class global_thread_data_t {
       boost::mutex::scoped_lock lock(opencl_device_mutex);
       opencl_device_private=f;
     }
+
+    inline int dev_use() {
+      boost::mutex::scoped_lock lock(dev_use_mutex);
+      int r=dev_use_private;
+      return r;
+    }
+    inline void dev_use(const int & f) {
+      boost::mutex::scoped_lock lock(dev_use_mutex);
+      dev_use_private=f;
+    }
+
     inline uint16 opencl_platform() {
       boost::mutex::scoped_lock lock(opencl_platform_mutex);
       uint16 r=opencl_platform_private;
@@ -325,6 +336,9 @@ class global_thread_data_t {
     boost::mutex opencl_platform_mutex;
     uint16 opencl_platform_private;
 
+    boost::mutex dev_use_mutex;
+    int dev_use_private;
+
     boost::mutex opencl_device_mutex;
     uint16 opencl_device_private;
 
@@ -372,7 +386,7 @@ typedef struct {
 typedef struct {
   boost::mutex mutex;
   boost::condition condition;
-  std::deque <uint8> fifo;
+  std::deque <int8> fifo;
   uint32 fifo_peak_size;
 } sampbuf_sync_t;
 

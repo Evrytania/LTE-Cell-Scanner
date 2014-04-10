@@ -101,10 +101,12 @@ void producer_thread(
     const double frequency_offset=global_thread_data.frequency_offset();
     double k_factor = 1.0; // if not twisted, make k_factor useless
 
-    if (global_thread_data.sampling_carrier_twist()){
-      k_factor=(global_thread_data.fc_programmed-frequency_offset)/global_thread_data.fc_programmed;
-    } else {
-      k_factor=global_thread_data.k_factor(); // !!!!!!BE CAREFUL OF UPDATING K_FACTOR IN NON-TWIST MODE
+    if (global_thread_data.dev_use()!=dev_type_t::HACKRF) {
+      if (global_thread_data.sampling_carrier_twist()){
+        k_factor=(global_thread_data.fc_programmed-frequency_offset)/global_thread_data.fc_programmed;
+      } else {
+        k_factor=global_thread_data.k_factor(); // !!!!!!BE CAREFUL OF UPDATING K_FACTOR IN NON-TWIST MODE
+      }
     }
 
     //const double k_factor_inv=1/k_factor;
@@ -134,9 +136,9 @@ void producer_thread(
           n_samples=t;
           break;
         }
-        sample_temp.real()=(sampbuf_sync.fifo.front()-128.0)/128.0; // 127 should be 128?
+        sample_temp.real()=(sampbuf_sync.fifo.front())/128.0; // 127 should be 128?
         sampbuf_sync.fifo.pop_front();
-        sample_temp.imag()=(sampbuf_sync.fifo.front()-128.0)/128.0; // 127 should be 128?
+        sample_temp.imag()=(sampbuf_sync.fifo.front())/128.0; // 127 should be 128?
         sampbuf_sync.fifo.pop_front();
         samples(t)=sample_temp;
         sample_time+=(FS_LTE/16)/(fs_programmed*k_factor);

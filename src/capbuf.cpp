@@ -372,7 +372,7 @@ int capture_data(
     unsigned char *capbuf_raw = new unsigned char[2*CAPLENGTH];
 
     if (read_all_in_bin) {
-      capbuf.set_size(0);
+      capbuf.set_size(0, false);
 
       FILE *fp = fopen(load_bin_filename, "rb");
       if (fp == NULL)
@@ -408,7 +408,7 @@ int capture_data(
 
       fclose(fp);
     } else {
-      capbuf.set_size(CAPLENGTH);
+      capbuf.set_size(CAPLENGTH, false);
 
       FILE *fp = fopen(load_bin_filename, "rb");
       if (fp == NULL)
@@ -508,7 +508,7 @@ int capture_data(
       rtlsdr_read_async(dev,capbuf_rtlsdr_callback,(void *)&cp,0,0);
 
       // Convert to complex
-      capbuf.set_size(CAPLENGTH);
+      capbuf.set_size(CAPLENGTH, false);
   #ifndef NDEBUG
       capbuf=NAN;
   #endif
@@ -566,7 +566,7 @@ int capture_data(
 //      }
 
       // Convert to complex
-      capbuf.set_size(CAPLENGTH);
+      capbuf.set_size(CAPLENGTH, false);
       for (uint32 t=0;t<CAPLENGTH;t++) {
 //        capbuf(t)=complex<double>((((double)hackrf_rx_buf[(t<<1)])-128.0)/128.0,(((double)hackrf_rx_buf[(t<<1)+1])-128.0)/128.0);
         capbuf(t)=complex<double>((((double)hackrf_rx_buf[(t<<1)])-0.0)/128.0,(((double)hackrf_rx_buf[(t<<1)+1])-0.0)/128.0);
