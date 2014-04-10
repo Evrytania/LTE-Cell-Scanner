@@ -733,7 +733,7 @@ int main(
     } else if ( !rtlsdr_exist && hackrf_exist) {
       dev_use = dev_type_t::HACKRF;
     } else if ( !rtlsdr_exist && !hackrf_exist) {
-      cerr << "NO SDR DEVICE FOUND!\n";
+      cerr << "NO SDR DEVICE FOUND or CONFIGURED!\n";
       ABORT(-1);
     } else {
       if ( device_index<1000 && device_index>=-1){
@@ -750,7 +750,7 @@ int main(
       fc_programmed_tmp = freq_start;
       cout << "HACKRF will be used.\n";
     } else {
-      cout << "No valid device present.\n";
+      cout << "No valid device present or configured.\n";
       ABORT(-1);
     }
 

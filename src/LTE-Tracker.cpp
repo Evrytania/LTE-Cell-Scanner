@@ -830,7 +830,7 @@ double kalibrate(
     else  if (dev_use == dev_type_t::HACKRF)
       fc_programmed_tmp = fc_requested;
 
-    cout << "Use dongle begin with " << ( fc_requested/1e6 ) << "MHz actual " << (fc_programmed_tmp/1e6) << "MHz " << fs_programmed_tmp << "MHz\n";
+    cout << "Use dongle begin with " << ( fc_requested/1e6 ) << "MHz actual " << (fc_programmed_tmp/1e6) << "MHz " << fs_programmed << "MHz\n";
   } else {
     if (strlen(load_bin_filename)!=0) { // use captured bin file
       if ( read_header_from_bin( load_bin_filename, fc_requested_tmp, fc_programmed_tmp, fs_requested_tmp, fs_programmed_tmp) ) {
@@ -868,7 +868,7 @@ double kalibrate(
     }
     fs_programmed = fs_programmed_tmp;
     fc_requested = fc_requested_tmp;
-    cout << "Use file begin with " << ( fc_requested_tmp/1e6 ) << "MHz actual " << (fc_programmed_tmp/1e6) << "MHz " << fs_programmed_tmp << "MHz\n";
+    cout << "Use file begin with " << ( fc_requested_tmp/1e6 ) << "MHz actual " << (fc_programmed_tmp/1e6) << "MHz " << fs_programmed << "MHz\n";
   }
 
   vec fc_search_set(1);
@@ -1174,6 +1174,30 @@ double kalibrate(
   return best.freq_superfine;
 }
 
+#ifdef HAVE_HACKRF
+
+static int hackrf_callback(hackrf_transfer* transfer)
+{
+  sampbuf_sync_t & sampbuf_sync=*((sampbuf_sync_t *)(transfer->rx_ctx));
+
+  //cout << "Callback with " << len << " samples" << endl;
+
+  if (transfer->valid_length==0) {
+    cerr << "Error: received no samples from HACKRF device..." << endl;
+    ABORT(-1);
+  }
+
+  boost::mutex::scoped_lock lock(sampbuf_sync.mutex);
+  for (uint32 t=0;t<(uint32)transfer->valid_length;t++) {
+    sampbuf_sync.fifo.push_back(transfer->buffer[t]);
+  }
+  sampbuf_sync.fifo_peak_size=MAX(sampbuf_sync.fifo.size(),sampbuf_sync.fifo_peak_size);
+  sampbuf_sync.condition.notify_one();
+  return(0);
+}
+
+#endif
+
 static void rtlsdr_callback(
   unsigned char * buf,
   uint32_t len,
@@ -1250,7 +1274,7 @@ int main(
     } else if ( !rtlsdr_exist && hackrf_exist) {
       dev_use = dev_type_t::HACKRF;
     } else if ( !rtlsdr_exist && !hackrf_exist) {
-      cerr << "NO SDR DEVICE FOUND!\n";
+      cerr << "NO SDR DEVICE FOUND or CONFIGURED!\n";
       ABORT(-1);
     } else {
       if ( device_index<1000 && device_index>=-1){
@@ -1266,7 +1290,7 @@ int main(
     else if (dev_use == dev_type_t::HACKRF) {
       cout << "HACKRF will be used.\n";
     } else {
-      cout << "No valid device present.\n";
+      cout << "No valid device present or configured.\n";
       ABORT(-1);
     }
 
@@ -1365,8 +1389,42 @@ int main(
     ABORT(-1);
 
   } else {
-    // Start the async read process. This should never return.
-    rtlsdr_read_async(dev,rtlsdr_callback,(void *)&sampbuf_sync,0,0);
+
+    if (dev_use == dev_type_t::RTLSDR) {
+      // Start the async read process. This should never return.
+      rtlsdr_read_async(dev,rtlsdr_callback,(void *)&sampbuf_sync,0,0);
+    } else if (dev_use == dev_type_t::HACKRF) {
+      #ifdef HAVE_HACKRF
+
+      int result = hackrf_stop_rx(hackrf_dev);
+      if( result != HACKRF_SUCCESS ) {
+        printf("hackrf_stop_rx() failed: %s (%d)\n", hackrf_error_name((hackrf_error)result), result);
+        ABORT(-1);
+      }
+
+      result = hackrf_start_rx(hackrf_dev, hackrf_callback, (void *)&sampbuf_sync);
+
+      if( result != HACKRF_SUCCESS ) {
+        printf("hackrf_start_rx() failed: %s (%d)\n", hackrf_error_name((hackrf_error)result), result);
+        ABORT(-1);
+      }
+
+      while(hackrf_is_streaming(hackrf_dev) == HACKRF_TRUE) {;}
+
+      cout << "HACKRF streaming exit abnormally!\n";
+      ABORT(-1);
+
+      #else
+
+      cout << "HACKRF can't be used when lib is not included!\n";
+      ABORT(-1);
+
+      #endif
+
+    } else {
+      cout << "No valid device present.\n";
+      ABORT(-1);
+    }
   }
 
   // Successful exit. (Should never get here!)
