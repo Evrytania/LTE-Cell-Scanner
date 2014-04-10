@@ -51,7 +51,7 @@ such as pocl - Portable Computing Language (https://github.com/pocl/pocl)
 
 "make" to generate executable program.
 
-Before run test, two kernel files, filter_my_kernels.cl and filter_mchn_kernels.cl, should be put together with executable program or in $PATH.
+Before run test, those kernel files (src/*.cl) should be put together with executable program or in $PATH.
 Because they need to be compiled and executed by OpenCL runtime after program launch.
 
 Run test:
