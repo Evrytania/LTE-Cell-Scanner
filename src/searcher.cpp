@@ -2243,6 +2243,8 @@ void sampling_ppm_f_search_set_by_pss(
     return;
   }
 
+  cout << "\ninput level: avg abs(real) " << ( sum( abs(real(s)) )/len ) << " avg abs(imag) " << ( sum( abs(imag(s)) )/len ) << "\n";
+
   const uint16 num_ppm_try = 3;
 
   ivec pss_period(num_pss);

@@ -934,7 +934,7 @@ int main(
     uint32 try_idx = fci - fc_idx*num_try;
 
     if (verbosity>=1) {
-      cout << "Examining center frequency " << fc_requested/1e6 << " MHz ... try " << try_idx << endl;
+      cout << "\nExamining center frequency " << fc_requested/1e6 << " MHz ... try " << try_idx << endl;
     }
 
     // Fill capture buffer
@@ -943,7 +943,6 @@ int main(
       fci = n_fc_multi_try; // end of loop
       continue;
     }
-    cout << ( sum( abs(real(capbuf)) )/length(capbuf) ) << "\n";
 
     freq_correction = fc_programmed*(correction-1)/correction;
 //    if (!dongle_used) { // if dongle is not used, do correction explicitly. Because if dongle is used, the correction is done when tuning dongle's frequency.
