@@ -72,7 +72,7 @@ Number of workitems for 6RB channel filter kernel can be specified by "--filter-
 
 Number of workitems in the 1st NDrange dimension for PSS frequency-time correlation kernel can be specified by "--xcorr-workitem".
 (ATTENTION!!! Now it is omitted because #define FILTER_MCHN_SIMPLE_KERNEL in searcher.h. Turn the pre-define off to use "--xcorr-workitem")
-Default value is 2. PSS correlation always has the 2nd NDrange dimension with 72 workitems (non-twist mode) or 273 workitems (twist mode).
+Default value is 2. Number of workitems of PSS correlation'2nd-NDrange-dimension depends on PPM range (use "-p" to change it).
 
 Optimal number of workitems is platform-device dependent. Optimal values should be found according to your computer configuration.
 
