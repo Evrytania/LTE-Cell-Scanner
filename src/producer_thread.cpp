@@ -99,13 +99,13 @@ void producer_thread(
   while (true) {
     // Each iteration of this loop processes one block of data.
     const double frequency_offset=global_thread_data.frequency_offset();
-    double k_factor = 1.0; // if not twisted, make k_factor useless
+    double k_factor = 1.0;// !!!THIS need to be handled correctly in the future when carrier-sampling isn't twisted. TIMING info should be updated according to phase rotation of FD response of main path
 
-    if (global_thread_data.dev_use()!=dev_type_t::HACKRF) {
+    if (global_thread_data.dev_use()!=dev_type_t::HACKRF) {// !!!THIS need to be handled correctly in the future when carrier-sampling isn't twisted. TIMING info should be updated according to phase rotation of FD response of main path
       if (global_thread_data.sampling_carrier_twist()){
         k_factor=(global_thread_data.fc_programmed-frequency_offset)/global_thread_data.fc_programmed;
       } else {
-        k_factor=global_thread_data.k_factor(); // !!!!!!BE CAREFUL OF UPDATING K_FACTOR IN NON-TWIST MODE
+        k_factor=global_thread_data.k_factor(); // !!!THIS need to be handled correctly in the future when carrier-sampling isn't twisted. TIMING info should be updated according to phase rotation of FD response of main path
       }
     }
 

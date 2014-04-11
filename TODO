@@ -1,0 +1,5 @@
+TODO:
+
+1. SIB decoding when hackrf is present because hackrf seems has enough BW. (rtl-sdr's BW is not enough for decoding SIB)
+2. OpenCL acceleration of MIB and SIB decoding.
+3. k_factor should be updated in a correct way when carrier-sampling isn't twistted. See k_factor in src/producer_thread.cpp

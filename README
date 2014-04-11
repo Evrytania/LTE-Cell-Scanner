@@ -6,7 +6,11 @@ Before explore this LTE Scanner, it's better for you to do some homeworks:
 
 2. rtl-sdr ultra cheap USB TV dongle: http://sdr.osmocom.org/trac/wiki/rtl-sdr
 
-ATTENTION!!! Only v0.5.2 librtlsdr (https://github.com/steve-m/librtlsdr) works with this LTE Scanner. Not v0.5.3! (at least for my computer)
+3. hackrf board: http://greatscottgadgets.com/hackrf/ , https://github.com/mossmann/hackrf
+
+COMPATIBLE rtl-sdr and hackrf version:
+librtlsdr (https://github.com/steve-m/librtlsdr) release v0.5.2 (Not v0.5.3 at least for my computer)
+libhackrf (https://github.com/mossmann/hackrf  ) revision around 2014 April 1st.
 
 ATTENTION!!! Please use release version instead of dev trunk if you want a 100% workable program.
 
@@ -14,9 +18,12 @@ ATTENTION!!! If you got -4(CL_MEM_OBJECT_ALLOCATION_FAILURE) or -5(CL_OUT_OF_RES
 
 MATLAB algorithm study and experiments are in : https://github.com/JiaoXianjun/rtl-sdr-LTE
 
-Any questions or interests, feel free to contact me. putaoshu@gmail.com
+See TODO if you want to contribute. Any questions or interests, feel free to contact me. putaoshu@gmail.com
 
-Introduction video: (inside China) http://pan.baidu.com/s/1o6qbLGY ,
+Introduction video: (inside China)  ,
+(outside China)
+
+Introduction video before: (inside China) http://pan.baidu.com/s/1o6qbLGY ,
 (outside China) http://www.youtube.com/watch?v=SxZzEVEKuRs
 
 Introduction video before: (inside China) http://v.youku.com/v_show/id_XNjc1MjIzMDEy.html ,
@@ -93,6 +100,13 @@ See detailed explanation in https://github.com/JiaoXianjun/rtl-sdr-LTE , and vid
 
 "CellSearch test/noise.bin --num-try 10" performs 10 tries of searching at frequency 1.86GHz (When signal is weak, only one try may not have you good luck)
 
+5. ----------------------HACKRF support----------------------
+
+Make sure hackrf host software (libhackrf) has been installed.
+
+Program will select presented hardware automatically when it runs.
+
+If both rtl-sdr and hackrf are presented, use "-i 1000" to force using hackrf, use "-i" in normal way to use rtl-sdr.
 
 Original Readme of James Peroulas's LTE Cell Scanner / Tracker
 ========================================================================
