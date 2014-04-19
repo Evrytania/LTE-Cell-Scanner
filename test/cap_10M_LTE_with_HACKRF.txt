@@ -1,0 +1,3 @@
+~/git/hackrf/host/build/hackrf-tools/src/hackrf_transfer -s 15360000 -f 1860000000 -l 32 -g 34 -b 10000000 -n 15360000 -r f1860_s15.36_bw10_1s.bin
+~/git/hackrf/host/build/hackrf-tools/src/hackrf_transfer -s 15360000 -f 1890000000 -l 32 -g 22 -b 10000000 -n 15360000 -r f1890_s15.36_bw10_1s.bin
+
