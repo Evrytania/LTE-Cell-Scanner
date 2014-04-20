@@ -20,10 +20,9 @@ filename = '../test/f1860_s15.36_bw10_l32_g36_1s.bin'; % FDD 20MHz
 sampling_rate = 15.36e6;
 coef = fir1(158, ((9e6+400e3))/sampling_rate); %freqz(coef, 1, 1024); %10M channel filter. 
 
-% s = get_signal_from_bin(filename, 100e-3*sampling_rate);
-s = get_signal_from_bin(filename, inf);
-plot(real(s));
+s = get_signal_from_bin(filename, 100e-3*sampling_rate);
 
 s = filter_wo_tail(s, coef, 1);
 
-peak = pss_sss_detect(s, sampling_rate);
+f_search_set = 20e3:5e3:30e3; % change it wider if you don't know pre-information
+peak = pss_sss_detect(s, sampling_rate, f_search_set);

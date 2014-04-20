@@ -1,4 +1,4 @@
-function peak_out=pss_sss_foe(peak,capbuf,fc)
+function peak_out=pss_sss_foe(peak,capbuf,fc,sampling_carrier_twist,tdd_flag)
 
 % Use (only) the PSS and SSS to calculate the frequency offset.
 
@@ -20,18 +20,34 @@ function peak_out=pss_sss_foe(peak,capbuf,fc)
 % along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 % fc*k_factor is the receiver's actual RX center frequency.
-k_factor=(fc-peak.freq)/fc;
+if sampling_carrier_twist==1
+    k_factor=(fc-peak.freq)/fc;
+% else
+%     k_factor=1;
+else
+    k_factor = peak.k_factor;
+end
 
 %%%%%%
 % Calculate the frequency offset
 %%%%%%
 % Find the location of the first SSS where we can take a DFT.
 if (strcmpi(peak.cp_type,'normal'))
-  pss_sss_dist=round((128+9)*k_factor);
-  first_sss_dft_location=peak.frame_start+(960-128-9-128)*k_factor;
+    if tdd_flag==1
+        pss_sss_dist=round((3*(128+9)+1)*k_factor); % TDD
+        first_sss_dft_location=peak.frame_start+(1920-128)*k_factor; % TDD
+    else
+        pss_sss_dist=round((128+9)*k_factor); % FDD
+        first_sss_dft_location=peak.frame_start+(960-128-9-128)*k_factor; % FDD
+    end
 elseif (strcmpi(peak.cp_type,'extended'))
-  pss_sss_dist=round((128+32)*k_factor);
-  first_sss_dft_location=peak.frame_start+(960-128-32-128)*k_factor;
+    if tdd_flag==1
+        pss_sss_dist=round(3*(128+32)*k_factor); %TDD
+        first_sss_dft_location=peak.frame_start+(1920-128)*k_factor; %TDD
+    else
+        pss_sss_dist=round((128+32)*k_factor); %FDD
+        first_sss_dft_location=peak.frame_start+(960-128-32-128)*k_factor; %FDD
+    end
 else
   error('Check code...');
 end

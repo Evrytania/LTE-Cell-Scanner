@@ -38,6 +38,8 @@ else
 end
 n_id_cell=n_id_2+3*n_id_1;
 
+peak_out.n_id_cell = n_id_cell;
+
 % Channel estimation
 ce_tfg=NaN(n_ofdm,72,4);
 [ce_tfg(:,:,1) np0]=chan_est(peak,tfg,0);
@@ -157,8 +159,8 @@ end
 if (found)
   disp('Found MIB!!!');
   %frame_timing_guess
-  %n_ports
-  c_est(1:24)
+  peak_out.n_ports=n_ports;
+%   disp(num2str(c_est(1:24)));
 
   % Record system BW
   bw_packed=c_est(1)*4+c_est(2)*2+c_est(3);
@@ -190,7 +192,7 @@ if (found)
   % PHICH res
   phich_res=c_est(5)*2+c_est(6);
   phich_res_map=[1/6 1/2 1 2];
-  peak_out.phich_res=phich_res_map(phich_res);
+  peak_out.phich_res=phich_res_map(phich_res+1);
 
   % Calculate the SFN of the first frame in the tfg variable.
   sfn_bits=c_est(7:14);
