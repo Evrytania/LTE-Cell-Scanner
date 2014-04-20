@@ -25,4 +25,4 @@ s = get_signal_from_bin(filename, 100e-3*sampling_rate);
 s = filter_wo_tail(s, coef, 1);
 
 f_search_set = 20e3:5e3:30e3; % change it wider if you don't know pre-information
-peak = pss_sss_detect(s, sampling_rate, f_search_set);
+[peaks, s] = pss_sss_detect(s, sampling_rate, f_search_set);

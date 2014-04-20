@@ -1,4 +1,4 @@
-function peak_out = sss_detect(peak,capbuf,thresh2_n_sigma,fc,sampling_carrier_twist,tdd_flag)
+function peak_out = sss_detect(peak,capbuf,thresh2_n_sigma,fc,sampling_carrier_twist,tdd_flag, varargin)
 
 % Perform maximum likelihood estimation of the SSS.
 
@@ -238,10 +238,12 @@ n_id_1_est=n_id_1_est-1;
 L=[log_lik_nrm log_lik_ext];
 L_mean=mean(L(:));
 L_var=var(L(:));
-figure(2);
-plot(0:167,[log_lik_nrm log_lik_ext],[0 167],repmat(L_mean,1,2),[0 167],repmat(L_mean+sqrt(L_var)*thresh2_n_sigma,1,2));
-zgo;
-drawnow;
+if nargin == 6
+    figure(2);
+    plot(0:167,[log_lik_nrm log_lik_ext],[0 167],repmat(L_mean,1,2),[0 167],repmat(L_mean+sqrt(L_var)*thresh2_n_sigma,1,2));
+    zgo;
+    drawnow;
+end
 peak_out=peak;
 if (lik_final<L_mean+sqrt(L_var)*thresh2_n_sigma)
   %disp('Thresh2 fail');

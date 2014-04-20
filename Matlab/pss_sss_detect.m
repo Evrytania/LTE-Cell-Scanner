@@ -1,6 +1,6 @@
-function peak = pss_sss_detect(s, sampling_rate, f_search_set)
+function [peaks, s] = pss_sss_detect(s, sampling_rate, f_search_set)
 
-peak = -1;
+peaks = -1;
 
 pbch_sampling_rate = 1.92e6;
 
@@ -43,7 +43,7 @@ while ep<length(s)
         
         r = r.';
         
-        [xc_incoherent_collapsed_pow, xc_incoherent_collapsed_frq, n_comb_xc, n_comb_sp, xc_incoherent_single, xc_incoherent, sp_incoherent, sp]= ...
+        [xc_incoherent_collapsed_pow, xc_incoherent_collapsed_frq, n_comb_xc, ~, ~, ~, sp_incoherent, ~]= ...
         xcorr_pss(r,dynamic_f_search_set,DS_COMB_ARM,fc,sampling_carrier_twist,k_factor_set, xc(:,:,1));
 
         R_th1=chi2inv(1-(10.0^(-thresh1_n_nines)), 2*n_comb_xc*(2*DS_COMB_ARM+1));
@@ -55,7 +55,7 @@ while ep<length(s)
         peak_idx = 0;
         for i=1:length(peaks)
             for tdd_flag=0:1
-                peak_tmp = sss_detect(peaks(i),r,THRESH2_N_SIGMA,fc,sampling_carrier_twist,tdd_flag);
+                peak_tmp = sss_detect(peaks(i),r,THRESH2_N_SIGMA,fc,sampling_carrier_twist,tdd_flag, 1);
                 if ~isnan( peak_tmp.n_id_1 )
                     break;
                 end
@@ -70,7 +70,8 @@ while ep<length(s)
         end
 
         if peak_idx > 0
-            peak = peaks_tmp(1:peak_idx);
+            peaks = peaks_tmp(1:peak_idx);
+            s = s(sp:end);
             break;
         end
     end
