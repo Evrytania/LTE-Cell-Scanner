@@ -16,7 +16,7 @@ ATTENTION!!! Please use release version instead of dev trunk if you want a 100% 
 
 ATTENTION!!! If you got -4(CL_MEM_OBJECT_ALLOCATION_FAILURE) or -5(CL_OUT_OF_RESOURCES) error in some OpenCL platform-device, try smaller PPM value to narrow frequency offset range (only valid in original twist mode: -t).
 
-MATLAB algorithm study and experiments are in : https://github.com/JiaoXianjun/rtl-sdr-LTE
+MATLAB algorithm study and experiments are in : https://github.com/JiaoXianjun/rtl-sdr-LTE . Moved to Matlab dir this repo now.
 
 See TODO if you want to contribute. Any questions or interests, feel free to contact me. putaoshu@gmail.com
 

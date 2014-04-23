@@ -2904,12 +2904,53 @@ Cell sss_detect(
   return cell_out;
 }
 
+double refine_fo(
+  const cvec & capbuf,
+  const cp_type_t::cp_type_t & cp_type,
+  const double & freq,
+  const double & frame_start,
+  const vec & k_factor_vec,
+  uint16 & k_factor_idx
+) {
+  double freq_new = freq;
+
+  vec fo_set(4);
+  fo_set(0) = freq-3e3;
+  fo_set(1) = freq-1e3;
+  fo_set(2) = freq+1e3;
+  fo_set(3) = freq+3e3;
+
+  uint32 len = length(capbuf);
+  double k_factor_tmp, pss_from_frame_start, pss_sp;
+
+  for (uint16 i=0; i<4; i++) {
+    k_factor_tmp = k_factor_vec(i);
+    pss_from_frame_start = 0;
+    if (cp_type == cp_type_t::EXTENDED) {
+      pss_from_frame_start = k_factor_tmp*( 1920 + 2*(128+32) );
+    } else if (cp_type == cp_type_t::NORMAL) {
+      pss_from_frame_start = k_factor_tmp*( 1920 + 2*(128+9) + 1 );
+    } else {
+      ABORT(-1);
+    }
+
+    pss_sp = frame_start + pss_from_frame_start;
+
+    while ( (pss_sp+137)<=(len-1)  ) {
+
+      pss_sp = pss_sp + k_factor_tmp*5*1920;
+    }
+  }
+
+  return(freq_new);
+}
+
 // Perform FOE using only the PSS and SSS.
 // The PSS correlation peak gives us the frequency offset within 2.5kHz.
 // The PSS/SSS can be used to estimate the frequency offset within a
 // much finer resolution.
 Cell pss_sss_foe(
-  const Cell & cell_in,
+  Cell & cell_in,
   const cvec & capbuf,
   const double & fc_requested,
   const double & fc_programmed,
@@ -2917,12 +2958,31 @@ Cell pss_sss_foe(
   const bool & sampling_carrier_twist,
   const int & tdd_flag
 ) {
+
+  vec k_factor_vec(4);
   double k_factor;
   if (sampling_carrier_twist){
 //    k_factor=(fc_requested-cell_in.freq)/fc_programmed;
     k_factor=(fc_programmed-cell_in.freq)/fc_programmed;
+    k_factor_vec(0) = (fc_programmed-cell_in.freq+3e3)/fc_programmed;
+    k_factor_vec(1) = (fc_programmed-cell_in.freq+1e3)/fc_programmed;
+    k_factor_vec(2) = (fc_programmed-cell_in.freq-1e3)/fc_programmed;
+    k_factor_vec(3) = (fc_programmed-cell_in.freq-3e3)/fc_programmed;
   } else {
     k_factor = cell_in.k_factor;
+    k_factor_vec(0) = k_factor;
+    k_factor_vec(1) = k_factor;
+    k_factor_vec(2) = k_factor;
+    k_factor_vec(3) = k_factor;
+  }
+
+  uint16 k_factor_idx;
+  if (tdd_flag == 1) {
+    cell_in.freq = refine_fo(capbuf, cell_in.cp_type, cell_in.freq, cell_in.frame_start, k_factor_vec, k_factor_idx);
+  }
+
+  if (sampling_carrier_twist){
+    k_factor = k_factor_vec(k_factor_idx);
   }
 
   // Determine where we can find both PSS and SSS

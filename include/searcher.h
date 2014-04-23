@@ -255,7 +255,7 @@ Cell sss_detect(
 
 // Perform FOE based only on the PSS and SSS
 Cell pss_sss_foe(
-  const Cell & cell_in,
+  Cell & cell_in,
   const itpp::cvec & capbuf,
   const double & fc_requested,
   const double & fc_programmed,
