@@ -2907,12 +2907,15 @@ Cell sss_detect(
 double refine_fo(
   const cvec & capbuf,
   const cp_type_t::cp_type_t & cp_type,
+  const int8 n_id_2,
   const double & freq,
+  const double & fs,
   const double & frame_start,
   const vec & k_factor_vec,
-  uint16 & k_factor_idx
+  int & k_factor_idx
 ) {
   double freq_new = freq;
+  uint16 len_pss = length(ROM_TABLES.pss_td[0]);
 
   vec fo_set(4);
   fo_set(0) = freq-3e3;
@@ -2921,11 +2924,15 @@ double refine_fo(
   fo_set(3) = freq+3e3;
 
   uint32 len = length(capbuf);
-  double k_factor_tmp, pss_from_frame_start, pss_sp;
+  double k_factor_tmp, pss_from_frame_start, pss_sp, corr_tmp;
+  uint16 pss_count;
+  uint32 pss_idx;
+  cvec chn_tmp(len_pss);
+  cvec pss_fo(len_pss);
 
+  vec corr_val(4);
   for (uint16 i=0; i<4; i++) {
     k_factor_tmp = k_factor_vec(i);
-    pss_from_frame_start = 0;
     if (cp_type == cp_type_t::EXTENDED) {
       pss_from_frame_start = k_factor_tmp*( 1920 + 2*(128+32) );
     } else if (cp_type == cp_type_t::NORMAL) {
@@ -2936,11 +2943,30 @@ double refine_fo(
 
     pss_sp = frame_start + pss_from_frame_start;
 
-    while ( (pss_sp+137)<=(len-1)  ) {
+    pss_fo = ROM_TABLES.pss_td[n_id_2];
+    pss_fo = fshift(pss_fo,fo_set(i),fs);
+    pss_fo = conj(pss_fo);
+
+    corr_val(i) = 0;
+    pss_count = 0;
+    while ( (pss_sp+len_pss)<=(len-1)  ) {
+      pss_idx = round_i(pss_sp);
+      chn_tmp = capbuf(pss_idx, (pss_idx+len_pss-1));
+      corr_tmp = abs( sum(elem_mult(chn_tmp, pss_fo)) );
+      corr_val(i) = corr_val(i) + corr_tmp;
+      pss_count = pss_count + 1;
+
+//      if (pss_count == 1) {
+//        cout << angle(elem_mult(chn_tmp, pss_fo)) << "\n";
+//      }
 
       pss_sp = pss_sp + k_factor_tmp*5*1920;
     }
+    corr_val(i) = corr_val(i)/(double)pss_count;
   }
+//  cout << corr_val << "\n";
+  max(corr_val, k_factor_idx);
+  freq_new = fo_set(k_factor_idx);
 
   return(freq_new);
 }
@@ -2976,14 +3002,14 @@ Cell pss_sss_foe(
     k_factor_vec(3) = k_factor;
   }
 
-  uint16 k_factor_idx;
-  if (tdd_flag == 1) {
-    cell_in.freq = refine_fo(capbuf, cell_in.cp_type, cell_in.freq, cell_in.frame_start, k_factor_vec, k_factor_idx);
-  }
-
-  if (sampling_carrier_twist){
-    k_factor = k_factor_vec(k_factor_idx);
-  }
+//  int k_factor_idx;
+//  if (tdd_flag == 1) {
+//    cell_in.freq = refine_fo(capbuf, cell_in.cp_type, cell_in.n_id_2, cell_in.freq, fs_programmed, cell_in.frame_start, k_factor_vec, k_factor_idx);
+//  }
+//
+//  if (sampling_carrier_twist){
+//    k_factor = k_factor_vec(k_factor_idx);
+//  }
 
   // Determine where we can find both PSS and SSS
   uint16 pss_sss_dist;
