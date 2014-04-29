@@ -609,7 +609,7 @@ int config_hackrf(
   double & fs_programmed
 ) {
 
-  unsigned int lna_gain=40; // default value
+  unsigned int lna_gain=32; // default value
   unsigned int vga_gain=40; // default value
 
   int result = hackrf_init();
