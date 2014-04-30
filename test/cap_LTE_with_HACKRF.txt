@@ -1,0 +1,32 @@
+~/git/hackrf/host/build/hackrf-tools/src/hackrf_transfer -s 20000000 -f 2360000000 -l 40 -g 40 -b 20000000 -n 20000000 -r f2360_s20_bw20_1s_hackrf_bda.bin
+
+~/git/hackrf/host/build/hackrf-tools/src/hackrf_transfer -s 1920000 -f 2360000000 -l 40 -g 40 -b 1200000 -n 1920000 -r f2360_s1.92_bw1.2_1s_hackrf_bda.bin
+
+~/git/hackrf/host/build/hackrf-tools/src/hackrf_transfer -s 1920000 -f 2585000000 -l 40 -g 40 -b 1200000 -n 1920000 -r f2585_s1.92_bw1.2_1s_hackrf_bda.bin
+
+~/git/hackrf/host/build/hackrf-tools/src/hackrf_transfer -s 1920000 -f 1890000000 -l 32 -g 30 -b 1200000 -n 1920000 -r f1890_s1.92_bw1.2_1s_hackrf_bda.bin
+
+~/git/hackrf/host/build/hackrf-tools/src/hackrf_transfer -s 15360000 -f 1860000000 -l 32 -g 34 -b 10000000 -n 15360000 -r f1860_s15.36_bw10_l32_g34_1s.bin
+
+~/git/hackrf/host/build/hackrf-tools/src/hackrf_transfer -s 15360000 -f 1890000000 -l 32 -g 22 -b 10000000 -n 15360000 -r f1890_s15.36_bw10_l32_g22_1s.bin
+
+
+~/git/hackrf/host/build/hackrf-tools/src/hackrf_transfer -s 15360000 -f 1860000000 -l 32 -g 40 -b 10000000 -n 15360000 -r f1860_s15.36_bw10_l32_g40_1s.bin
+
+~/git/hackrf/host/build/hackrf-tools/src/hackrf_transfer -s 15360000 -f 1890000000 -l 32 -g 40 -b 10000000 -n 15360000 -r f1890_s15.36_bw10_l32_g40_1s.bin
+
+
+~/git/hackrf/host/build/hackrf-tools/src/hackrf_transfer -s 15360000 -f 1860000000 -l 40 -g 40 -b 10000000 -n 15360000 -r f1860_s15.36_bw10_l40_g40_1s.bin
+
+~/git/hackrf/host/build/hackrf-tools/src/hackrf_transfer -s 15360000 -f 1860000000 -l 40 -g 32 -b 10000000 -n 15360000 -r f1860_s15.36_bw10_l40_g32_1s.bin
+
+~/git/hackrf/host/build/hackrf-tools/src/hackrf_transfer -s 15360000 -f 1860000000 -l 24 -g 40 -b 10000000 -n 15360000 -r f1860_s15.36_bw10_l24_g40_1s.bin
+
+~/git/hackrf/host/build/hackrf-tools/src/hackrf_transfer -s 15360000 -f 1860000000 -l 32 -g 36 -b 10000000 -n 15360000 -r f1860_s15.36_bw10_l32_g36_1s.bin
+
+~/git/hackrf/host/build/hackrf-tools/src/hackrf_transfer -s 15360000 -f 1890000000 -l 32 -g 32 -b 10000000 -n 15360000 -r f1890_s15.36_bw10_l32_g32_1s.bin
+
+~/git/hackrf/host/build/hackrf-tools/src/hackrf_transfer -s 15360000 -f 1890000000 -l 32 -g 34 -b 10000000 -n 15360000 -r f1890_s15.36_bw10_l32_g34_1s.bin
+
+~/git/hackrf/host/build/hackrf-tools/src/hackrf_transfer -s 15360000 -f 1890000000 -l 32 -g 36 -b 10000000 -n 15360000 -r f1890_s15.36_bw10_l32_g36_1s.bin
+
