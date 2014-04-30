@@ -2914,6 +2914,14 @@ double refine_fo(
   const vec & k_factor_vec,
   int & k_factor_idx
 ) {
+
+//  cout << cp_type << "\n";
+//  cout << n_id_2 << "\n";
+//  cout << freq << "\n";
+//  cout << fs << "\n";
+//  cout << frame_start << "\n";
+//  cout << k_factor_vec << "\n";
+
   double freq_new = freq;
   uint16 len_pss = length(ROM_TABLES.pss_td[0]);
 
@@ -2929,6 +2937,7 @@ double refine_fo(
   uint32 pss_idx;
   cvec chn_tmp(len_pss);
   cvec pss_fo(len_pss);
+  cvec tmp_val(1);
 
   vec corr_val(4);
   for (uint16 i=0; i<4; i++) {
@@ -2941,7 +2950,7 @@ double refine_fo(
       ABORT(-1);
     }
 
-    pss_sp = frame_start + pss_from_frame_start;
+    pss_sp = frame_start + pss_from_frame_start + 3 - 1;
 
     pss_fo = ROM_TABLES.pss_td[n_id_2];
     pss_fo = fshift(pss_fo,fo_set(i),fs);
@@ -2949,17 +2958,25 @@ double refine_fo(
 
     corr_val(i) = 0;
     pss_count = 0;
-    while ( (pss_sp+len_pss)<=(len-1)  ) {
+    while ( (pss_sp+len_pss+1)<=(len-1)  ) {
       pss_idx = round_i(pss_sp);
+
       chn_tmp = capbuf(pss_idx, (pss_idx+len_pss-1));
-      corr_tmp = abs( sum(elem_mult(chn_tmp, pss_fo)) );
+      tmp_val = sum(elem_mult(chn_tmp, pss_fo));
+      corr_tmp = real( tmp_val*conj(tmp_val) );
       corr_val(i) = corr_val(i) + corr_tmp;
+
+      chn_tmp = capbuf(pss_idx+1, (pss_idx+1+len_pss-1));
+      tmp_val = sum(elem_mult(chn_tmp, pss_fo));
+      corr_tmp = real( tmp_val*conj(tmp_val) );
+      corr_val(i) = corr_val(i) + corr_tmp;
+
+      chn_tmp = capbuf(pss_idx-1, (pss_idx-1+len_pss-1));
+      tmp_val = sum(elem_mult(chn_tmp, pss_fo));
+      corr_tmp = real( tmp_val*conj(tmp_val) );
+      corr_val(i) = corr_val(i) + corr_tmp;
+
       pss_count = pss_count + 1;
-
-//      if (pss_count == 1) {
-//        cout << angle(elem_mult(chn_tmp, pss_fo)) << "\n";
-//      }
-
       pss_sp = pss_sp + k_factor_tmp*5*1920;
     }
     corr_val(i) = corr_val(i)/(double)pss_count;
@@ -2968,6 +2985,8 @@ double refine_fo(
   max(corr_val, k_factor_idx);
   freq_new = fo_set(k_factor_idx);
 
+  DBG( cout << "refine_fo corr_val " << corr_val << "\n"; );
+  DBG( cout << "fo refined from " << freq <<  " to " <<  freq_new << "\n"; );
   return(freq_new);
 }
 
@@ -3002,14 +3021,11 @@ Cell pss_sss_foe(
     k_factor_vec(3) = k_factor;
   }
 
-//  int k_factor_idx;
-//  if (tdd_flag == 1) {
-//    cell_in.freq = refine_fo(capbuf, cell_in.cp_type, cell_in.n_id_2, cell_in.freq, fs_programmed, cell_in.frame_start, k_factor_vec, k_factor_idx);
-//  }
-//
-//  if (sampling_carrier_twist){
-//    k_factor = k_factor_vec(k_factor_idx);
-//  }
+  int k_factor_idx;
+  if (tdd_flag == 1) {
+    cell_in.freq = refine_fo(capbuf, cell_in.cp_type, cell_in.n_id_2, cell_in.freq, fs_programmed, cell_in.frame_start, k_factor_vec, k_factor_idx);
+    k_factor = k_factor_vec(k_factor_idx);
+  }
 
   // Determine where we can find both PSS and SSS
   uint16 pss_sss_dist;
