@@ -15,24 +15,18 @@
 clear all;
 close all;
 
-% fc = 1890e6;
-fc = 1860e6;
+fc = 1890e6;
+% fc = 1860e6;
 
 % ------------------------------------------------------------------------------------
 % % bin file captured by hackrf_transfer  
-% filename = '../test/f1860_s15.36_bw10_l32_g34_1s.bin'; % FDD 20MHz
-% filename = '../test/f1860_s15.36_bw10_l32_g40_1s.bin'; % FDD 20MHZ
-% filename = '../test/f1860_s15.36_bw10_l24_g40_1s.bin'; % FDD 20MHZ
-% filename = '../test/f1860_s15.36_bw10_l40_g32_1s.bin'; % FDD 20MHZ
-% filename = '../test/f1860_s15.36_bw10_l40_g40_1s.bin'; % FDD 20MHZ
-
-% filename = '../test/f1890_s15.36_bw10_l32_g34_1s.bin'; % TDD 20MHz
-% filename = '../test/f1890_s15.36_bw10_l32_g32_1s.bin'; % TDD 20MHz
-% filename = '../test/f1890_s15.36_bw10_l32_g40_1s.bin'; % TDD 20MHz
-% filename = '../test/f1890_s15.36_bw10_l32_g22_1s.bin'; % TDD 20MHz
-
-filename = '../test/f1860_s15.36_bw10_l32_g36_1s.bin'; % FDD 20MHz
-% filename = '../test/f1890_s15.36_bw10_l32_g36_1s.bin'; % TDD 20MHz
+% filename = '../test/f1860_s20_bw20_l40_g40_1s_hackrf_home.bin';
+% filename = '../test/f1890_s20_bw20_1s_hackrf_bda.bin';
+% filename = '../test/f1890_s20_bw20_l32_g40_1s_hackrf_bda.bin';
+% filename = '../test/f1890_s20_bw20_l32_g40_1s_hackrf_home.bin';
+% filename = '../test/f2360_s20_bw20_1s_hackrf_bda.bin';
+% filename = '../test/f2360_s20_bw20_l32_g40_1s_hackrf_bda.bin';
+filename = '../test/f2585_s20_bw20_l40_g40_1s_hackrf_bda.bin';
 
 sampling_carrier_twist = 0; % ATTENTION! If this is 1, make sure fc is aligned with bin file!!!
 

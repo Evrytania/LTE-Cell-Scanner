@@ -22,10 +22,17 @@ function peak_out=pss_sss_foe(peak,capbuf,fc,sampling_carrier_twist,tdd_flag)
 % fc*k_factor is the receiver's actual RX center frequency.
 if sampling_carrier_twist==1
     k_factor=(fc-peak.freq)/fc;
+    k_factor_vec = (fc-peak.freq+(3:-2:-3).*1e3)./fc;
 % else
 %     k_factor=1;
 else
     k_factor = peak.k_factor;
+    k_factor_vec = k_factor.*ones(1, 4);
+end
+
+if tdd_flag == 1
+    [peak.freq, k_factor_idx] = refine_fo(capbuf, peak.cp_type, peak.n_id_2, peak.freq, 1920000, peak.frame_start, k_factor_vec);
+    k_factor = k_factor_vec(k_factor_idx);
 end
 
 %%%%%%
