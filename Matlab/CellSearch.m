@@ -41,9 +41,9 @@ sampling_rate_pbch = sampling_rate/16; % LTE spec. 30.72MHz/16.
 num_subframe_per_radioframe = 10;
 len_time_subframe = 1e-3; % 1ms. LTE spec
 num_sample_per_radioframe = num_subframe_per_radioframe*len_time_subframe*sampling_rate_pbch;
-num_sample = num_radioframe*num_sample_per_radioframe;
+num_sample_pbch = num_radioframe*num_sample_per_radioframe;
 
-coef_pbch = fir1(158, (0.18e6*6+150e3)/raw_sampling_rate); %freqz(coef, 1, 1024);
+coef_pbch = fir1(254, (0.18e6*6+150e3)/raw_sampling_rate); %freqz(coef_pbch, 1, 1024);
 
 DS_COMB_ARM = 2;
 FS_LTE = 30720000;
@@ -63,25 +63,23 @@ peaks_store = cell(1,loop_size);
 detect_flag_store = cell(1,loop_size);
 tdd_flags_store = cell(1,loop_size);
 
-r_all = get_signal_from_bin(filename, inf);
-plot(real(r_all)); drawnow;
+r_raw = get_signal_from_bin(filename, inf);
+plot(real(r_raw)); drawnow;
 
-r_all = filter_wo_tail(r_all, coef_pbch, raw_sampling_rate/sampling_rate_pbch);
+r_pbch = filter_wo_tail(r_raw, coef_pbch, sampling_rate_pbch/raw_sampling_rate);
 
 for try_idx = 1 : num_try
     disp(['Try idx ' num2str(try_idx)]);
 
-    sp = (try_idx-1)*num_sample + 1;
-    ep = sp + num_sample - 1;
-    r = r_all(sp:ep);
+    sp = (try_idx-1)*num_sample_pbch + 1;
+    ep = sp + num_sample_pbch - 1;
+    capbuf_pbch = r_pbch(sp:ep).';
 
-    disp(['Input averaged abs: ' num2str( mean(abs([real(r); imag(r)])) )]);
+    disp(['Input averaged abs: ' num2str( mean(abs([real(capbuf_pbch) imag(capbuf_pbch)])) )]);
     disp(['Processing  at ' filename]);
 
-    capbuf = r.';
-
     disp('sampling_ppm_f_search_set_by_pss: try ... ... ');
-    [period_ppm, dynamic_f_search_set, xc] = sampling_ppm_f_search_set_by_pss(r, f_search_set, pss_fo_set, sampling_carrier_twist);
+    [period_ppm, dynamic_f_search_set, xc] = sampling_ppm_f_search_set_by_pss(capbuf_pbch.', f_search_set, pss_fo_set, sampling_carrier_twist);
     if sampling_carrier_twist==0
         if period_ppm == inf
             disp('No valid PSS is found at pre-proc phase! Please try again.');
@@ -98,7 +96,7 @@ for try_idx = 1 : num_try
             col_idx = i:length(k_factor_set):3*length(k_factor_set);
 
             [xc_incoherent_collapsed_pow, xc_incoherent_collapsed_frq, n_comb_xc, n_comb_sp, xc_incoherent_single, xc_incoherent, sp_incoherent, sp]= ...
-            xcorr_pss(capbuf,dynamic_f_search_set(i),DS_COMB_ARM,fc,sampling_carrier_twist,k_factor_set(i), xc(:,:,i));
+            xcorr_pss(capbuf_pbch,dynamic_f_search_set(i),DS_COMB_ARM,fc,sampling_carrier_twist,k_factor_set(i), xc(:,:,i));
 
             R_th1=chi2inv(1-(10.0^(-thresh1_n_nines)), 2*n_comb_xc*(2*DS_COMB_ARM+1));
             Z_th1=R_th1*sp_incoherent/rx_cutoff/137/2/n_comb_xc/(2*DS_COMB_ARM+1);
@@ -108,7 +106,7 @@ for try_idx = 1 : num_try
         end
     else
         [xc_incoherent_collapsed_pow, xc_incoherent_collapsed_frq, n_comb_xc, n_comb_sp, xc_incoherent_single, xc_incoherent, sp_incoherent, sp]= ...
-        xcorr_pss(capbuf,dynamic_f_search_set,DS_COMB_ARM,fc,sampling_carrier_twist,NaN, xc);
+        xcorr_pss(capbuf_pbch,dynamic_f_search_set,DS_COMB_ARM,fc,sampling_carrier_twist,NaN, xc);
 
         R_th1=chi2inv(1-(10.0^(-thresh1_n_nines)), 2*n_comb_xc*(2*DS_COMB_ARM+1));
         Z_th1=R_th1*sp_incoherent/rx_cutoff/137/2/n_comb_xc/(2*DS_COMB_ARM+1);
@@ -120,7 +118,7 @@ for try_idx = 1 : num_try
     tdd_flags = zeros(1, length(peaks));
     for i=1:length(peaks)
         for tdd_flag=0:1
-            peak = sss_detect(peaks(i),capbuf,THRESH2_N_SIGMA,fc,sampling_carrier_twist,tdd_flag);
+            peak = sss_detect(peaks(i),capbuf_pbch,THRESH2_N_SIGMA,fc,sampling_carrier_twist,tdd_flag);
             if ~isnan( peak.n_id_1 )
                 break;
             end
@@ -128,8 +126,8 @@ for try_idx = 1 : num_try
         if isnan( peak.n_id_1 )
             continue;
         end
-        peak=pss_sss_foe(peak,capbuf,fc,sampling_carrier_twist,tdd_flag);
-        [tfg, tfg_timestamp]=extract_tfg(peak,capbuf,fc,sampling_carrier_twist);
+        peak=pss_sss_foe(peak,capbuf_pbch,fc,sampling_carrier_twist,tdd_flag);
+        [tfg, tfg_timestamp]=extract_tfg(peak,capbuf_pbch,fc,sampling_carrier_twist);
         [tfg_comp, tfg_comp_timestamp, peak]=tfoec(peak,tfg,tfg_timestamp,fc,sampling_carrier_twist);
         peak=decode_mib(peak,tfg_comp);
         if isnan( peak.n_rb_dl)
