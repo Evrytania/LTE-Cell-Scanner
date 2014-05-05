@@ -15,15 +15,19 @@
 clear all;
 close all;
 
-fc = 1890e6;
+% fc = 1890e6;
 % fc = 1860e6;
+fc = 2360e6;
 
 % ------------------------------------------------------------------------------------
 % % bin file captured by hackrf_transfer  
-filename = '../test/f1890_s19.2_bw20_1s_hackrf_bda.bin';
-% filename = '../test/f2360_s19.2_bw20_1s_hackrf_bda.bin';
 % filename = '../test/f2585_s19.2_bw20_1s_hackrf_bda.bin';
 % filename = '../test/f2585_s19.2_bw20_1s_hackrf_bda1.bin';
+% filename = '../test/f1860_s19.2_bw20_1s_hackrf_home1.bin';
+% filename = '../test/f1860_s19.2_bw20_1s_hackrf_home.bin';
+% filename = '../test/f1890_s19.2_bw20_1s_hackrf_home.bin';
+% filename = '../test/f1890_s19.2_bw20_1s_hackrf_home1.bin';
+filename = '../test/f2360_s19.2_bw20_1s_hackrf_bda.bin';
 
 sampling_carrier_twist = 0; % ATTENTION! If this is 1, make sure fc is aligned with bin file!!!
 
