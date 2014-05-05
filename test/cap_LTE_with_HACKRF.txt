@@ -1,3 +1,11 @@
+~/git/hackrf/host/build/hackrf-tools/src/hackrf_transfer -s 19200000 -f 1890000000 -l 40 -g 40 -b 18500000 -n 19200000 -r f1890_s19.2_bw18.5_1s_hackrf_bda.bin
+
+~/git/hackrf/host/build/hackrf-tools/src/hackrf_transfer -s 19200000 -f 2360000000 -l 40 -g 40 -b 18500000 -n 19200000 -r f2360_s19.2_bw18.5_1s_hackrf_bda.bin
+
+~/git/hackrf/host/build/hackrf-tools/src/hackrf_transfer -s 19200000 -f 2585000000 -l 40 -g 40 -b 18500000 -n 19200000 -r f2585_s19.2_bw18.5_1s_hackrf_bda.bin
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------
+
 ~/git/hackrf/host/build/hackrf-tools/src/hackrf_transfer -s 20000000 -f 1890000000 -l 40 -g 40 -b 20000000 -n 20000000 -r f1890_s20_bw20_1s_hackrf_bda.bin
 
 ~/git/hackrf/host/build/hackrf-tools/src/hackrf_transfer -s 20000000 -f 2360000000 -l 40 -g 40 -b 20000000 -n 20000000 -r f2360_s20_bw20_1s_hackrf_bda.bin
