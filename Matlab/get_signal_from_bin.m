@@ -20,3 +20,7 @@ if num_sample_read~=inf && count ~= (num_sample_read*2)
 end
 
 s = s(1:2:end) + 1i.*s(2:2:end);
+
+% len_s = length(s);
+% 
+% s = s((len_s/2)+1:end);

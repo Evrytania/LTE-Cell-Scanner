@@ -20,26 +20,26 @@ fc = 1890e6;
 
 % ------------------------------------------------------------------------------------
 % % bin file captured by hackrf_transfer  
-% filename = '../test/f1860_s20_bw20_l40_g40_1s_hackrf_home.bin';
-% filename = '../test/f1890_s20_bw20_1s_hackrf_bda.bin';
-% filename = '../test/f1890_s20_bw20_l32_g40_1s_hackrf_bda.bin';
-% filename = '../test/f1890_s20_bw20_l32_g40_1s_hackrf_home.bin';
-% filename = '../test/f2360_s20_bw20_1s_hackrf_bda.bin';
-% filename = '../test/f2360_s20_bw20_l32_g40_1s_hackrf_bda.bin';
-filename = '../test/f2585_s20_bw20_l40_g40_1s_hackrf_bda.bin';
+filename = '../test/f1890_s19.2_bw20_1s_hackrf_bda.bin';
+% filename = '../test/f2360_s19.2_bw20_1s_hackrf_bda.bin';
+% filename = '../test/f2585_s19.2_bw20_1s_hackrf_bda.bin';
+% filename = '../test/f2585_s19.2_bw20_1s_hackrf_bda1.bin';
 
 sampling_carrier_twist = 0; % ATTENTION! If this is 1, make sure fc is aligned with bin file!!!
 
 num_try = 10; % how many times we try for each frequency or file
 num_radioframe = 8; % each radio frame length 10ms. MIB period is 4 radio frame
-sampling_rate = 1.92e6; % LTE spec. 30.72MHz/16.
+
+raw_sampling_rate = 19.2e6; % constrained by hackrf board
+sampling_rate = 30.72e6;
+sampling_rate_pbch = sampling_rate/16; % LTE spec. 30.72MHz/16.
+
 num_subframe_per_radioframe = 10;
 len_time_subframe = 1e-3; % 1ms. LTE spec
-num_sample_per_radioframe = num_subframe_per_radioframe*len_time_subframe*sampling_rate;
+num_sample_per_radioframe = num_subframe_per_radioframe*len_time_subframe*sampling_rate_pbch;
 num_sample = num_radioframe*num_sample_per_radioframe;
 
-coef_10M = fir1(158, ((9e6+400e3))/15.36e6); %freqz(coef, 1, 1024); %10M channel filter. 
-coef_pbch = fir1(158, (0.18e6*6+150e3)/15.36e6); %freqz(coef, 1, 1024);
+coef_pbch = fir1(158, (0.18e6*6+150e3)/raw_sampling_rate); %freqz(coef, 1, 1024);
 
 DS_COMB_ARM = 2;
 FS_LTE = 30720000;
@@ -60,11 +60,9 @@ detect_flag_store = cell(1,loop_size);
 tdd_flags_store = cell(1,loop_size);
 
 r_all = get_signal_from_bin(filename, inf);
-
-r_all = filter_wo_tail(r_all, coef_10M, 1);
-r_all = filter_wo_tail(r_all, coef_pbch, 15.36/1.92);
-
 plot(real(r_all)); drawnow;
+
+r_all = filter_wo_tail(r_all, coef_pbch, raw_sampling_rate/sampling_rate_pbch);
 
 for try_idx = 1 : num_try
     disp(['Try idx ' num2str(try_idx)]);

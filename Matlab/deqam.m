@@ -106,6 +106,14 @@ end
 % would be received if the actual transmitted symbol had been one of the
 % constellation points.
 const_prob=exp(absx2(repmat(map_flat,n_sym,1)-repmat(transpose(syms),1,2^bps))./repmat(transpose(-np),1,2^bps));
+
+% to avoid NaN
+for i=1: (2^bps)
+    a = const_prob(:,i);
+    a(a<1e-20) = 1e-20;
+    const_prob(:,i) = a;
+end
+
 % Normalize so that each row sums to 1.
 const_prob=const_prob./repmat(sum(const_prob,2),1,2^bps);
 
