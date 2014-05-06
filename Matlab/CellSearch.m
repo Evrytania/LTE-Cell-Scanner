@@ -125,13 +125,14 @@ for try_idx = 1 : num_try
         peaks=peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,dynamic_f_search_set,fc, sampling_carrier_twist,NaN);
     end
 
-    tdd_flags = [zeros(1, length(peaks)), ones(1, length(peaks))];
-    peaks = [peaks, peaks]; % first half for tdd_flag=0; second half for tdd_flag=1
+    tdd_flags = kron(ones(1, length(peaks)), [0 1]); % even: tdd_flag 0; odd : tdd_flag 1
+    peaks_expand(2: 2 : (2*length(peaks))) = peaks;
+    peaks_expand(1: 2 : (2*length(peaks))) = peaks;
     
-    detect_flag = zeros(1, length(peaks));
-    for i=1:length(peaks)
+    detect_flag = zeros(1, length(peaks_expand));
+    for i=1:length(peaks_expand)
         tdd_flag = tdd_flags(i);
-        peak = sss_detect(peaks(i),capbuf_pbch,THRESH2_N_SIGMA,fc,sampling_carrier_twist,tdd_flag);
+        peak = sss_detect(peaks_expand(i),capbuf_pbch,THRESH2_N_SIGMA,fc,sampling_carrier_twist,tdd_flag);
         if ~isnan( peak.n_id_1 )
             peak=pss_sss_foe(peak,capbuf_pbch,fc,sampling_carrier_twist,tdd_flag);
             [tfg, tfg_timestamp]=extract_tfg(peak,capbuf_pbch,fc,sampling_carrier_twist);
@@ -150,11 +151,11 @@ for try_idx = 1 : num_try
             disp(['    PSS  ID: ' num2str(peak.n_id_2+1)]);
             disp(['    RX power level: ' num2str(10*log10(peak.pow))]);
             disp(['    residual frequency offset: ' num2str(peak.freq_superfine)]);
-            peaks(i) = peak;
+            peaks_expand(i) = peak;
             detect_flag(i) = 1;
         end
     end
-    peaks_store{freq_idx} = peaks;
+    peaks_store{freq_idx} = peaks_expand;
     detect_flag_store{freq_idx} = detect_flag;
     tdd_flags_store{freq_idx} = tdd_flags;
     if sum(detect_flag)==0
