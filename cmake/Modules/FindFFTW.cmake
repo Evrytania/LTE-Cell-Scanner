@@ -20,7 +20,9 @@ FIND_LIBRARY(FFTW_LIBRARY
   NAMES fftw3
   PATHS ${FFTW_DIR}/libs
   "${FFTW_DIR}\\win32\\lib"
+  /usr/lib/arm-linux-gnueabihf
   /usr/lib/x86_64-linux-gnu
+  /usr/lib/i386-linux-gnu
   /usr/pkgs64/lib
   /usr/lib64
   /usr/lib
