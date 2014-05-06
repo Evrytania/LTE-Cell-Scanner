@@ -70,6 +70,8 @@ void print_usage() {
   cout << "      specify which attached device to use: 0<N<1000 select RTLSDR; N>=1000 select HACKRF" << endl;
   cout << "    -a --opencl-platform N" << endl;
   cout << "      specify which OpenCL platform to use (default: 0)" << endl;
+  cout << "    -g --gain G" << endl;
+  cout << "      specify gain G to hardware (rtl default 0(auto); hackrf default 40)" << endl;
   cout << "    -j --opencl-device N" << endl;
   cout << "      specify which OpenCL device of selected platform to use (default: 0)" << endl;
   cout << "    -w --filter-workitem N" << endl;
@@ -145,7 +147,8 @@ void parse_commandline(
   uint16 & filter_workitem,
   uint16 & xcorr_workitem,
   uint16 & num_reserve,
-  uint16 & num_loop
+  uint16 & num_loop,
+  int16  & gain
 ) {
   // Default values
   freq_start=-1;
@@ -164,6 +167,7 @@ void parse_commandline(
   xcorr_workitem = 2;
   num_reserve = 1;
   num_loop = 0;
+  gain = -9999;
 
   while (1) {
     static struct option long_options[] = {
@@ -183,6 +187,7 @@ void parse_commandline(
       {"data-dir",     required_argument, 0, 'd'},
       {"device-index", required_argument, 0, 'i'},
       {"opencl-platform", required_argument, 0, 'a'},
+      {"gain",         required_argument, 0, 'g'},
       {"opencl-device", required_argument, 0, 'j'},
       {"filter-workitem", required_argument, 0, 'w'},
       {"xcorr-workitem", required_argument, 0, 'u'},
@@ -192,7 +197,7 @@ void parse_commandline(
     };
     /* getopt_long stores the option index here. */
     int option_index = 0;
-    int c = getopt_long (argc, argv, "hvbs:e:n:tp:c:z:y:rld:i:a:j:w:u:m:k:",
+    int c = getopt_long (argc, argv, "hvbs:e:n:tp:c:z:y:rld:i:a:g:j:w:u:m:k:",
                      long_options, &option_index);
 
     /* Detect the end of the options. */
@@ -316,6 +321,9 @@ void parse_commandline(
         break;
       case 'a':
         opencl_platform=strtol(optarg,&endp,10);
+        break;
+      case 'g':
+        gain=strtol(optarg,&endp,10);
         break;
       case 'j':
         opencl_device=strtol(optarg,&endp,10);
@@ -494,7 +502,8 @@ int config_usb(
   const int32 & device_index_cmdline,
   const double & fc,
   rtlsdr_dev_t *& dev,
-  double & fs_programmed
+  double & fs_programmed,
+  const int16 & gain
 ) {
   int32 device_index=device_index_cmdline;
 
@@ -556,11 +565,27 @@ int config_usb(
     sleep(1);
   }
 
-  // Turn on AGC
-  if (rtlsdr_set_tuner_gain_mode(dev,0)<0) {
-    cerr << "Error: unable to enter AGC mode" << endl;
-//    ABORT(-1);
-    return(1);
+  int gain_tmp = gain;
+  if (gain == -9999)
+    gain_tmp = 0;
+
+  if (gain_tmp==0) {
+    // Turn on AGC
+    if (rtlsdr_set_tuner_gain_mode(dev,0)<0) {
+      cerr << "Error: unable to enter AGC mode" << endl;
+  //    ABORT(-1);
+      return(1);
+    }
+  } else {
+    if (rtlsdr_set_tuner_gain_mode(dev,1)<0) {
+      cerr << "Error: unable to enter manual gain mode" << endl;
+      return(1);
+    }
+
+    if (rtlsdr_set_tuner_gain(dev, gain_tmp*10)<0) {
+      cerr << "Error: unable to rtlsdr_set_tuner_gain" << endl;
+      return(1);
+    }
   }
 
   // Reset the buffer
@@ -607,11 +632,14 @@ int config_hackrf(
   const int32 & device_index_cmdline,
   const double & fc,
   hackrf_device *& device,
-  double & fs_programmed
+  double & fs_programmed,
+  const int16 & gain
 ) {
 
-  unsigned int lna_gain=32; // default value
+  unsigned int lna_gain=40; // default value
   unsigned int vga_gain=40; // default value
+  if (gain!=-9999)
+    vga_gain = (gain/2)*2;
 
   int result = hackrf_init();
 	if( result != HACKRF_SUCCESS ) {
@@ -694,6 +722,7 @@ int main(
   int device_index;
   char record_bin_filename[256] = {0};
   char load_bin_filename[256] = {0};
+  int16  gain;
   uint16 opencl_platform;
   uint16 opencl_device;
   uint16 filter_workitem;
@@ -702,7 +731,7 @@ int main(
   uint16 num_loop; // it is not so useful
 
   // Get search parameters from user
-  parse_commandline(argc,argv,freq_start,freq_end,num_try,sampling_carrier_twist,ppm,correction,save_cap,use_recorded_data,data_dir,device_index, record_bin_filename, load_bin_filename,opencl_platform,opencl_device,filter_workitem,xcorr_workitem,num_reserve,num_loop);
+  parse_commandline(argc,argv,freq_start,freq_end,num_try,sampling_carrier_twist,ppm,correction,save_cap,use_recorded_data,data_dir,device_index, record_bin_filename, load_bin_filename,opencl_platform,opencl_device,filter_workitem,xcorr_workitem,num_reserve,num_loop,gain);
 
   // Open the USB device (if necessary).
   dev_type_t::dev_type_t dev_use = dev_type_t::UNKNOWN;
@@ -717,14 +746,14 @@ int main(
   if ( dongle_used && freq_start!=9999e6) {
 
     int rtlsdr_exist = 0;
-    if ( config_usb(sampling_carrier_twist,correction,device_index,freq_start,dev,fs_programmed) == 0 ) {
+    if ( config_usb(sampling_carrier_twist,correction,device_index,freq_start,dev,fs_programmed,gain) == 0 ) {
       rtlsdr_exist = 1;
       cout << "RTLSDR device FOUND!\n";
     }
 
     int hackrf_exist = 0;
     #ifdef HAVE_HACKRF
-      if ( config_hackrf(sampling_carrier_twist,correction,device_index,freq_start,hackrf_dev,fs_programmed) == 0 ) {
+      if ( config_hackrf(sampling_carrier_twist,correction,device_index,freq_start,hackrf_dev,fs_programmed,gain) == 0 ) {
         hackrf_exist = 1;
         cout << "HACKRF device FOUND!\n";
       }

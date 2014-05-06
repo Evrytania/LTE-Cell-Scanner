@@ -92,6 +92,8 @@ void print_usage() {
   cout << "      specify which attached RTLSDR dongle to use" << endl;
   cout << "    -a --opencl-platform N" << endl;
   cout << "      specify which OpenCL platform to use (default: 0)" << endl;
+  cout << "    -g --gain G" << endl;
+  cout << "      specify gain G to hardware (rtl default 0(auto); hackrf default 40)" << endl;
   cout << "    -j --opencl-device N" << endl;
   cout << "      specify which OpenCL device of selected platform to use (default: 0)" << endl;
   cout << "    -w --filter-workitem N" << endl;
@@ -175,7 +177,8 @@ void parse_commandline(
   uint16 & opencl_device,
   uint16 & filter_workitem,
   uint16 & xcorr_workitem,
-  uint16 & num_reserve
+  uint16 & num_reserve,
+  int16  & gain
 ) {
   // Default values
   fc=-1;
@@ -194,6 +197,7 @@ void parse_commandline(
   filter_workitem = 32;
   xcorr_workitem = 2;
   num_reserve = 1;
+  gain = -9999;
 
   while (1) {
     static struct option long_options[] = {
@@ -207,6 +211,7 @@ void parse_commandline(
       {"correction",   required_argument, 0, 'c'},
       {"device-index", required_argument, 0, 'i'},
       {"opencl-platform", required_argument, 0, 'a'},
+      {"gain", required_argument, 0, 'g'},
       {"opencl-device", required_argument, 0, 'j'},
       {"filter-workitem", required_argument, 0, 'w'},
       {"xcorr-workitem", required_argument, 0, 'u'},
@@ -293,6 +298,9 @@ void parse_commandline(
         break;
       case 'a':
         opencl_platform=strtol(optarg,&endp,10);
+        break;
+      case 'g':
+        gain=strtol(optarg,&endp,10);
         break;
       case 'j':
         opencl_device=strtol(optarg,&endp,10);
@@ -585,7 +593,8 @@ int config_usb(
   const int32 & device_index_cmdline,
   const double & fc,
   rtlsdr_dev_t *& dev,
-  double & fs_programmed
+  double & fs_programmed,
+  const int16 gain
 ) {
   int32 device_index=device_index_cmdline;
 
@@ -647,11 +656,27 @@ int config_usb(
     sleep(1);
   }
 
-  // Turn on AGC
-  if (rtlsdr_set_tuner_gain_mode(dev,0)<0) {
-    cerr << "Error: unable to enter AGC mode" << endl;
-//    ABORT(-1);
-    return(1);
+  int gain_tmp = gain;
+  if (gain == -9999)
+    gain_tmp = 0;
+
+  if (gain_tmp==0) {
+    // Turn on AGC
+    if (rtlsdr_set_tuner_gain_mode(dev,0)<0) {
+      cerr << "Error: unable to enter AGC mode" << endl;
+  //    ABORT(-1);
+      return(1);
+    }
+  } else {
+    if (rtlsdr_set_tuner_gain_mode(dev,1)<0) {
+      cerr << "Error: unable to enter manual gain mode" << endl;
+      return(1);
+    }
+
+    if (rtlsdr_set_tuner_gain(dev, gain_tmp*10)<0) {
+      cerr << "Error: unable to rtlsdr_set_tuner_gain" << endl;
+      return(1);
+    }
   }
 
   // Reset the buffer
@@ -698,10 +723,13 @@ int config_hackrf(
   const int32 & device_index_cmdline,
   const double & fc,
   hackrf_device *& device,
-  double & fs_programmed
+  double & fs_programmed,
+  const int16 & gain
 ) {
-  unsigned int lna_gain=32; // default value
+  unsigned int lna_gain=40; // default value
   unsigned int vga_gain=40; // default value
+  if (gain!=-9999)
+    vga_gain = (gain/2)*2;
 
   int result = hackrf_init();
 	if( result != HACKRF_SUCCESS ) {
@@ -1244,8 +1272,9 @@ int main(
   uint16 filter_workitem;
   uint16 xcorr_workitem;
   uint16 num_reserve;
+  int16 gain;
   // Get search parameters from the user
-  parse_commandline(argc,argv,fc_requested,ppm,correction,device_index,expert_mode,use_recorded_data,filename,repeat,drop_secs,rtl_sdr_format,noise_power,initial_sampling_carrier_twist,record_bin_filename,load_bin_filename,opencl_platform,opencl_device,filter_workitem,xcorr_workitem,num_reserve);
+  parse_commandline(argc,argv,fc_requested,ppm,correction,device_index,expert_mode,use_recorded_data,filename,repeat,drop_secs,rtl_sdr_format,noise_power,initial_sampling_carrier_twist,record_bin_filename,load_bin_filename,opencl_platform,opencl_device,filter_workitem,xcorr_workitem,num_reserve,gain);
 
   // Open the USB device.
   dev_type_t::dev_type_t dev_use = dev_type_t::UNKNOWN;
@@ -1255,14 +1284,14 @@ int main(
   double fs_programmed;
   if ( (!use_recorded_data) && (strlen(load_bin_filename)==0) ) {
     int rtlsdr_exist = 0;
-    if ( config_usb(initial_sampling_carrier_twist,correction,device_index,fc_requested,dev,fs_programmed) == 0 ) {
+    if ( config_usb(initial_sampling_carrier_twist,correction,device_index,fc_requested,dev,fs_programmed,gain) == 0 ) {
       rtlsdr_exist = 1;
       cout << "RTLSDR device FOUND!\n";
     }
 
     int hackrf_exist = 0;
     #ifdef HAVE_HACKRF
-      if ( config_hackrf(initial_sampling_carrier_twist,correction,device_index,fc_requested,hackrf_dev,fs_programmed) == 0 ) {
+      if ( config_hackrf(initial_sampling_carrier_twist,correction,device_index,fc_requested,hackrf_dev,fs_programmed,gain) == 0 ) {
         hackrf_exist = 1;
         cout << "HACKRF device FOUND!\n";
       }
