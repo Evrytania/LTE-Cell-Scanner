@@ -108,6 +108,16 @@ Program will select presented hardware automatically when it runs.
 
 If both rtl-sdr and hackrf are presented, use "-i 1000" to force using hackrf, use "-i" in normal way to use rtl-sdr.
 
+6. ----------------------manual gain mode--------------------
+
+Use "-g X" to set gain value X to hardware.
+
+Default value for rtl-sdr dongle is 0, which means AGC on.
+
+Default value for hackrf is 40.
+
+If CellSearch reports like "input level: avg abs(real) 0.00594959 avg abs(imag) 0.00614887", where the numbers are far below 1, larger gain value should be considered.
+
 Original Readme of James Peroulas's LTE Cell Scanner / Tracker
 ========================================================================
 
