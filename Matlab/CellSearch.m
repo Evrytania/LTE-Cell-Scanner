@@ -44,6 +44,7 @@ num_sample_per_radioframe = num_subframe_per_radioframe*len_time_subframe*sampli
 num_sample_pbch = num_radioframe*num_sample_per_radioframe;
 
 coef_pbch = fir1(254, (0.18e6*6+150e3)/raw_sampling_rate); %freqz(coef_pbch, 1, 1024);
+coef_8x_up = fir1(254, 20e6/(raw_sampling_rate*8)); %freqz(coef_8x_up, 1, 1024);
 
 DS_COMB_ARM = 2;
 FS_LTE = 30720000;
@@ -63,10 +64,20 @@ peaks_store = cell(1,loop_size);
 detect_flag_store = cell(1,loop_size);
 tdd_flags_store = cell(1,loop_size);
 
-r_raw = get_signal_from_bin(filename, inf);
-plot(real(r_raw)); drawnow;
+if isempty(dir([filename(1:end-4) '.mat']))
+    r_raw = get_signal_from_bin(filename, inf);
+    r_raw = r_raw - mean(r_raw); % remove DC
 
-r_pbch = filter_wo_tail(r_raw, coef_pbch, sampling_rate_pbch/raw_sampling_rate);
+    r_pbch = filter_wo_tail(r_raw, coef_pbch.*5, sampling_rate_pbch/raw_sampling_rate);
+    r_20M = filter_wo_tail(r_raw, coef_8x_up.*8, 8);
+    r_20M = r_20M(1:5:end);
+    
+    save([filename(1:end-4) '.mat'], 'r_raw', 'r_pbch', 'r_20M');
+else
+    load([filename(1:end-4) '.mat']);
+end
+
+plot(real(r_raw)); drawnow;
 
 for try_idx = 1 : num_try
     disp(['Try idx ' num2str(try_idx)]);
@@ -114,38 +125,34 @@ for try_idx = 1 : num_try
         peaks=peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,dynamic_f_search_set,fc, sampling_carrier_twist,NaN);
     end
 
+    tdd_flags = [zeros(1, length(peaks)), ones(1, length(peaks))];
+    peaks = [peaks, peaks]; % first half for tdd_flag=0; second half for tdd_flag=1
+    
     detect_flag = zeros(1, length(peaks));
-    tdd_flags = zeros(1, length(peaks));
     for i=1:length(peaks)
-        for tdd_flag=0:1
-            peak = sss_detect(peaks(i),capbuf_pbch,THRESH2_N_SIGMA,fc,sampling_carrier_twist,tdd_flag);
-            if ~isnan( peak.n_id_1 )
-                break;
+        tdd_flag = tdd_flags(i);
+        peak = sss_detect(peaks(i),capbuf_pbch,THRESH2_N_SIGMA,fc,sampling_carrier_twist,tdd_flag);
+        if ~isnan( peak.n_id_1 )
+            peak=pss_sss_foe(peak,capbuf_pbch,fc,sampling_carrier_twist,tdd_flag);
+            [tfg, tfg_timestamp]=extract_tfg(peak,capbuf_pbch,fc,sampling_carrier_twist);
+            [tfg_comp, tfg_comp_timestamp, peak]=tfoec(peak,tfg,tfg_timestamp,fc,sampling_carrier_twist);
+            peak=decode_mib(peak,tfg_comp);
+            if isnan( peak.n_rb_dl)
+                continue;
             end
+            if tdd_flag == 1
+                disp('  Detected a TDD cell!');
+            else
+                disp('  Detected a FDD cell!');
+            end
+            disp(['  at ' filename]);
+            disp(['    cell ID: ' num2str(peak.n_id_cell)]);
+            disp(['    PSS  ID: ' num2str(peak.n_id_2+1)]);
+            disp(['    RX power level: ' num2str(10*log10(peak.pow))]);
+            disp(['    residual frequency offset: ' num2str(peak.freq_superfine)]);
+            peaks(i) = peak;
+            detect_flag(i) = 1;
         end
-        if isnan( peak.n_id_1 )
-            continue;
-        end
-        peak=pss_sss_foe(peak,capbuf_pbch,fc,sampling_carrier_twist,tdd_flag);
-        [tfg, tfg_timestamp]=extract_tfg(peak,capbuf_pbch,fc,sampling_carrier_twist);
-        [tfg_comp, tfg_comp_timestamp, peak]=tfoec(peak,tfg,tfg_timestamp,fc,sampling_carrier_twist);
-        peak=decode_mib(peak,tfg_comp);
-        if isnan( peak.n_rb_dl)
-            continue;
-        end
-        if tdd_flag == 1
-            disp('  Detected a TDD cell!');
-        else
-            disp('  Detected a FDD cell!');
-        end
-        disp(['  at ' filename]);
-        disp(['    cell ID: ' num2str(peak.n_id_cell)]);
-        disp(['    PSS  ID: ' num2str(peak.n_id_2+1)]);
-        disp(['    RX power level: ' num2str(10*log10(peak.pow))]);
-        disp(['    residual frequency offset: ' num2str(peak.freq_superfine)]);
-        peaks(i) = peak;
-        detect_flag(i) = 1;
-        tdd_flags(i) = tdd_flag;
     end
     peaks_store{freq_idx} = peaks;
     detect_flag_store{freq_idx} = detect_flag;

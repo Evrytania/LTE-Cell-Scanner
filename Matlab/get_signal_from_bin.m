@@ -19,7 +19,7 @@ if num_sample_read~=inf && count ~= (num_sample_read*2)
     return;
 end
 
-s = s(1:2:end) + 1i.*s(2:2:end);
+s = (s(1:2:end) + 1i.*s(2:2:end))./128;
 
 % len_s = length(s);
 % 
