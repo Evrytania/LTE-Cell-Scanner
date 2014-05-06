@@ -63,7 +63,7 @@ while (1)
     rec.k_factor = k_factor;
   end
   
-  peaks=[peaks rec];
+  peaks=[peaks rec rec];
   % Cancel out certain peaks around this one.
   % It's assumed that if there is a peak for PSS N at offset I, there cannot
   % be any more PSS N sequences within 2*137 samples of I.
