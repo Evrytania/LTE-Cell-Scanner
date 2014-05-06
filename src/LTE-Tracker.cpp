@@ -28,6 +28,7 @@
 #include <getopt.h>
 #include <unistd.h>
 #include <itpp/itbase.h>
+#include <itpp/stat/misc_stat.h>
 #include <itpp/signal/transforms.h>
 #include <boost/math/special_functions/gamma.hpp>
 #include <boost/thread.hpp>
@@ -184,7 +185,7 @@ void parse_commandline(
   device_index=-1;
   expert_mode=false;
   use_recorded_data=false;
-  repeat=false;
+  repeat=true;
   drop_secs=0;
   rtl_sdr_format=false;
   noise_power=0;
@@ -868,7 +869,10 @@ double kalibrate(
 
     }
     fs_programmed = fs_programmed_tmp;
-    fc_requested = fc_requested_tmp;
+
+    if (fc_requested==9999e6)
+      fc_requested = fc_requested_tmp;
+
     cout << "Use file begin with " << ( fc_requested_tmp/1e6 ) << "MHz actual " << (fc_programmed_tmp/1e6) << "MHz " << fs_programmed << "MHz\n";
   }
 
@@ -885,11 +889,11 @@ double kalibrate(
   cmat pss_fo_set;// pre-generate frequencies offseted pss time domain sequence
   vec f_search_set;
   if (sampling_carrier_twist) { // original mode
-    const uint16 n_extra=floor_i((fc_programmed_tmp*ppm/1e6+2.5e3)/5e3);
+    const uint16 n_extra=floor_i((fc_search_set(0)*ppm/1e6+2.5e3)/5e3);
     f_search_set=to_vec(itpp_ext::matlab_range( -n_extra*5000,5000, (n_extra-1)*5000));
   } else {
     if (length(fc_search_set)==1) {//when only one frequency is specified, whole PPM range should be covered
-      const uint16 n_extra=floor_i((fc_programmed_tmp*ppm/1e6+2.5e3)/5e3);
+      const uint16 n_extra=floor_i((fc_search_set(0)*ppm/1e6+2.5e3)/5e3);
       f_search_set=to_vec(itpp_ext::matlab_range( -n_extra*5000,5000, (n_extra-1)*5000));
     } else {
       // since we have frequency step is 100e3, why not have sub search set limited by this regardless PPM?
@@ -987,6 +991,8 @@ double kalibrate(
       ABORT(-1);
     }
 
+    capbuf = capbuf - mean(capbuf); // remove DC
+
     freq_correction = fc_programmed*(correction-1)/correction;
     capbuf = fshift(capbuf,-freq_correction,fs_programmed);
 
@@ -1075,57 +1081,49 @@ double kalibrate(
 
     // Loop and check each peak
     list<Cell>::iterator iterator=detected_cells.begin();
-    Cell cell_temp(*iterator);
+    int tdd_flag = 1;
     while (iterator!=detected_cells.end()) {
+      tdd_flag = !tdd_flag;
+
       // Detect SSS if possible
-      int tdd_flag = 0;
-      cell_temp = (*iterator);
-      for(tdd_flag=0;tdd_flag<2;tdd_flag++)
-      {
-        (*iterator)=sss_detect(cell_temp,capbuf,THRESH2_N_SIGMA,fc_requested,fc_programmed,fs_programmed,sss_h1_np_est_meas,sss_h2_np_est_meas,sss_h1_nrm_est_meas,sss_h2_nrm_est_meas,sss_h1_ext_est_meas,sss_h2_ext_est_meas,log_lik_nrm,log_lik_ext,sampling_carrier_twist,tdd_flag);
-        if ((*iterator).n_id_1!=-1)
-            break;
-      }
-      if ((*iterator).n_id_1==-1) {
-        // No SSS detected.
+      (*iterator)=sss_detect((*iterator),capbuf,THRESH2_N_SIGMA,fc_requested,fc_programmed,fs_programmed,sss_h1_np_est_meas,sss_h2_np_est_meas,sss_h1_nrm_est_meas,sss_h2_nrm_est_meas,sss_h1_ext_est_meas,sss_h2_ext_est_meas,log_lik_nrm,log_lik_ext,sampling_carrier_twist,tdd_flag);
+      if ((*iterator).n_id_1!=-1) {
+        // Fine FOE
+        (*iterator)=pss_sss_foe((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,sampling_carrier_twist,tdd_flag);
+        // Extract time and frequency grid
+        extract_tfg((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,tfg,tfg_timestamp,sampling_carrier_twist);
+
+        // Create object containing all RS
+        RS_DL rs_dl((*iterator).n_id_cell(),6,(*iterator).cp_type);
+
+        // Compensate for time and frequency offsets
+        (*iterator)=tfoec((*iterator),tfg,tfg_timestamp,fc_requested,fc_programmed,rs_dl,tfg_comp,tfg_comp_timestamp,sampling_carrier_twist);
+
+        // Finally, attempt to decode the MIB
+        (*iterator)=decode_mib((*iterator),tfg_comp,rs_dl);
+
+        if ((*iterator).n_rb_dl==-1) {
+          // No MIB could be successfully decoded.
+          iterator=detected_cells.erase(iterator);
+          continue;
+        }
+
+        if (verbosity>=2) {
+          if (tdd_flag==0)
+              cout << "  Detected a FDD cell!" << endl;
+          else
+              cout << "  Detected a TDD cell!" << endl;
+          cout << "    cell ID: " << (*iterator).n_id_cell() << endl;
+          cout << "     PSS ID: " << (*iterator).n_id_2 << endl;
+          cout << "    RX power level: " << db10((*iterator).pss_pow) << " dB" << endl;
+          cout << "    residual frequency offset: " << (*iterator).freq_superfine << " Hz" << endl;
+          cout << "                     k_factor: " << (*iterator).k_factor << endl;
+        }
+
+        ++iterator;
+      } else {
         iterator=detected_cells.erase(iterator);
-        continue;
       }
-
-      // Fine FOE
-      (*iterator)=pss_sss_foe((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,sampling_carrier_twist,tdd_flag);
-
-      // Extract time and frequency grid
-      extract_tfg((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,tfg,tfg_timestamp,sampling_carrier_twist);
-
-      // Create object containing all RS
-      RS_DL rs_dl((*iterator).n_id_cell(),6,(*iterator).cp_type);
-
-      // Compensate for time and frequency offsets
-      (*iterator)=tfoec((*iterator),tfg,tfg_timestamp,fc_requested,fc_programmed,rs_dl,tfg_comp,tfg_comp_timestamp,sampling_carrier_twist);
-
-      // Finally, attempt to decode the MIB
-      (*iterator)=decode_mib((*iterator),tfg_comp,rs_dl);
-      //cout << (*iterator) << endl << endl;
-      if ((*iterator).n_rb_dl==-1) {
-        // No MIB could be successfully decoded.
-        iterator=detected_cells.erase(iterator);
-        continue;
-      }
-
-      if (verbosity>=2) {
-        if (tdd_flag==0)
-            cout << "  Detected a FDD cell!" << endl;
-        else
-            cout << "  Detected a TDD cell!" << endl;
-        cout << "    cell ID: " << (*iterator).n_id_cell() << endl;
-        cout << "     PSS ID: " << (*iterator).n_id_2 << endl;
-        cout << "    RX power level: " << db10((*iterator).pss_pow) << " dB" << endl;
-        cout << "    residual frequency offset: " << (*iterator).freq_superfine << " Hz" << endl;
-        cout << "                     k_factor: " << (*iterator).k_factor << endl;
-      }
-
-      ++iterator;
     }
 
     if ((detected_cells.size()==0)&&(verbosity>=1)) {

@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <itpp/itbase.h>
+#include <itpp/stat/misc_stat.h>
 #include <boost/math/special_functions/gamma.hpp>
 #include <list>
 #include <sstream>
@@ -826,14 +827,14 @@ int main(
   cmat pss_fo_set;// pre-generate frequencies offseted pss time domain sequence
   vec f_search_set;
   if (sampling_carrier_twist) { // original mode
-    const uint16 n_extra=floor_i((fc_programmed_tmp*ppm/1e6+2.5e3)/5e3);
+    const uint16 n_extra=floor_i((fc_search_set(0)*ppm/1e6+2.5e3)/5e3);
     f_search_set=to_vec(itpp_ext::matlab_range( -n_extra*5000,5000, (n_extra-1)*5000));
     // for graphic card which has limited mem, you should turn num_loop on if OpenCL reports -4: CL_MEM_OBJECT_ALLOCATION_FAILURE
 //    if (num_loop == 0) // it is not so useful
 //      num_loop = length(f_search_set)/2;
   } else {
     if (length(fc_search_set)==1) {//when only one frequency is specified, whole PPM range should be covered
-      const uint16 n_extra=floor_i((fc_programmed_tmp*ppm/1e6+2.5e3)/5e3);
+      const uint16 n_extra=floor_i((fc_search_set(0)*ppm/1e6+2.5e3)/5e3);
       f_search_set=to_vec(itpp_ext::matlab_range( -n_extra*5000,5000, (n_extra-1)*5000));
     } else {
       // since we have frequency step is 100e3, why not have sub search set limited by this regardless PPM?
@@ -945,6 +946,8 @@ int main(
       continue;
     }
 
+    capbuf = capbuf - mean(capbuf); // remove DC
+
     freq_correction = fc_programmed*(correction-1)/correction;
 //    if (!dongle_used) { // if dongle is not used, do correction explicitly. Because if dongle is used, the correction is done when tuning dongle's frequency.
       capbuf = fshift(capbuf,-freq_correction,fs_programmed);
@@ -1035,72 +1038,109 @@ int main(
     }
 
     detected_cells[fc_idx]=peak_search_cells;
+//    cout << detected_cells[fc_idx].size() << "\n";
 
     // Loop and check each peak
     list<Cell>::iterator iterator=detected_cells[fc_idx].begin();
-    Cell cell_temp(*iterator);
+    int tdd_flag = 1;
     while (iterator!=detected_cells[fc_idx].end()) {
-      //cout << "Further examining: " << endl;
-      //cout << (*iterator) << endl << endl;
-
+      tdd_flag = !tdd_flag;
+//      cout << tdd_flag << "\n";
+//      cout << (*iterator).ind << "\n";
       // Detect SSS if possible
-      #define THRESH2_N_SIGMA 3
-      int tdd_flag = 0;
-      cell_temp = (*iterator);
-      for(tdd_flag=0;tdd_flag<2;tdd_flag++)
-      {
-//        tt.tic();
-        (*iterator)=sss_detect(cell_temp,capbuf,THRESH2_N_SIGMA,fc_requested,fc_programmed,fs_programmed,sss_h1_np_est_meas,sss_h2_np_est_meas,sss_h1_nrm_est_meas,sss_h2_nrm_est_meas,sss_h1_ext_est_meas,sss_h2_ext_est_meas,log_lik_nrm,log_lik_ext,sampling_carrier_twist,tdd_flag);
-//        cout << "sss_detect cost " << tt.get_time() << "s\n";
-        if ((*iterator).n_id_1!=-1)
-            break;
-      }
-      if ((*iterator).n_id_1==-1) {
-        // No SSS detected.
+      (*iterator)=sss_detect((*iterator),capbuf,THRESH2_N_SIGMA,fc_requested,fc_programmed,fs_programmed,sss_h1_np_est_meas,sss_h2_np_est_meas,sss_h1_nrm_est_meas,sss_h2_nrm_est_meas,sss_h1_ext_est_meas,sss_h2_ext_est_meas,log_lik_nrm,log_lik_ext,sampling_carrier_twist,tdd_flag);
+      if ((*iterator).n_id_1!=-1) {
+        // Fine FOE
+        (*iterator)=pss_sss_foe((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,sampling_carrier_twist,tdd_flag);
+        // Extract time and frequency grid
+        extract_tfg((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,tfg,tfg_timestamp,sampling_carrier_twist);
+        // Create object containing all RS
+        RS_DL rs_dl((*iterator).n_id_cell(),6,(*iterator).cp_type);
+        // Compensate for time and frequency offsets
+        (*iterator)=tfoec((*iterator),tfg,tfg_timestamp,fc_requested,fc_programmed,rs_dl,tfg_comp,tfg_comp_timestamp,sampling_carrier_twist);
+        // Finally, attempt to decode the MIB
+        (*iterator)=decode_mib((*iterator),tfg_comp,rs_dl);
+
+        if ((*iterator).n_rb_dl==-1) {
+          // No MIB could be successfully decoded.
+          iterator=detected_cells[fc_idx].erase(iterator);
+          continue;
+        }
+
+        if (verbosity>=1) {
+          if (tdd_flag==0)
+              cout << "  Detected a FDD cell! At freqeuncy " << fc_requested/1e6 << "MHz, try " << try_idx << endl;
+          else
+              cout << "  Detected a TDD cell! At freqeuncy " << fc_requested/1e6 << "MHz, try " << try_idx << endl;
+          cout << "    cell ID: " << (*iterator).n_id_cell() << endl;
+          cout << "     PSS ID: " << (*iterator).n_id_2 << endl;
+          cout << "    RX power level: " << db10((*iterator).pss_pow) << " dB" << endl;
+          cout << "    residual frequency offset: " << (*iterator).freq_superfine << " Hz" << endl;
+          cout << "                     k_factor: " << (*iterator).k_factor << endl;
+        }
+
+        ++iterator;
+
+      } else {
         iterator=detected_cells[fc_idx].erase(iterator);
-        continue;
       }
-      // Fine FOE
-//      tt.tic();
-      (*iterator)=pss_sss_foe((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,sampling_carrier_twist,tdd_flag);
-//      cout << "pss_sss_foe cost " << tt.get_time() << "s\n";
-
-      // Extract time and frequency grid
-//      tt.tic();
-      extract_tfg((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,tfg,tfg_timestamp,sampling_carrier_twist);
-//      cout << "extract_tfg cost " << tt.get_time() << "s\n";
-
-      // Create object containing all RS
-      RS_DL rs_dl((*iterator).n_id_cell(),6,(*iterator).cp_type);
-
-      // Compensate for time and frequency offsets
-//      tt.tic();
-      (*iterator)=tfoec((*iterator),tfg,tfg_timestamp,fc_requested,fc_programmed,rs_dl,tfg_comp,tfg_comp_timestamp,sampling_carrier_twist);
-//      cout << "tfoec cost " << tt.get_time() << "s\n";
-
-      // Finally, attempt to decode the MIB
-//      tt.tic();
-      (*iterator)=decode_mib((*iterator),tfg_comp,rs_dl);
-//      cout << "decode_mib cost " << tt.get_time() << "s\n";
-      if ((*iterator).n_rb_dl==-1) {
-        // No MIB could be successfully decoded.
-        iterator=detected_cells[fc_idx].erase(iterator);
-        continue;
-      }
-
-      if (verbosity>=1) {
-        if (tdd_flag==0)
-            cout << "  Detected a FDD cell! At freqeuncy " << fc_requested/1e6 << "MHz, try " << try_idx << endl;
-        else
-            cout << "  Detected a TDD cell! At freqeuncy " << fc_requested/1e6 << "MHz, try " << try_idx << endl;
-        cout << "    cell ID: " << (*iterator).n_id_cell() << endl;
-        cout << "     PSS ID: " << (*iterator).n_id_2 << endl;
-        cout << "    RX power level: " << db10((*iterator).pss_pow) << " dB" << endl;
-        cout << "    residual frequency offset: " << (*iterator).freq_superfine << " Hz" << endl;
-        cout << "                     k_factor: " << (*iterator).k_factor << endl;
-      }
-
-      ++iterator;
+//      // Detect SSS if possible
+//      #define THRESH2_N_SIGMA 3
+//      cell_temp = (*iterator);
+//      for(tdd_flag=0;tdd_flag<2;tdd_flag++)
+//      {
+////        tt.tic();
+//        (*iterator)=sss_detect(cell_temp,capbuf,THRESH2_N_SIGMA,fc_requested,fc_programmed,fs_programmed,sss_h1_np_est_meas,sss_h2_np_est_meas,sss_h1_nrm_est_meas,sss_h2_nrm_est_meas,sss_h1_ext_est_meas,sss_h2_ext_est_meas,log_lik_nrm,log_lik_ext,sampling_carrier_twist,tdd_flag);
+////        cout << "sss_detect cost " << tt.get_time() << "s\n";
+//        if ((*iterator).n_id_1!=-1)
+//            break;
+//      }
+//      if ((*iterator).n_id_1==-1) {
+//        // No SSS detected.
+//
+//        continue;
+//      }
+//      // Fine FOE
+////      tt.tic();
+//      (*iterator)=pss_sss_foe((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,sampling_carrier_twist,tdd_flag);
+////      cout << "pss_sss_foe cost " << tt.get_time() << "s\n";
+//
+//      // Extract time and frequency grid
+////      tt.tic();
+//      extract_tfg((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,tfg,tfg_timestamp,sampling_carrier_twist);
+////      cout << "extract_tfg cost " << tt.get_time() << "s\n";
+//
+//      // Create object containing all RS
+//      RS_DL rs_dl((*iterator).n_id_cell(),6,(*iterator).cp_type);
+//
+//      // Compensate for time and frequency offsets
+////      tt.tic();
+//      (*iterator)=tfoec((*iterator),tfg,tfg_timestamp,fc_requested,fc_programmed,rs_dl,tfg_comp,tfg_comp_timestamp,sampling_carrier_twist);
+////      cout << "tfoec cost " << tt.get_time() << "s\n";
+//
+//      // Finally, attempt to decode the MIB
+////      tt.tic();
+//      (*iterator)=decode_mib((*iterator),tfg_comp,rs_dl);
+////      cout << "decode_mib cost " << tt.get_time() << "s\n";
+//      if ((*iterator).n_rb_dl==-1) {
+//        // No MIB could be successfully decoded.
+//        iterator=detected_cells[fc_idx].erase(iterator);
+//        continue;
+//      }
+//
+//      if (verbosity>=1) {
+//        if (tdd_flag==0)
+//            cout << "  Detected a FDD cell! At freqeuncy " << fc_requested/1e6 << "MHz, try " << try_idx << endl;
+//        else
+//            cout << "  Detected a TDD cell! At freqeuncy " << fc_requested/1e6 << "MHz, try " << try_idx << endl;
+//        cout << "    cell ID: " << (*iterator).n_id_cell() << endl;
+//        cout << "     PSS ID: " << (*iterator).n_id_2 << endl;
+//        cout << "    RX power level: " << db10((*iterator).pss_pow) << " dB" << endl;
+//        cout << "    residual frequency offset: " << (*iterator).freq_superfine << " Hz" << endl;
+//        cout << "                     k_factor: " << (*iterator).k_factor << endl;
+//      }
+//
+//      ++iterator;
     }
     if (detected_cells[fc_idx].size() > 0){
       fci = (fc_idx+1)*num_try - 1; // skip to next frequency

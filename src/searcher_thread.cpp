@@ -21,6 +21,7 @@
 #include <unistd.h>
 #include <itpp/itbase.h>
 #include <itpp/signal/transforms.h>
+#include <itpp/stat/misc_stat.h>
 #include <boost/math/special_functions/gamma.hpp>
 #include <boost/thread.hpp>
 #include <boost/thread/condition.hpp>
@@ -176,7 +177,7 @@ void searcher_thread(
     // Local reference to the capture buffer.
     cvec &capbuf=capbuf_sync.capbuf;
 
-//    capbuf = fshift(capbuf,-freq_correction,fs_programmed);
+    capbuf = capbuf - mean(capbuf); // remove DC
 
     #ifdef USE_OPENCL
       lte_ocl.filter_my(capbuf); // be careful! capbuf.zeros() will slow down the xcorr part pretty much!
@@ -207,116 +208,113 @@ void searcher_thread(
 
     // Loop and check each peak
     list<Cell>::iterator iterator=detected_cells.begin();
-    Cell cell_temp(*iterator);
+    int tdd_flag = 1;
     while (iterator!=detected_cells.end()) {
+      tdd_flag = !tdd_flag;
+
       // Detect SSS if possible
 #define THRESH2_N_SIGMA 3
-      int tdd_flag = 0;
-      cell_temp = (*iterator);
-      for(tdd_flag=0;tdd_flag<2;tdd_flag++)
-      {
-        (*iterator)=sss_detect(cell_temp,capbuf,THRESH2_N_SIGMA,fc_requested,fc_programmed,fs_programmed,sss_h1_np_est_meas,sss_h2_np_est_meas,sss_h1_nrm_est_meas,sss_h2_nrm_est_meas,sss_h1_ext_est_meas,sss_h2_ext_est_meas,log_lik_nrm,log_lik_ext,sampling_carrier_twist,tdd_flag);
-        if ((*iterator).n_id_1!=-1)
-            break;
-      }
-      if ((*iterator).n_id_1==-1) {
+      (*iterator)=sss_detect((*iterator),capbuf,THRESH2_N_SIGMA,fc_requested,fc_programmed,fs_programmed,sss_h1_np_est_meas,sss_h2_np_est_meas,sss_h1_nrm_est_meas,sss_h2_nrm_est_meas,sss_h1_ext_est_meas,sss_h2_ext_est_meas,log_lik_nrm,log_lik_ext,sampling_carrier_twist,tdd_flag);
+      if ((*iterator).n_id_1!=-1) {
+        if (verbosity>=2) {
+          cout << "Detected PSS/SSS correspoding to cell ID: " << (*iterator).n_id_cell() << endl;
+        }
+
+        // Check to see if this cell has already been detected previously.
+        bool match=false;
+        {
+          boost::mutex::scoped_lock lock(tracked_cell_list.mutex);
+          list<tracked_cell_t *>::iterator tci=tracked_cell_list.tracked_cells.begin();
+          match=false;
+          while (tci!=tracked_cell_list.tracked_cells.end()) {
+            if ((*(*tci)).n_id_cell==(*iterator).n_id_cell()) {
+              match=true;
+              break;
+            }
+            ++tci;
+          }
+        }
+        if (match) {
+          if (verbosity>=2) {
+            cout << "Cell already being tracked..." << endl;
+          }
+          ++iterator;
+          continue;
+        }
+
+        // Fine FOE
+        (*iterator)=pss_sss_foe((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,sampling_carrier_twist,tdd_flag);
+
+        // Extract time and frequency grid
+        extract_tfg((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,tfg,tfg_timestamp,sampling_carrier_twist);
+
+        // Create object containing all RS
+        RS_DL rs_dl((*iterator).n_id_cell(),6,(*iterator).cp_type);
+
+        // Compensate for time and frequency offsets
+        (*iterator)=tfoec((*iterator),tfg,tfg_timestamp,fc_requested,fc_programmed,rs_dl,tfg_comp,tfg_comp_timestamp,sampling_carrier_twist);
+
+        // Finally, attempt to decode the MIB
+        (*iterator)=decode_mib((*iterator),tfg_comp,rs_dl);
+        //cout << (*iterator) << endl << endl;
+        //sleep(100000);
+        if ((*iterator).n_rb_dl==-1) {
+          // No MIB could be successfully decoded.
+          iterator=detected_cells.erase(iterator);
+          continue;
+        }
+
+        /*
+        if (verbosity>=1) {
+          cout << "Detected a new cell!" << endl;
+          cout << "  cell ID: " << (*iterator).n_id_cell() << endl;
+          cout << "  RX power level: " << db10((*iterator).pss_pow) << " dB" << endl;
+          cout << "  residual frequency offset: " << (*iterator).freq_superfine << " Hz" << endl;
+          cout << "  frame start: " << (*iterator).frame_start << endl;
+        }
+        */
+
+  //      cout << ((*iterator).frame_start) <<  " " << k_factor << " " << capbuf_sync.late << (*iterator).k_factor <<  "\n";
+  //      (*iterator).frame_start = 3619.95;
+  //      capbuf_sync.late = 0;
+        // Launch a cell tracker process!
+        //tracked_cell_t * new_cell = new tracked_cell_t((*iterator).n_id_cell(),(*iterator).n_ports,(*iterator).cp_type,(*iterator).frame_start/k_factor+capbuf_sync.late,serial_num((*iterator).n_id_cell()));
+        tracked_cell_t * new_cell = new tracked_cell_t(
+          (*iterator).n_id_cell(),
+          (*iterator).n_ports,
+          (*iterator).duplex_mode,
+          (*iterator).cp_type,
+          (*iterator).n_rb_dl,
+          (*iterator).phich_duration,
+          (*iterator).phich_resource,
+          (*iterator).frame_start*(FS_LTE/16)/(fs_programmed*k_factor)+capbuf_sync.late,
+          serial_num((*iterator).n_id_cell())//,
+  //        (*iterator).freq_superfine
+        );
+
+        serial_num((*iterator).n_id_cell())++;
+        // Cannot launch thread here. If thread was launched here, it would
+        // have the same (low) priority as the searcher thread.
+        {
+          boost::mutex::scoped_lock lock(tracked_cell_list.mutex);
+          tracked_cell_list.tracked_cells.push_back(new_cell);
+        }
+        //CALLGRIND_START_INSTRUMENTATION;
+  #define MAX_DETECTED 1e6
+        static uint32 n_found=0;
+        n_found++;
+        if (n_found==MAX_DETECTED) {
+          cout << "Searcher thread has stopped!" << endl;
+          sleep(1000000);
+        }
+
+        ++iterator;
+
+      } else {
         // No SSS detected.
         iterator=detected_cells.erase(iterator);
         continue;
       }
-      if (verbosity>=2) {
-        cout << "Detected PSS/SSS correspoding to cell ID: " << (*iterator).n_id_cell() << endl;
-      }
-
-      // Check to see if this cell has already been detected previously.
-      bool match=false;
-      {
-        boost::mutex::scoped_lock lock(tracked_cell_list.mutex);
-        list<tracked_cell_t *>::iterator tci=tracked_cell_list.tracked_cells.begin();
-        match=false;
-        while (tci!=tracked_cell_list.tracked_cells.end()) {
-          if ((*(*tci)).n_id_cell==(*iterator).n_id_cell()) {
-            match=true;
-            break;
-          }
-          ++tci;
-        }
-      }
-      if (match) {
-        if (verbosity>=2) {
-          cout << "Cell already being tracked..." << endl;
-        }
-        ++iterator;
-        continue;
-      }
-
-      // Fine FOE
-      (*iterator)=pss_sss_foe((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,sampling_carrier_twist,tdd_flag);
-
-      // Extract time and frequency grid
-      extract_tfg((*iterator),capbuf,fc_requested,fc_programmed,fs_programmed,tfg,tfg_timestamp,sampling_carrier_twist);
-
-      // Create object containing all RS
-      RS_DL rs_dl((*iterator).n_id_cell(),6,(*iterator).cp_type);
-
-      // Compensate for time and frequency offsets
-      (*iterator)=tfoec((*iterator),tfg,tfg_timestamp,fc_requested,fc_programmed,rs_dl,tfg_comp,tfg_comp_timestamp,sampling_carrier_twist);
-
-      // Finally, attempt to decode the MIB
-      (*iterator)=decode_mib((*iterator),tfg_comp,rs_dl);
-      //cout << (*iterator) << endl << endl;
-      //sleep(100000);
-      if ((*iterator).n_rb_dl==-1) {
-        // No MIB could be successfully decoded.
-        iterator=detected_cells.erase(iterator);
-        continue;
-      }
-
-      /*
-      if (verbosity>=1) {
-        cout << "Detected a new cell!" << endl;
-        cout << "  cell ID: " << (*iterator).n_id_cell() << endl;
-        cout << "  RX power level: " << db10((*iterator).pss_pow) << " dB" << endl;
-        cout << "  residual frequency offset: " << (*iterator).freq_superfine << " Hz" << endl;
-        cout << "  frame start: " << (*iterator).frame_start << endl;
-      }
-      */
-
-//      cout << ((*iterator).frame_start) <<  " " << k_factor << " " << capbuf_sync.late << (*iterator).k_factor <<  "\n";
-//      (*iterator).frame_start = 3619.95;
-//      capbuf_sync.late = 0;
-      // Launch a cell tracker process!
-      //tracked_cell_t * new_cell = new tracked_cell_t((*iterator).n_id_cell(),(*iterator).n_ports,(*iterator).cp_type,(*iterator).frame_start/k_factor+capbuf_sync.late,serial_num((*iterator).n_id_cell()));
-      tracked_cell_t * new_cell = new tracked_cell_t(
-        (*iterator).n_id_cell(),
-        (*iterator).n_ports,
-        (*iterator).duplex_mode,
-        (*iterator).cp_type,
-        (*iterator).n_rb_dl,
-        (*iterator).phich_duration,
-        (*iterator).phich_resource,
-        (*iterator).frame_start*(FS_LTE/16)/(fs_programmed*k_factor)+capbuf_sync.late,
-        serial_num((*iterator).n_id_cell())//,
-//        (*iterator).freq_superfine
-      );
-
-      serial_num((*iterator).n_id_cell())++;
-      // Cannot launch thread here. If thread was launched here, it would
-      // have the same (low) priority as the searcher thread.
-      {
-        boost::mutex::scoped_lock lock(tracked_cell_list.mutex);
-        tracked_cell_list.tracked_cells.push_back(new_cell);
-      }
-      //CALLGRIND_START_INSTRUMENTATION;
-#define MAX_DETECTED 1e6
-      static uint32 n_found=0;
-      n_found++;
-      if (n_found==MAX_DETECTED) {
-        cout << "Searcher thread has stopped!" << endl;
-        sleep(1000000);
-      }
-
-      ++iterator;
     }
 
     global_thread_data.searcher_cycle_time(tt.toc());

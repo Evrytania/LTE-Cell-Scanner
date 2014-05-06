@@ -120,8 +120,8 @@
 using namespace itpp;
 using namespace std;
 
-//#define DBG(CODE) CODE
-#define DBG(CODE)
+#define DBG(CODE) CODE
+//#define DBG(CODE)
 
 //#define FILTER_MCHN_SIMPLE_KERNEL // just for debug purpose. It should be removed before formal release
 
@@ -2569,7 +2569,8 @@ void peak_search(
       cell.k_factor = k_factor;
     }
 
-    cells.push_back(cell);
+    cells.push_back(cell); // for tdd test
+    cells.push_back(cell); // for fdd test
 
     // Cancel out the false peaks around this one.
     // No peaks with the same pss sequence are allowed within 274 samples of
