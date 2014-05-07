@@ -58,6 +58,8 @@ if isempty(dir([filename(1:end-4) '.mat']))
     plot(real(r_raw)); drawnow;
     [cell_info, r_pbch, r_20M] = CellSearch(r_pbch, r_20M, f_search_set, fc);
     
+    r_pbch = r_pbch.';
+    r_20M = r_20M.';
     save([filename(1:end-4) '.mat'], 'r_pbch', 'r_20M', 'cell_info');
 else
     load([filename(1:end-4) '.mat']);
@@ -68,7 +70,7 @@ end
 for cell_idx = 1 : length(cell_info)
     cell_tmp = cell_info(cell_idx);
     [tfg, tfg_timestamp]=extract_tfg_20M(cell_tmp,r_20M,fc,sampling_carrier_twist);
-    [tfg_comp, tfg_comp_timestamp, cell_tmp]=tfoec(cell_tmp,tfg,tfg_timestamp,fc,sampling_carrier_twist);
+    [tfg_comp, tfg_comp_timestamp, cell_tmp]=tfoec_20M(cell_tmp,tfg,tfg_timestamp,fc,sampling_carrier_twist);
     cell_tmp=decode_mib(cell_tmp,tfg_comp)
 end
 

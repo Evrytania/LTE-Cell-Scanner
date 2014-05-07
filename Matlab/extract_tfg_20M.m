@@ -64,29 +64,29 @@ for t=1:n_ofdm_sym
   tfg_timestamp(t)=dft_location;
   if (n_symb_dl==6)
 %     dft_location=dft_location+k_factor*(128+16); % wrong?
-    dft_location=dft_location+k_factor*(128+32);
+    dft_location=dft_location+k_factor*(2048+512);
   else
     if (sym_num==6)
-      dft_location=dft_location+k_factor*(128+10);
+      dft_location=dft_location+k_factor*(2048+160);
     else
-      dft_location=dft_location+k_factor*(128+9);
+      dft_location=dft_location+k_factor*(2048+144);
     end
     sym_num=mod(sym_num+1,7);
   end
 end
 
 % Extract the columns of interest
-tfg=[tfg(:,end-35:end) tfg(:,2:37)];
+tfg=[tfg(:,end-599:end) tfg(:,2:601)];
 
 % Compensate for the residual time offset.
-cn=[-36:-1 1:36];
+cn=[-600:-1 1:600];
 for t=1:n_ofdm_sym
   ideal_offset=tfg_timestamp(t);
   actual_offset=round(ideal_offset);
   % How late were we in locating the DFT
   late=actual_offset-ideal_offset;
   % Compensate for the improper location of the DFT
-  tfg(t,:)=tfg(t,:).*exp(-j*2*pi*cn*late/128);
+  tfg(t,:)=tfg(t,:).*exp(-j*2*pi*cn*late/2048);
 end
 % At this point, tfg(t,:) contains the results of a DFT that was performed
 % at time offset tfg_timestamp(t). Note that tfg_timestamp(t) is not an
