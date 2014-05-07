@@ -71,7 +71,7 @@ for cell_idx = 1 : length(cell_info)
     cell_tmp = cell_info(cell_idx);
     [tfg, tfg_timestamp]=extract_tfg_20M(cell_tmp,r_20M,fc,sampling_carrier_twist);
     [tfg_comp, tfg_comp_timestamp, cell_tmp]=tfoec_20M(cell_tmp,tfg,tfg_timestamp,fc,sampling_carrier_twist);
-    cell_tmp=decode_mib(cell_tmp,tfg_comp)
+    cell_tmp=decode_mib(cell_tmp,tfg_comp(:, 565:636))
 end
 
 

@@ -48,12 +48,12 @@ n_id_cell=n_id_2+3*n_id_1;
 peak_out=peak;
 
 % Pre-compute the RS
-rs0_start=NaN(20,12);
-rs0_mid=NaN(20,12);
+rs0_start=NaN(20,200);
+rs0_mid=NaN(20,200);
 for slot_num=0:19
-  [r shift_start]=rs_dl(slot_num,0,0,n_id_cell,6,cp_type);
+  [r shift_start]=rs_dl(slot_num,0,0,n_id_cell,100,cp_type);
   rs0_start(slot_num+1,:)=r;
-  [r shift_mid]=rs_dl(slot_num,n_symb_dl-3,0,n_id_cell,6,cp_type);
+  [r shift_mid]=rs_dl(slot_num,n_symb_dl-3,0,n_id_cell,100,cp_type);
   rs0_mid(slot_num+1,:)=r;
 end
 %shift_start
@@ -77,7 +77,7 @@ end
 
 % FOE using starting OFDM symbol
 foe=0;
-for t=1:12
+for t=1:200
   idx=(t-1)*6+shift_start+1;
   % Extract all the RS for this subcarrier
   rs_extracted=transpose(tfg(1:n_symb_dl:end,idx));
@@ -96,7 +96,7 @@ for t=1:12
 end
 %residual_f=angle(foe)/(2*pi)/(k_factor*.0005);
 % FOE using mid OFDM symbol
-for t=1:12
+for t=1:200
   idx=(t-1)*6+shift_mid+1;
   % Extract all the RS for this subcarrier
   rs_extracted=transpose(tfg(n_symb_dl-3+1:n_symb_dl:end,idx));
@@ -129,13 +129,13 @@ end
 
 tfg_comp=NaN(size(tfg));
 tfg_comp_timestamp=1+k_factor_residual*(tfg_timestamp-1);
-cn=[-36:-1 1:36];
+cn=[-600:-1 1:600];
 for t=1:n_ofdm
-  tfg_comp(t,:)=tfg(t,:)*exp(j*2*pi*-residual_f*(tfg_comp_timestamp(t)-1)/(fs_lte/16));
+  tfg_comp(t,:)=tfg(t,:)*exp(j*2*pi*-residual_f*(tfg_comp_timestamp(t)-1)/(fs_lte));
   % How late has the DFT been placed?
   late=tfg_timestamp(t)-tfg_comp_timestamp(t);
   % Compensate for the location of the DFT
-  tfg_comp(t,:)=tfg_comp(t,:).*exp(-j*2*pi*cn*late/128);
+  tfg_comp(t,:)=tfg_comp(t,:).*exp(-j*2*pi*cn*late/2048);
 end
 
 % Perform TOE
@@ -184,12 +184,12 @@ for t=1:length(rs_set)-1
   offsets=fliplr(offsets);
   %keyboard
 end
-delay=-angle(toe)/3/(2*pi/128);
+delay=-angle(toe)/3/(2*pi/2048);
 % disp(['residual_f ' num2str(residual_f)]);
 % disp(['delay ' num2str(delay)]);
 
 % Finally, perform TOC.
-tfg_comp=tfg_comp.*repmat(exp((j*2*pi/128*delay)*cn),n_ofdm,1);
+tfg_comp=tfg_comp.*repmat(exp((j*2*pi/2048*delay)*cn),n_ofdm,1);
 
 %offsets=[shift_start+1 shift_mid+1];
 %for t=1:length(rs_set)-1
