@@ -1,4 +1,4 @@
-function [tfg_comp tfg_comp_timestamp peak_out]=tfoec_20M(peak,tfg,tfg_timestamp,fc,sampling_carrier_twist)
+function [tfg_comp, tfg_comp_timestamp, peak_out]=tfoec_20M(peak,tfg,tfg_timestamp,fc,sampling_carrier_twist)
 
 % Compensates for frequency offset, time offset, and also rotates the
 % RS so that they properly reflect the channel response.

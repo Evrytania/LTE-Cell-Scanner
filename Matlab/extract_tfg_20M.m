@@ -1,4 +1,4 @@
-function [tfg tfg_timestamp]=extract_tfg_20M(peak,capbuf,fc,sampling_carrier_twist)
+function [tfg, tfg_timestamp]=extract_tfg_20M(peak,capbuf,fc,sampling_carrier_twist)
 
 % entire 20MHz version ------ by Jiao Xianjun (putaoshu@gmail.com)
 % Convert from time domain to frequency domain and create the time/frequency

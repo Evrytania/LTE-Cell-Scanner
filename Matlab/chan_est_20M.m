@@ -1,4 +1,4 @@
-function [ce_tfg, np]=chan_est(peak,tfg,port)
+function [ce_tfg, np]=chan_est_20M(peak,tfg,port)
 
 % Perform channel estimation on a specific antenna port
 
@@ -34,7 +34,7 @@ else
 end
 
 n_ofdm=size(tfg,1);
-ce_tfg=NaN(n_ofdm,72);
+ce_tfg=NaN(n_ofdm,1200);
 
 % How many OFDM symbols contain RS?
 %n_rs_odfm=2*floor(n_ofdm/n_symb_dl);
@@ -53,11 +53,11 @@ else
 end
 n_rs_ofdm=length(rs_set);
 % Extract the raw channel estimates
-ce_raw=NaN(n_rs_ofdm,12);
+ce_raw=NaN(n_rs_ofdm,200);
 slot_num=0;
 for t=1:n_rs_ofdm
   %slot_num
-  [rs shift]=rs_dl(slot_num,mod(rs_set(t)-1,n_symb_dl),port,n_id_cell,6,cp_type);
+  [rs shift]=rs_dl(slot_num,mod(rs_set(t)-1,n_symb_dl),port,n_id_cell,100,cp_type);
   if (t==1)
     shift_1=shift;
   elseif (t==2)
@@ -71,16 +71,16 @@ for t=1:n_rs_ofdm
 end
 
 % Primitive, fixed filtering of the raw channel estimates.
-ce_filt=NaN(n_rs_ofdm,12);
+ce_filt=NaN(n_rs_ofdm,200);
 current_row_leftmost=shift_1<shift_2;
 for t=1:n_rs_ofdm
-  for k=1:12
+  for k=1:200
     %total=0;
     %n_total=0;
     % Current time offset
     if (k==1)
       ind=1:2;
-    elseif (k==12)
+    elseif (k==200)
       ind=11:12;
     else
       ind=k-1:k+1;
@@ -125,11 +125,11 @@ np=sigpower(ce_filt(:)-ce_raw(:));
 %np=udb10(-14)
 
 % Interpolate to fill in the missing samples
-X=repmat(transpose(rs_set),1,12);
-Y=[shift_1+1:6:72; shift_2+1:6:72];
+X=repmat(transpose(rs_set),1,200);
+Y=[shift_1+1:6:1200; shift_2+1:6:1200];
 Y=repmat(Y,ceil(n_rs_ofdm/2),1);
 Y=Y(1:n_rs_ofdm,:);
-ce_tfg=transpose(griddata(X,Y,ce_filt,transpose(1:n_ofdm),1:72));
+ce_tfg=transpose(griddata(X,Y,ce_filt,transpose(1:n_ofdm),1:1200));
 
 % Fill in NaN samples at the edges
 first_finite=0;
