@@ -1,4 +1,4 @@
-function [tfg_comp tfg_comp_timestamp peak_out]=tfoec(peak,tfg,tfg_timestamp,fc,sampling_carrier_twist)
+function [tfg_comp, tfg_comp_timestamp, peak_out]=tfoec(peak,tfg,tfg_timestamp,fc,sampling_carrier_twist, nRB)
 
 % Compensates for frequency offset, time offset, and also rotates the
 % RS so that they properly reflect the channel response.
@@ -25,11 +25,24 @@ n_id_1=peak.n_id_1;
 n_id_2=peak.n_id_2;
 cp_type=peak.cp_type;
 
+% nRB = 6;
+if nRB == 6
+    decimation_ratio = 16;
+elseif nRB == 100
+    decimation_ratio = 1;
+else
+    disp('nRB must be 6 or 100!');
+    return;
+end
+
+fs = fs_lte/decimation_ratio;
+fft_size = 2048/decimation_ratio;
+nSC = nRB*12;
+nRS = nRB*2;
+
 % fc*k_factor is the receiver's actual RX center frequency.
 if sampling_carrier_twist==1
     k_factor=(fc-peak.freq_fine)/fc;
-% else
-%     k_factor=1;
 else
     k_factor = peak.k_factor;
 end
@@ -48,12 +61,12 @@ n_id_cell=n_id_2+3*n_id_1;
 peak_out=peak;
 
 % Pre-compute the RS
-rs0_start=NaN(20,12);
-rs0_mid=NaN(20,12);
+rs0_start=NaN(20,nRS);
+rs0_mid=NaN(20,nRS);
 for slot_num=0:19
-  [r shift_start]=rs_dl(slot_num,0,0,n_id_cell,6,cp_type);
+  [r, shift_start]=rs_dl(slot_num,0,0,n_id_cell,nRB,cp_type);
   rs0_start(slot_num+1,:)=r;
-  [r shift_mid]=rs_dl(slot_num,n_symb_dl-3,0,n_id_cell,6,cp_type);
+  [r, shift_mid]=rs_dl(slot_num,n_symb_dl-3,0,n_id_cell,nRB,cp_type);
   rs0_mid(slot_num+1,:)=r;
 end
 %shift_start
@@ -77,7 +90,7 @@ end
 
 % FOE using starting OFDM symbol
 foe=0;
-for t=1:12
+for t=1:nRS
   idx=(t-1)*6+shift_start+1;
   % Extract all the RS for this subcarrier
   rs_extracted=transpose(tfg(1:n_symb_dl:end,idx));
@@ -96,7 +109,7 @@ for t=1:12
 end
 %residual_f=angle(foe)/(2*pi)/(k_factor*.0005);
 % FOE using mid OFDM symbol
-for t=1:12
+for t=1:nRS
   idx=(t-1)*6+shift_mid+1;
   % Extract all the RS for this subcarrier
   rs_extracted=transpose(tfg(n_symb_dl-3+1:n_symb_dl:end,idx));
@@ -129,13 +142,13 @@ end
 
 tfg_comp=NaN(size(tfg));
 tfg_comp_timestamp=1+k_factor_residual*(tfg_timestamp-1);
-cn=[-36:-1 1:36];
+cn=[-(nSC/2):-1 1:(nSC/2)];
 for t=1:n_ofdm
-  tfg_comp(t,:)=tfg(t,:)*exp(j*2*pi*-residual_f*(tfg_comp_timestamp(t)-1)/(fs_lte/16));
+  tfg_comp(t,:)=tfg(t,:)*exp(1i*2*pi*-residual_f*(tfg_comp_timestamp(t)-1)/fs);
   % How late has the DFT been placed?
   late=tfg_timestamp(t)-tfg_comp_timestamp(t);
   % Compensate for the location of the DFT
-  tfg_comp(t,:)=tfg_comp(t,:).*exp(-j*2*pi*cn*late/128);
+  tfg_comp(t,:)=tfg_comp(t,:).*exp(-1i*2*pi*cn*late/fft_size);
 end
 
 % Perform TOE
@@ -184,12 +197,12 @@ for t=1:length(rs_set)-1
   offsets=fliplr(offsets);
   %keyboard
 end
-delay=-angle(toe)/3/(2*pi/128);
+delay=-angle(toe)/3/(2*pi/fft_size);
 % disp(['residual_f ' num2str(residual_f)]);
 % disp(['delay ' num2str(delay)]);
 
 % Finally, perform TOC.
-tfg_comp=tfg_comp.*repmat(exp((j*2*pi/128*delay)*cn),n_ofdm,1);
+tfg_comp=tfg_comp.*repmat(exp((1i*2*pi/fft_size*delay)*cn),n_ofdm,1);
 
 %offsets=[shift_start+1 shift_mid+1];
 %for t=1:length(rs_set)-1

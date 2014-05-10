@@ -1,4 +1,4 @@
-function peak_out=decode_mib(peak,tfg);
+function peak_out=decode_mib(peak,tfg)
 
 % Try various combinations of antenna ports and frame timings to attempt
 % to decode the MIB.
@@ -42,10 +42,10 @@ peak_out.n_id_cell = n_id_cell;
 
 % Channel estimation
 ce_tfg=NaN(n_ofdm,72,4);
-[ce_tfg(:,:,1) np0]=chan_est(peak,tfg,0);
-[ce_tfg(:,:,2) np1]=chan_est(peak,tfg,1);
-[ce_tfg(:,:,3) np2]=chan_est(peak,tfg,2);
-[ce_tfg(:,:,4) np3]=chan_est(peak,tfg,3);
+[ce_tfg(:,:,1) np0]=chan_est(peak,tfg,0,6);
+[ce_tfg(:,:,2) np1]=chan_est(peak,tfg,1,6);
+[ce_tfg(:,:,3) np2]=chan_est(peak,tfg,2,6);
+[ce_tfg(:,:,4) np3]=chan_est(peak,tfg,3,6);
 
 % Try various numbers of ports and various frame timing offsets
 %disp('Check code here!!!');

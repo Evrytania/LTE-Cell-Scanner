@@ -1,4 +1,4 @@
-function [ce_tfg, np]=chan_est(peak,tfg,port)
+function [ce_tfg, np]=chan_est(peak,tfg,port, nRB)
 
 % Perform channel estimation on a specific antenna port
 
@@ -19,6 +19,9 @@ function [ce_tfg, np]=chan_est(peak,tfg,port)
 % You should have received a copy of the GNU Affero General Public License
 % along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+nSC = nRB*12;
+nRS = nRB*2;
+
 n_id_1=peak.n_id_1;
 n_id_2=peak.n_id_2;
 cp_type=peak.cp_type;
@@ -34,7 +37,7 @@ else
 end
 
 n_ofdm=size(tfg,1);
-ce_tfg=NaN(n_ofdm,72);
+% ce_tfg=NaN(n_ofdm,72);
 
 % How many OFDM symbols contain RS?
 %n_rs_odfm=2*floor(n_ofdm/n_symb_dl);
@@ -53,11 +56,11 @@ else
 end
 n_rs_ofdm=length(rs_set);
 % Extract the raw channel estimates
-ce_raw=NaN(n_rs_ofdm,12);
+ce_raw=NaN(n_rs_ofdm,nRS);
 slot_num=0;
 for t=1:n_rs_ofdm
   %slot_num
-  [rs shift]=rs_dl(slot_num,mod(rs_set(t)-1,n_symb_dl),port,n_id_cell,6,cp_type);
+  [rs, shift]=rs_dl(slot_num,mod(rs_set(t)-1,n_symb_dl),port,n_id_cell,nRB,cp_type);
   if (t==1)
     shift_1=shift;
   elseif (t==2)
@@ -71,17 +74,17 @@ for t=1:n_rs_ofdm
 end
 
 % Primitive, fixed filtering of the raw channel estimates.
-ce_filt=NaN(n_rs_ofdm,12);
+ce_filt=NaN(n_rs_ofdm,nRS);
 current_row_leftmost=shift_1<shift_2;
 for t=1:n_rs_ofdm
-  for k=1:12
+  for k=1:nRS
     %total=0;
     %n_total=0;
     % Current time offset
     if (k==1)
       ind=1:2;
-    elseif (k==12)
-      ind=11:12;
+    elseif (k==nRS)
+      ind=(nRS-1):nRS;
     else
       ind=k-1:k+1;
     end
@@ -101,7 +104,7 @@ for t=1:n_rs_ofdm
       end
     end
     ind(ind<1)=[];
-    ind(ind>12)=[];
+    ind(ind>nRS)=[];
     % Previous time offset
     if (t~=1)
       total=total+sum(ce_raw(t-1,ind));
@@ -125,18 +128,18 @@ np=sigpower(ce_filt(:)-ce_raw(:));
 %np=udb10(-14)
 
 % Interpolate to fill in the missing samples
-X=repmat(transpose(rs_set),1,12);
-Y=[shift_1+1:6:72; shift_2+1:6:72];
+X=repmat(transpose(rs_set),1,nRS);
+Y=[shift_1+1:6:nSC; shift_2+1:6:nSC];
 Y=repmat(Y,ceil(n_rs_ofdm/2),1);
 Y=Y(1:n_rs_ofdm,:);
-ce_tfg=transpose(griddata(X,Y,ce_filt,transpose(1:n_ofdm),1:72));
+ce_tfg=transpose(griddata(X,Y,ce_filt,transpose(1:n_ofdm),1:nSC));
 
 % Fill in NaN samples at the edges
 first_finite=0;
 last_finite=-1;
 for t=1:n_ofdm
   isn=find(isfinite(ce_tfg(t,:)));
-  if (length(isn)==0)
+  if (isempty(isn))
     continue;
   end
   if (first_finite==0)

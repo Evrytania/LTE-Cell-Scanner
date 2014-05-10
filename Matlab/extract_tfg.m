@@ -1,4 +1,4 @@
-function [tfg tfg_timestamp]=extract_tfg(peak,capbuf,fc,sampling_carrier_twist)
+function [tfg, tfg_timestamp]=extract_tfg(peak,capbuf,fc,sampling_carrier_twist, nRB)
 
 % Convert from time domain to frequency domain and create the time/frequency
 % grid.
@@ -24,40 +24,58 @@ frame_start=peak.frame_start;
 cp_type=peak.cp_type;
 freq_fine=peak.freq_fine;
 
+% nRB = 6;
+if nRB == 6
+    conv_idx_ratio = 1;
+    decimation_ratio = 16;
+elseif nRB == 100
+    conv_idx_ratio = 16;
+    decimation_ratio = 1;
+else
+    disp('nRB must be 6 or 100!');
+    return;
+end
+
+fs = fs_lte/decimation_ratio;
+fft_size = 2048/decimation_ratio;
+len_cp_extended = 512/decimation_ratio;
+len_cp_normal1 = 144/decimation_ratio;
+len_cp_normal2 = 160/decimation_ratio;
+nSC = nRB*12;
+
 % fc*k_factor is the receiver's actual RX center frequency.
 if sampling_carrier_twist==1
-    k_factor=(fc-peak.freq_fine)/fc;
-% else
-%     k_factor=1;
+    k_factor=(fc-freq_fine)/fc;
 else
     k_factor = peak.k_factor;
 end
 
 if (strcmpi(cp_type,'normal'))
   n_symb_dl=7;
-  dft_location=frame_start+10;
+  dft_location = conv_idx(frame_start+(len_cp_normal2/conv_idx_ratio), conv_idx_ratio);
 elseif (strcmpi(cp_type,'extended'))
   n_symb_dl=6;
-  dft_location=frame_start+16;
+%   dft_location=frame_start+16; % wrong?
+  dft_location = conv_idx(frame_start+(len_cp_extended/conv_idx_ratio), conv_idx_ratio);
 else
  error('Check code...');
 end
 
 % See if we can advance the frame start
-if (dft_location-k_factor*fs_lte/16*.01>=0.5)
-  dft_location=dft_location-k_factor*fs_lte/16*.01;
+if (dft_location-k_factor*fs*.01>=0.5)
+  dft_location=dft_location-k_factor*fs*.01;
 end
 
 % Perform FOC
-capbuf=fshift(capbuf,-freq_fine,fs_lte/16);
+capbuf=fshift(capbuf,-freq_fine,fs);
 
 % Extract 6 frames + 2 slots worth of data
 n_ofdm_sym=6*10*2*n_symb_dl+2*n_symb_dl;
-tfg=NaN(n_ofdm_sym,128);
-tfg_timestame=NaN(1,n_ofdm_sym);
+tfg=NaN(n_ofdm_sym,fft_size);
+tfg_timestamp=NaN(1,n_ofdm_sym);
 sym_num=0;
 for t=1:n_ofdm_sym
-  indices=round(dft_location):round(dft_location)+127;
+  indices=round(dft_location):round(dft_location)+fft_size-1;
   % Perform 2 sample coarse TOC
   %indices=[indices(3:end) indices(1:2)];
   %indices=[indices(end-2:end) indices(1:end-3)];
@@ -65,31 +83,36 @@ for t=1:n_ofdm_sym
   tfg_timestamp(t)=dft_location;
   if (n_symb_dl==6)
 %     dft_location=dft_location+k_factor*(128+16); % wrong?
-    dft_location=dft_location+k_factor*(128+32);
+    dft_location=dft_location+k_factor*(fft_size+len_cp_extended);
   else
     if (sym_num==6)
-      dft_location=dft_location+k_factor*(128+10);
+      dft_location=dft_location+k_factor*(fft_size+len_cp_normal2);
     else
-      dft_location=dft_location+k_factor*(128+9);
+      dft_location=dft_location+k_factor*(fft_size+len_cp_normal1);
     end
     sym_num=mod(sym_num+1,7);
   end
 end
 
 % Extract the columns of interest
-tfg=[tfg(:,end-35:end) tfg(:,2:37)];
+tfg=[tfg(:,end-((nSC/2) - 1):end) tfg(:,2:((nSC/2) + 1))];
 
 % Compensate for the residual time offset.
-cn=[-36:-1 1:36];
+cn=[-(nSC/2):-1 1:(nSC/2)];
 for t=1:n_ofdm_sym
   ideal_offset=tfg_timestamp(t);
   actual_offset=round(ideal_offset);
   % How late were we in locating the DFT
   late=actual_offset-ideal_offset;
   % Compensate for the improper location of the DFT
-  tfg(t,:)=tfg(t,:).*exp(-j*2*pi*cn*late/128);
+  tfg(t,:)=tfg(t,:).*exp(-1i*2*pi*cn*late/fft_size);
 end
 % At this point, tfg(t,:) contains the results of a DFT that was performed
 % at time offset tfg_timestamp(t). Note that tfg_timestamp(t) is not an
 % integer!
+
+
+function out_idx = conv_idx(in_idx, decimation_ratio)
+out_idx = (in_idx-1)*decimation_ratio + 1;
+
 
