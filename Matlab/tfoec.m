@@ -1,5 +1,6 @@
 function [tfg_comp, tfg_comp_timestamp, peak_out]=tfoec(peak,tfg,tfg_timestamp,fc,sampling_carrier_twist, nRB)
 
+% add 100RB support. Jiao Xianjun(putaohsu@gmail.com)
 % Compensates for frequency offset, time offset, and also rotates the
 % RS so that they properly reflect the channel response.
 

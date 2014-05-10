@@ -1,4 +1,4 @@
-function [pbch_sym pbch_ce]=pbch_extract(peak,tfg,ce);
+function [pbch_sym, pbch_ce]=pbch_extract(peak,tfg,ce)
 
 % Extract only the MIB RE's from the TFG
 
@@ -25,7 +25,7 @@ n_id_2=peak.n_id_2;
 cp_type=peak.cp_type;
 
 % Derive some values
-n_ofdm=size(tfg,1);
+% n_ofdm=size(tfg,1);
 if (strcmpi(cp_type,'normal'))
   n_symb_dl=7;
   m_bit=1920;

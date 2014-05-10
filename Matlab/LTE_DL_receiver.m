@@ -65,13 +65,14 @@ else
     load([filename(1:end-4) '.mat']);
 end
 
-cell_info
+% cell_info
 
 for cell_idx = 1 : length(cell_info)
     cell_tmp = cell_info(cell_idx);
     [tfg, tfg_timestamp]=extract_tfg(cell_tmp,r_20M,fc,sampling_carrier_twist, 100);
     [tfg_comp, tfg_comp_timestamp, cell_tmp]=tfoec(cell_tmp,tfg,tfg_timestamp,fc,sampling_carrier_twist, 100);
-    cell_tmp=decode_mib(cell_tmp,tfg_comp(:, 565:636))
+%     cell_tmp=decode_mib(cell_tmp,tfg_comp(:, 565:636));
+    cell_tmp=decode_pcfich(cell_tmp,tfg_comp);
     cell_tmp=decode_pdcch(cell_tmp,tfg_comp);
 end
 
