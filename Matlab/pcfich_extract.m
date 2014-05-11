@@ -23,21 +23,18 @@ symbol_idx = 1 : (2*n_symb_dl) : n_ofdm;
 
 n_pcfich_symbol = length(symbol_idx);
 
-pcfich_sym=NaN(1, n_pcfich_symbol*16);
-pcfich_ce=NaN(n_ports, n_pcfich_symbol*16);
+pcfich_sym=NaN(n_pcfich_symbol, 16);
+pcfich_ce=NaN(n_pcfich_symbol, 16, n_ports);
 
 pcfich_sc_idx = get_pcfich_sc_idx(n_id_cell, n_rb_dl, cp_type);
 
 for i = 1 : n_pcfich_symbol
     symbol_idx_tmp = symbol_idx(i);
-    
-    sp = (i-1)*16 + 1;
-    ep = sp + 16 - 1;
-    
-    pcfich_sym(sp:ep) = tfg(symbol_idx_tmp, pcfich_sc_idx);
+
+    pcfich_sym(i,:) = tfg(symbol_idx_tmp, pcfich_sc_idx);
     
     for j = 1 : n_ports
-        pcfich_ce(j, sp:ep) = ce(symbol_idx_tmp, pcfich_sc_idx, j);
+        pcfich_ce(i,:,j) = ce(symbol_idx_tmp, pcfich_sc_idx, j);
     end
 end
 
