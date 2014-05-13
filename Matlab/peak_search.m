@@ -56,6 +56,7 @@ while (1)
   rec.n_id_cell=NaN;
   rec.n_ports=NaN;
   rec.duplex_mode=NaN;
+  rec.phich_dur_value = -1;
   
   if sampling_carrier_twist
     rec.k_factor = (fc-rec.freq)/fc;
