@@ -35,48 +35,47 @@ num_pcfich = size(pcfich_sym, 1);
 pcfich_cw = [0,1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1
     1,0,1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1,1,0
     1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1,1].';
+pcfich_cw = 1-2.*pcfich_cw;
 
 pcfich_info = zeros(1, num_pcfich);
 
 scr=lte_pn((floor(0/2) + 1)*(2*n_id_cell+1)*(2^9) + n_id_cell, 32);
 
 for i=1:num_pcfich
+    % MMSE equalizer
     if (n_ports==1)
 
-%         np=np_ce(1);
-%         gain=conj(pcfich_ce(i,:,1))./absx2(pcfich_ce(i,:,1));
-%         syms=pcfich_sym(i,:).*gain;
-%         np=np*absx2(gain);
-
-        syms=pcfich_sym(i,:)./pcfich_ce(i,:,1);
-%         np = 0.001;
+        h = pcfich_ce(i,:,1);
+        hconj = conj(h);
+        habs2 = real(pcfich_ce(i,:,1).*conj(pcfich_ce(i,:,1)));
+        syms = hconj.*pcfich_sym(i,:)./(habs2 + np_ce);
 
     elseif (n_ports==2)
 
         np_mean=mean([np_ce(1) np_ce(2)]);
         syms=NaN(1,length(pcfich_sym(i,:)));
-        np=NaN(1,length(pcfich_sym(i,:)));
 
         for t=1:2:length(syms)
             % http://en.wikipedia.org/wiki/Space-time_block_coding_based_transmit_diversity
             h1=mean(pcfich_ce(i,t:t+1, 1));
             h2=mean(pcfich_ce(i,t:t+1, 2));
-            x1=pcfich_sym(i, t);
-            x2=pcfich_sym(i, t+1);
-            scale=sum(absx2([h1 h2]));
-            syms(t)=(conj(h1)*x1+h2*conj(x2))/scale;
-            syms(t+1)=conj((-conj(h2)*x1+h1*conj(x2))/scale);
-            np(t)=(abs(h1)/scale)^2*np_mean+(abs(h2)/scale)^2*np_mean;
-            np(t+1)=np(t);
+            r1=pcfich_sym(i, t);
+            r2=pcfich_sym(i, t+1);
+            r = [r1; conj(r2)];
+
+            h = [h1, -h2; conj(h2), conj(h1)]./sqrt(2);
+            hconj = h';
+            habs2 = h*h';
+            x = hconj*(habs2 + diag(ones(1,2).*np_mean))\r;
+            
+            syms(t) = x(1);
+            syms(t+1) = conj( x(2) );
         end
-        % 3dB factor comes from precoding for transmit diversity
-        syms=syms*sqrt(2);
 
     elseif (n_ports==4)
 
         np_mean=mean([np_ce(1) np_ce(2) np_ce(3) np_ce(4)]);
         syms=NaN(1,length(pcfich_sym(i,:)));
-        np=NaN(1,length(pcfich_sym(i,:)));
 
         for t=1:2:length(syms)
             % http://en.wikipedia.org/wiki/Space-time_block_coding_based_transmit_diversity
@@ -87,35 +86,34 @@ for i=1:num_pcfich
               h1=mean(pcfich_ce(i,t:t+1, 2));
               h2=mean(pcfich_ce(i,t:t+1, 4));
             end
-            x1=pcfich_sym(i, t);
-            x2=pcfich_sym(i, t+1);
-            scale=sum(absx2([h1 h2]));
-            syms(t)=(conj(h1)*x1+h2*conj(x2))/scale;
-            syms(t+1)=conj((-conj(h2)*x1+h1*conj(x2))/scale);
-            np(t)=(abs(h1)/scale)^2*np_mean+(abs(h2)/scale)^2*np_mean;
-            np(t+1)=np(t);
+            r1=pcfich_sym(i, t);
+            r2=pcfich_sym(i, t+1);
+            r = [r1; conj(r2)];
+
+            h = [h1, -h2; conj(h2), conj(h1)]./sqrt(2);
+            hconj = h';
+            habs2 = h*h';
+            x = hconj*(habs2 + diag(ones(1,2).*np_mean))\r;
+            
+            syms(t) = x(1);
+            syms(t+1) = conj( x(2) );
         end
-        % 3dB factor comes from precoding for transmit diversity
-        syms=syms*sqrt(2);
 
     else
         error('Check code...');
     end
     
-    % Extract the bits
-%     e_est=deqam(syms,np,'QAM','LTE');
-    
-    a = zeros(1,32);
-    a(1:2:end) = (1-sign(real(syms)))./2;
-    a(2:2:end) = (1-sign(imag(syms)))./2;
-    e_est = a;
-    
+    % Extract signal of sequence
+    e_est = zeros(1,32);
+    e_est(1:2:end) = sign(real(syms));
+    e_est(2:2:end) = sign(imag(syms));
+
     % Unscramble
-    e_est(scr==1)=1-e_est(scr==1);
+    e_est(scr==1) = -1.*e_est(scr==1);
     
-    corr_val = abs( ((2.*e_est)-1)*((2.*pcfich_cw)-1) );
+    corr_val = abs( e_est*pcfich_cw );
     [max_val, max_idx] = max(corr_val);
-    if max_val>24
+    if max_val>=20
         pcfich_info(i) = max_idx;
     else
         pcfich_info(i) = -max_val;
