@@ -1,4 +1,4 @@
-function [ce_tfg, np]=chan_est_subframe(peak, subframe_idx, tfg, port, nRB)
+function [ce_tfg, np]=chan_est_subframe(peak, subframe_idx, tfg, port)
 
 % make this work in manner of subframe by subframe -- Jiao Xianjun
 % (putaoshu@gmail.com)
@@ -22,6 +22,8 @@ function [ce_tfg, np]=chan_est_subframe(peak, subframe_idx, tfg, port, nRB)
 %
 % You should have received a copy of the GNU Affero General Public License
 % along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+nRB = peak.n_rb_dl;
 
 nSC = nRB*12;
 nRS = nRB*2;

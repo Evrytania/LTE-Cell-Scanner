@@ -19,8 +19,8 @@ close all;
 % filename = '../test/f1860_s19.2_bw20_1s_hackrf_home1.bin'; fc = 1860e6;
 % filename = '../test/f1860_s19.2_bw20_1s_hackrf_home.bin'; fc = 1860e6;
 % filename = '../test/f1890_s19.2_bw20_1s_hackrf_home.bin'; fc = 1890e6;
-filename = '../test/f1890_s19.2_bw20_1s_hackrf_home1.bin'; fc = 1890e6;
-% filename = '../test/f2360_s19.2_bw20_1s_hackrf_bda.bin'; fc = 2360e6;
+% filename = '../test/f1890_s19.2_bw20_1s_hackrf_home1.bin'; fc = 1890e6;
+filename = '../test/f2360_s19.2_bw20_1s_hackrf_bda.bin'; fc = 2360e6;
 
 sampling_carrier_twist = 0; % ATTENTION! If this is 1, make sure fc is aligned with bin file!!!
 
@@ -79,7 +79,8 @@ for cell_idx = 1 : length(cell_info)
     pdcch_info = cell(1, num_subframe);
     pcfich_info = zeros(1, num_subframe);
     pcfich_corr = zeros(1, num_subframe);
-    for subframe_idx = 1 : num_subframe
+%     for subframe_idx = 1 : num_subframe
+    for subframe_idx = 1 : 10
         sp = (subframe_idx-1)*n_symb_per_subframe + 1;
         ep = sp + n_symb_per_subframe - 1;
         

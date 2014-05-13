@@ -6,3 +6,12 @@ pdcch_info = 0;
 % end_slot_idx = start_slot_idx + 1;
 
 [pcfich_info, pcfich_corr] = decode_pcfich(peak, subframe_idx, tfg);
+
+n_rb_dl = peak.n_rb_dl;
+
+if n_rb_dl > 10
+    n_pdcch_symb = pcfich_info;
+else
+    n_pdcch_symb = pcfich_info + 1;
+end
+

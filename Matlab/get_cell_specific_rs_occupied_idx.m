@@ -1,15 +1,15 @@
-function idx = get_cell_specific_rs_occupied_idx(slot_num, sym_num, n_ports, port_num, n_id_cell, n_rb_dl, cp_type)
+function idx = get_cell_specific_rs_occupied_idx(slot_num, sym_num, n_ports, port_num, n_id_cell, n_rb_dl, n_symb_dl)
 % include both real RS and dummy RS
 
 nSC = n_rb_dl*12;
 
-if (strcmpi(cp_type,'normal'))
-  n_symb_dl=7;
-elseif (strcmpi(cp_type,'extended'))
-  n_symb_dl=6;
-else
-  error('Unrecognized cp_type specified');
-end
+% if (strcmpi(cp_type,'normal'))
+%   n_symb_dl=7;
+% elseif (strcmpi(cp_type,'extended'))
+%   n_symb_dl=6;
+% else
+%   error('Unrecognized cp_type specified');
+% end
 
 if ((port_num==0)||(port_num==1))
   if ((sym_num~=0)&&(sym_num~=n_symb_dl-3))

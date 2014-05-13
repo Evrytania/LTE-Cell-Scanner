@@ -17,7 +17,7 @@ n_id_cell = peak.n_id_cell;
 ce_tfg = NaN(n_ofdm,nSC,n_ports);
 np_ce = zeros(1, n_ports);
 for i=1:n_ports
-    [ce_tfg(:,:,i), np_ce(i)]=chan_est_subframe(peak, subframe_idx, tfg, i-1, nRB);
+    [ce_tfg(:,:,i), np_ce(i)]=chan_est_subframe(peak, subframe_idx, tfg, i-1);
 end
 
 [pcfich_sym, pcfich_ce] = pcfich_extract(peak, tfg, ce_tfg);
