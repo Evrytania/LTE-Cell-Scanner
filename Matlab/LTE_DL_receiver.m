@@ -14,13 +14,13 @@ close all;
 
 % ------------------------------------------------------------------------------------
 % % bin file captured by hackrf_transfer  
-filename = '../test/f2585_s19.2_bw20_1s_hackrf_bda.bin'; fc = 2585e6;
+% filename = '../test/f2585_s19.2_bw20_1s_hackrf_bda.bin'; fc = 2585e6;
 % filename = '../test/f2585_s19.2_bw20_1s_hackrf_bda1.bin'; fc = 2585e6;
 % filename = '../test/f1860_s19.2_bw20_1s_hackrf_home1.bin'; fc = 1860e6;
 % filename = '../test/f1860_s19.2_bw20_1s_hackrf_home.bin'; fc = 1860e6;
 % filename = '../test/f1890_s19.2_bw20_1s_hackrf_home.bin'; fc = 1890e6;
 % filename = '../test/f1890_s19.2_bw20_1s_hackrf_home1.bin'; fc = 1890e6;
-% filename = '../test/f2360_s19.2_bw20_1s_hackrf_bda.bin'; fc = 2360e6;
+filename = '../test/f2360_s19.2_bw20_1s_hackrf_bda.bin'; fc = 2360e6;
 
 sampling_carrier_twist = 0; % ATTENTION! If this is 1, make sure fc is aligned with bin file!!!
 
@@ -69,16 +69,35 @@ end
 
 for cell_idx = 1 : length(cell_info)
     cell_tmp = cell_info(cell_idx);
-    [tfg, tfg_timestamp]=extract_tfg(cell_tmp,r_20M,fc,sampling_carrier_twist, cell_tmp.n_rb_dl);
-    [tfg_comp, tfg_comp_timestamp, cell_tmp]=tfoec(cell_tmp,tfg,tfg_timestamp,fc,sampling_carrier_twist, cell_tmp.n_rb_dl);
+    [tfg, tfg_timestamp, cell_tmp]=extract_tfg(cell_tmp,r_20M,fc,sampling_carrier_twist, cell_tmp.n_rb_dl);
+%     [tfg_comp, tfg_comp_timestamp, cell_tmp]=tfoec(cell_tmp, tfg, tfg_timestamp, fc, sampling_carrier_twist, cell_tmp.n_rb_dl);
 %     cell_tmp=decode_mib(cell_tmp,tfg_comp(:, 565:636));
-    pcfich_info = decode_pcfich(cell_tmp,tfg_comp);
-%     cell_tmp=decode_pdcch(cell_tmp,tfg_comp);
+    
+    % % ----------------following process subframe by subframe-------------------
+    n_symb_per_subframe = 2*cell_tmp.n_symb_dl;
+    num_subframe = floor(size(tfg,1)/n_symb_per_subframe);
+    pdcch_info = cell(1, num_subframe);
+    pcfich_info = zeros(1, num_subframe);
+    pcfich_corr = zeros(1, num_subframe);
+    for subframe_idx = 1 : num_subframe
+        sp = (subframe_idx-1)*n_symb_per_subframe + 1;
+        ep = sp + n_symb_per_subframe - 1;
+        
+        [tfg_comp, tfg_comp_timestamp, cell_tmp]=tfoec_subframe(cell_tmp, subframe_idx-1, tfg(sp:ep, :), tfg_timestamp(sp:ep), fc, sampling_carrier_twist, cell_tmp.n_rb_dl);
+    
+        [pdcch_info{subframe_idx}, pcfich_info(subframe_idx), pcfich_corr(subframe_idx)] = decode_pdcch(cell_tmp, subframe_idx-1, tfg_comp);
+    end
 end
 
-disp(num2str(pcfich_info));
-disp(['subframe  ' num2str(find(pcfich_info>0))]);
-disp(['num pdcch ' num2str(pcfich_info(pcfich_info>0))]);
+disp(num2str(pcfich_corr));
+sf_set = find(pcfich_info>0);
+val_set = pcfich_info(pcfich_info>0);
+disp(['subframe  ' num2str(sf_set)]);
+disp(['num pdcch ' num2str(val_set)]);
 
-
+subplot(3,1,1); plot(pcfich_corr); axis tight;
+subplot(3,1,2); plot(sf_set, val_set, 'b.-'); axis tight;
+subplot(3,1,3);
+a = zeros(1, max(sf_set)); a(sf_set) = 1;
+pcolor([a;a]); shading faceted;  axis tight;
 

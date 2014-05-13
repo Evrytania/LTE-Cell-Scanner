@@ -1,4 +1,4 @@
-function [tfg, tfg_timestamp]=extract_tfg(peak,capbuf,fc,sampling_carrier_twist, nRB)
+function [tfg, tfg_timestamp, peak_out]=extract_tfg(peak,capbuf,fc,sampling_carrier_twist, nRB)
 
 % add 100RB support. Jiao Xianjun(putaoshu@gmail.com)
 % Convert from time domain to frequency domain and create the time/frequency
@@ -61,6 +61,9 @@ elseif (strcmpi(cp_type,'extended'))
 else
  error('Check code...');
 end
+
+peak_out = peak;
+peak_out.n_symb_dl = n_symb_dl;
 
 % See if we can advance the frame start
 if (dft_location-k_factor*fs*.01>=0.5)

@@ -10,14 +10,7 @@ n_ports = peak.n_ports;
 
 % Derive some values
 n_ofdm=size(tfg,1);
-if (strcmpi(cp_type,'normal'))
-  n_symb_dl=7;
-elseif (strcmpi(cp_type,'extended'))
-  n_symb_dl=6;
-else
- error('Check code...');
-end
-
+n_symb_dl = peak.n_symb_dl;
 
 symbol_idx = 1 : (2*n_symb_dl) : n_ofdm;
 
