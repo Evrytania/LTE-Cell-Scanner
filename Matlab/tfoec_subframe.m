@@ -1,4 +1,4 @@
-function [tfg_comp, tfg_comp_timestamp, peak_out]=tfoec_subframe(peak, subframe_idx, tfg, tfg_timestamp, fc, sampling_carrier_twist, nRB)
+function [tfg_comp, tfg_comp_timestamp, peak_out]=tfoec_subframe(peak, subframe_idx, tfg, tfg_timestamp, fc, sampling_carrier_twist)
 
 % add 100RB support. Jiao Xianjun(putaohsu@gmail.com)
 % Compensates for frequency offset, time offset, and also rotates the
@@ -23,8 +23,8 @@ function [tfg_comp, tfg_comp_timestamp, peak_out]=tfoec_subframe(peak, subframe_
 
 % Local shortcuts
 cp_type=peak.cp_type;
+nRB = cell_tmp.n_rb_dl;
 
-% nRB = 6;
 if nRB == 6
     decimation_ratio = 16;
 elseif nRB == 100

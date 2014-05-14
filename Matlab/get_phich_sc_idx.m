@@ -1,1 +1,1 @@
-function phich_sc_idx = get_phich_sc_idx(n_id_cell, n_rb_dl, n_symb_dl)
+function phich_sc_idx = get_phich_sc_idx(peak, subframe_idx, sym_idx, idx_rs_occupied, pcfich_sc_idx)

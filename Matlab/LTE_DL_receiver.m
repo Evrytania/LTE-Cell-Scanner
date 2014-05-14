@@ -67,26 +67,43 @@ end
 
 % cell_info
 
-for cell_idx = 1 : length(cell_info)
+% for cell_idx = 1 : length(cell_info)
+for cell_idx = 1 : 1
     cell_tmp = cell_info(cell_idx);
     [tfg, tfg_timestamp, cell_tmp]=extract_tfg(cell_tmp,r_20M,fc,sampling_carrier_twist, cell_tmp.n_rb_dl);
 %     [tfg_comp, tfg_comp_timestamp, cell_tmp]=tfoec(cell_tmp, tfg, tfg_timestamp, fc, sampling_carrier_twist, cell_tmp.n_rb_dl);
 %     cell_tmp=decode_mib(cell_tmp,tfg_comp(:, 565:636));
     
-    % % ----------------following process subframe by subframe-------------------
-    n_symb_per_subframe = 2*cell_tmp.n_symb_dl;
-    num_subframe = floor(size(tfg,1)/n_symb_per_subframe);
+    n_symb_per_radioframe = 10*2*cell_tmp.n_symb_dl;
+    num_radioframe = floor(size(tfg,1)/n_symb_per_subframe);
+    num_subframe = num_radioframe*10;
     pdcch_info = cell(1, num_subframe);
     pcfich_info = zeros(1, num_subframe);
     pcfich_corr = zeros(1, num_subframe);
-%     for subframe_idx = 1 : num_subframe
-    for subframe_idx = 1 : 10
-        sp = (subframe_idx-1)*n_symb_per_subframe + 1;
-        ep = sp + n_symb_per_subframe - 1;
+
+    % % ----------------following process radio frame by radio frame-------------------
+    for radioframe_idx = 1 : num_radioframe
         
-        [tfg_comp, tfg_comp_timestamp, cell_tmp]=tfoec_subframe(cell_tmp, subframe_idx-1, tfg(sp:ep, :), tfg_timestamp(sp:ep), fc, sampling_carrier_twist, cell_tmp.n_rb_dl);
-    
-        [pdcch_info{subframe_idx}, pcfich_info(subframe_idx), pcfich_corr(subframe_idx)] = decode_pdcch(cell_tmp, subframe_idx-1, tfg_comp);
+        subframe_base_idx = (radioframe_idx-1)*10;
+        
+        % % decode pcfich and identify uldl_cfg if TDD mode
+        for subframe_idx = 1 : 10
+            sp = subframe_base_idx + (subframe_idx-1)*n_symb_per_subframe + 1;
+            ep = sp + n_symb_per_subframe - 1;
+
+            [tfg_comp, tfg_comp_timestamp, cell_tmp]=tfoec_subframe(cell_tmp, subframe_idx-1, tfg(sp:ep, :), tfg_timestamp(sp:ep), fc, sampling_carrier_twist);
+        end
+        
+        % % decode pdcch
+        for subframe_idx = 1 : 10
+            sp = (subframe_idx-1)*n_symb_per_subframe + 1;
+            ep = sp + n_symb_per_subframe - 1;
+
+            [tfg_comp, tfg_comp_timestamp, cell_tmp]=tfoec_subframe(cell_tmp, subframe_idx-1, tfg(sp:ep, :), tfg_timestamp(sp:ep), fc, sampling_carrier_twist);
+
+            [pdcch_info{subframe_idx}, pcfich_info(subframe_idx), pcfich_corr(subframe_idx)] = decode_pdcch(cell_tmp, subframe_idx-1, tfg_comp);
+        end
+        
     end
 end
 

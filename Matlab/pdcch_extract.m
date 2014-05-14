@@ -1,63 +1,80 @@
-function [pdcch_sym pdcch_ce]=pdcch_extract(peak,tfg,ce)
+function [pdcch_sym, pdcch_ce, pdcch_sc_idx_store]=pdcch_extract(peak, subframe_idx, tfg, ce, n_phich_symb, n_pdcch_symb)
+% only operate on the first slot
 
-% Extract only the MIB RE's from the TFG
+n_ports = peak.n_ports;
+n_symb_dl = peak.n_symb_dl;
+n_id_cell = peak.n_id_cell;
+n_rb_dl = peak.n_rb_dl;
 
-% Copyright 2012 Evrytania LLC (http://www.evrytania.com)
-%
-% Written by James Peroulas <james@evrytania.com>
-%
-% This program is free software: you can redistribute it and/or modify
-% it under the terms of the GNU Affero General Public License as published by
-% the Free Software Foundation, either version 3 of the License, or
-% (at your option) any later version.
-%
-% This program is distributed in the hope that it will be useful,
-% but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-% GNU Affero General Public License for more details.
-%
-% You should have received a copy of the GNU Affero General Public License
-% along with this program.  If not, see <http://www.gnu.org/licenses/>.
+pcfich_idx_set = get_pcfich_sc_idx(n_id_cell, n_rb_dl, n_symb_dl); % only valid for the first ofdm symbol
 
-% Local shortcuts
-n_id_1=peak.n_id_1;
-n_id_2=peak.n_id_2;
-cp_type=peak.cp_type;
-
-% Derive some values
-n_ofdm=size(tfg,1);
-if (strcmpi(cp_type,'normal'))
-  n_symb_dl=7;
-  m_bit=1920;
-elseif (strcmpi(cp_type,'extended'))
-  n_symb_dl=6;
-  m_bit=1728;
-else
- error('Check code...');
+slot_num = 0;
+sym_num = 0;
+port_num = 0;
+idx_rs_occupied1 = get_cell_specific_rs_occupied_idx(slot_num, sym_num, n_ports, port_num, n_id_cell, n_rb_dl, n_symb_dl);
+idx_rs_occupied1 = kron(ones(n_ports,1), idx_rs_occupied1);
+for i = 2 : n_ports
+    port_num = i-1;
+    idx_rs_occupied1(i,:) = get_cell_specific_rs_occupied_idx(slot_num, sym_num, n_ports, port_num, n_id_cell, n_rb_dl, n_symb_dl);
 end
-n_id_cell=n_id_2+3*n_id_1;
-v_shift=mod(n_id_cell,6);
+idx_rs_occupied1 = idx_rs_occupied1.';
+idx_rs_occupied1 = idx_rs_occupied1(:).';
 
-pbch_sym=NaN(1,m_bit/2);
-pbch_ce=NaN(4,m_bit/2);
-idx=1;
-v_shift_m3=mod(v_shift,3);
-for fr=0:3
-  for sym=0:3
-    for sc=0:71
-      % Skip (possible) RS locations
-      if ((mod(sc,3)==v_shift_m3)&&((sym==0)||(sym==1)||((sym==3)&&(n_symb_dl==6))))
-        continue
-      end
-      sym_num=fr*10*2*n_symb_dl+n_symb_dl+sym+1;
-      pbch_sym(idx)=tfg(sym_num,sc+1);
-      pbch_ce(1,idx)=ce(sym_num,sc+1,1);
-      pbch_ce(2,idx)=ce(sym_num,sc+1,2);
-      pbch_ce(3,idx)=ce(sym_num,sc+1,3);
-      pbch_ce(4,idx)=ce(sym_num,sc+1,4);
-      idx=idx+1;
+sym_num = n_symb_dl-3;
+port_num = 0;
+idx_rs_occupied2 = get_cell_specific_rs_occupied_idx(slot_num, sym_num, n_ports, port_num, n_id_cell, n_rb_dl, n_symb_dl);
+idx_rs_occupied2 = kron(ones(n_ports,1), idx_rs_occupied2);
+for i = 2 : n_ports
+    port_num = i-1;
+    idx_rs_occupied2(i,:) = get_cell_specific_rs_occupied_idx(slot_num, sym_num, n_ports, port_num, n_id_cell, n_rb_dl, n_symb_dl);
+end
+idx_rs_occupied2 = idx_rs_occupied2.';
+idx_rs_occupied2 = idx_rs_occupied2(:).';
+
+pdcch_sc_idx_store = cell(1, n_pdcch_symb);
+pdcch_sym_count = 0;
+for i = 0 : (n_pdcch_symb-1)
+
+    if i == 0
+        idx_rs_occupied = idx_rs_occupied1;
+    elseif i == (n_symb_dl-3)
+        idx_rs_occupied = idx_rs_occupied2;
+    else
+        idx_rs_occupied = [];
     end
-  end
-end
-assert(idx-1==m_bit/2);
+    
+    if i==0
+        pcfich_sc_idx = pcfich_idx_set;
+    else
+        pcfich_sc_idx = [];
+    end
 
+    if i < n_phich_symb
+        phich_sc_idx = get_phich_sc_idx(peak, subframe_idx, i, idx_rs_occupied, pcfich_sc_idx);
+    else
+        phich_sc_idx = [];
+    end
+
+    pdcch_sc_idx = ones(1, nSC);
+    pdcch_sc_idx([idx_rs_occupied, pcfich_sc_idx, phich_sc_idx]) = 0;
+    pdcch_sc_idx = find(pdcch_sc_idx);
+    
+    pdcch_sc_idx_store{i} = pdcch_sc_idx;
+    pdcch_sym_count = pdcch_sym_count + length(pdcch_sc_idx);
+end
+
+pdcch_sym = zeros(1, pdcch_sym_count);
+pdcch_ce = zeros(n_ports, pdcch_sym_count);
+
+pdcch_sym_count = 0;
+for i=1:n_pdcch_symb
+    pdcch_sc_idx = pdcch_sc_idx_store{i};
+    tmp_count = length(pdcch_sc_idx);
+    pdcch_sym( (pdcch_sym_count+1):(pdcch_sym_count+tmp_count)  ) = tfg(i, pdcch_sc_idx);
+    
+    for j = 1 : n_ports
+        pdcch_ce(j,:) = ce(i, pdcch_sc_idx, j);
+    end
+    
+    pdcch_sym_count = pdcch_sym_count + tmp_count;
+end

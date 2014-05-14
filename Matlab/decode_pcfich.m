@@ -1,24 +1,13 @@
-function [pcfich_info, pcfich_corr] = decode_pcfich(peak, subframe_idx, tfg)
+function [pcfich_info, pcfich_corr] = decode_pcfich(peak, subframe_idx, tfg, ce_tfg)
 
-nRB = peak.n_rb_dl;
-nSC = nRB*12;
+% nRB = peak.n_rb_dl;
+% nSC = nRB*12;
 
 % Local shortcuts
 % cp_type = peak.cp_type;
 n_ports = peak.n_ports;
 
-% Derive some values
-n_ofdm = size(tfg,1);
-% n_symb_dl = peak.n_symb_dl;
-
 n_id_cell = peak.n_id_cell;
-
-% Channel estimation
-ce_tfg = NaN(n_ofdm,nSC,n_ports);
-np_ce = zeros(1, n_ports);
-for i=1:n_ports
-    [ce_tfg(:,:,i), np_ce(i)]=chan_est_subframe(peak, subframe_idx, tfg, i-1);
-end
 
 [pcfich_sym, pcfich_ce] = pcfich_extract(peak, tfg, ce_tfg);
 
