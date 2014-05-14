@@ -1,7 +1,7 @@
-function [pdcch_info, pcfich_info, pcfich_corr] = decode_pdcch(peak, subframe_idx, tfg)
+function pdcch_info = decode_pdcch(peak, pcfich_info, subframe_idx, tfg, ce_tfg, np_ce)
 pdcch_info = 0;
 
-subframe_idx = mod(subframe_idx, 10);
+% subframe_idx = mod(subframe_idx, 10);
 start_slot_idx = subframe_idx*2;
 end_slot_idx = start_slot_idx + 1;
 
@@ -12,16 +12,7 @@ nSC = n_rb_dl*12;
 n_id_cell = peak.n_id_cell;
 n_symb_dl = peak.n_symb_dl;
 n_ports = peak.n_ports;
-
-% Channel estimation
-ce_tfg = NaN(n_ofdm, nSC, n_ports);
-np_ce = zeros(1, n_ports);
-for i=1:n_ports
-    [ce_tfg(:,:,i), np_ce(i)]=chan_est_subframe(peak, subframe_idx, tfg, i-1);
-end
-
-% pcfich decoding
-[pcfich_info, pcfich_corr] = decode_pcfich(peak, subframe_idx, tfg, ce_tfg);
+uldl_cfg = peak.uldl_cfg;
 
 % decide number of ofdm symbols of phich and pdcch
 if peak.phich_dur_value == 0 % normal

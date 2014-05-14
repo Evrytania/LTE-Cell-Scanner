@@ -23,7 +23,7 @@ function [tfg_comp, tfg_comp_timestamp, peak_out]=tfoec_subframe(peak, subframe_
 
 % Local shortcuts
 cp_type=peak.cp_type;
-nRB = cell_tmp.n_rb_dl;
+nRB = peak.n_rb_dl;
 
 if nRB == 6
     decimation_ratio = 16;
@@ -57,7 +57,7 @@ peak_out=peak;
 rs0_start=NaN(2,nRS);
 rs0_mid=NaN(2,nRS);
 
-subframe_idx = mod(subframe_idx, 10);
+% subframe_idx = mod(subframe_idx, 10);
 start_slot_idx = subframe_idx*2;
 end_slot_idx = start_slot_idx + 1;
 

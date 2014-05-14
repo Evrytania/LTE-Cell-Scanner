@@ -42,7 +42,7 @@ else
 end
 n_rs_ofdm=length(rs_set);
 
-subframe_idx = mod(subframe_idx, 10);
+% subframe_idx = mod(subframe_idx, 10);
 start_slot_idx = subframe_idx*2;
 
 % Extract the raw channel estimates

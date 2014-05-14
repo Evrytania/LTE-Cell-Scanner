@@ -21,7 +21,7 @@ pcfich_cw = 1-2.*pcfich_cw;
 pcfich_info = zeros(1, num_pcfich);
 pcfich_corr = zeros(1, num_pcfich);
 
-subframe_idx = mod(subframe_idx, 10);
+% subframe_idx = mod(subframe_idx, 10);
 start_slot_idx = subframe_idx*2;
 
 slot_idx = start_slot_idx;

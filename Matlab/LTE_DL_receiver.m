@@ -74,34 +74,49 @@ for cell_idx = 1 : 1
 %     [tfg_comp, tfg_comp_timestamp, cell_tmp]=tfoec(cell_tmp, tfg, tfg_timestamp, fc, sampling_carrier_twist, cell_tmp.n_rb_dl);
 %     cell_tmp=decode_mib(cell_tmp,tfg_comp(:, 565:636));
     
-    n_symb_per_radioframe = 10*2*cell_tmp.n_symb_dl;
-    num_radioframe = floor(size(tfg,1)/n_symb_per_subframe);
+    n_symb_per_subframe = 2*cell_tmp.n_symb_dl;
+    n_symb_per_radioframe = 10*n_symb_per_subframe;
+    num_radioframe = floor(size(tfg,1)/n_symb_per_radioframe);
     num_subframe = num_radioframe*10;
     pdcch_info = cell(1, num_subframe);
     pcfich_info = zeros(1, num_subframe);
     pcfich_corr = zeros(1, num_subframe);
-
+    uldl_cfg = zeros(1, num_radioframe);
+    
+    nSC = cell_tmp.n_rb_dl*12;
+    n_ports = cell_tmp.n_ports;
+    
+    tfg_comp = zeros(n_symb_per_subframe, nSC, 10);
+    ce_tfg = NaN(n_symb_per_subframe, nSC, n_ports, 10);
+    np_ce = zeros(10, n_ports);
     % % ----------------following process radio frame by radio frame-------------------
     for radioframe_idx = 1 : num_radioframe
         
         subframe_base_idx = (radioframe_idx-1)*10;
         
-        % % decode pcfich and identify uldl_cfg if TDD mode
+        % % channel estimation and decode pcfich
         for subframe_idx = 1 : 10
-            sp = subframe_base_idx + (subframe_idx-1)*n_symb_per_subframe + 1;
+            sp = (subframe_base_idx + subframe_idx-1)*n_symb_per_subframe + 1;
             ep = sp + n_symb_per_subframe - 1;
 
-            [tfg_comp, tfg_comp_timestamp, cell_tmp]=tfoec_subframe(cell_tmp, subframe_idx-1, tfg(sp:ep, :), tfg_timestamp(sp:ep), fc, sampling_carrier_twist);
+            [tfg_comp(:,:,subframe_idx), ~, ~] = tfoec_subframe(cell_tmp, subframe_idx-1, tfg(sp:ep, :), tfg_timestamp(sp:ep), fc, sampling_carrier_twist);
+            
+            % Channel estimation
+            for i=1:n_ports
+                [ce_tfg(:,:,i, subframe_idx), np_ce(subframe_idx, i)] = chan_est_subframe(cell_tmp, subframe_idx-1, tfg_comp(:,:,subframe_idx), i-1);
+            end
+
+            % pcfich decoding
+            [pcfich_info(subframe_base_idx+subframe_idx), pcfich_corr(subframe_base_idx+subframe_idx)] = decode_pcfich(cell_tmp, subframe_idx-1, tfg_comp(:,:,subframe_idx), ce_tfg(:,:,:, subframe_idx));
         end
+        
+        % identify uldl_cfg if TDD mode
+        cell_tmp = get_uldl_cfg(cell_tmp, pcfich_info( (subframe_base_idx+1) : (subframe_base_idx+10) ));
+        uldl_cfg(radioframe_idx) = cell_tmp.uldl_cfg;
         
         % % decode pdcch
         for subframe_idx = 1 : 10
-            sp = (subframe_idx-1)*n_symb_per_subframe + 1;
-            ep = sp + n_symb_per_subframe - 1;
-
-            [tfg_comp, tfg_comp_timestamp, cell_tmp]=tfoec_subframe(cell_tmp, subframe_idx-1, tfg(sp:ep, :), tfg_timestamp(sp:ep), fc, sampling_carrier_twist);
-
-            [pdcch_info{subframe_idx}, pcfich_info(subframe_idx), pcfich_corr(subframe_idx)] = decode_pdcch(cell_tmp, subframe_idx-1, tfg_comp);
+            pdcch_info{subframe_base_idx+subframe_idx} = decode_pdcch(cell_tmp, pcfich_info(subframe_base_idx+subframe_idx), subframe_idx-1, tfg_comp(:,:,subframe_idx), ce_tfg(:,:,:, subframe_idx), np_ce(subframe_idx,:));
         end
         
     end
@@ -113,9 +128,9 @@ val_set = pcfich_info(pcfich_info>0);
 disp(['subframe  ' num2str(sf_set)]);
 disp(['num pdcch ' num2str(val_set)]);
 
-subplot(3,1,1); plot(pcfich_corr); axis tight;
-subplot(3,1,2); plot(sf_set, val_set, 'b.-'); axis tight;
-subplot(3,1,3);
+subplot(4,1,1); plot(pcfich_corr); axis tight;
+subplot(4,1,2); plot(sf_set, val_set, 'b.-'); axis tight;
+subplot(4,1,3);
 a = zeros(1, max(sf_set)); a(sf_set) = 1;
 pcolor([a;a]); shading faceted;  axis tight;
-
+subplot(4,1,4); plot(uldl_cfg);
