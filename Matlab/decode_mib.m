@@ -183,7 +183,7 @@ if (found)
   peak_out.n_rb_dl=n_rb_dl;
 
   % PHICH duration
-  peak_out.phich_dur_value = c_est(4);
+  peak_out.phich_dur_val = c_est(4);
   if (c_est(4))
     peak_out.phich_dur='extended';
   else

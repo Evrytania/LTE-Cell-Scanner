@@ -14,13 +14,13 @@ close all;
 
 % ------------------------------------------------------------------------------------
 % % bin file captured by hackrf_transfer  
-% filename = '../test/f2585_s19.2_bw20_1s_hackrf_bda.bin'; fc = 2585e6;
+filename = '../test/f2585_s19.2_bw20_1s_hackrf_bda.bin'; fc = 2585e6;
 % filename = '../test/f2585_s19.2_bw20_1s_hackrf_bda1.bin'; fc = 2585e6;
 % filename = '../test/f1860_s19.2_bw20_1s_hackrf_home1.bin'; fc = 1860e6;
 % filename = '../test/f1860_s19.2_bw20_1s_hackrf_home.bin'; fc = 1860e6;
 % filename = '../test/f1890_s19.2_bw20_1s_hackrf_home.bin'; fc = 1890e6;
 % filename = '../test/f1890_s19.2_bw20_1s_hackrf_home1.bin'; fc = 1890e6;
-filename = '../test/f2360_s19.2_bw20_1s_hackrf_bda.bin'; fc = 2360e6;
+% filename = '../test/f2360_s19.2_bw20_1s_hackrf_bda.bin'; fc = 2360e6;
 
 sampling_carrier_twist = 0; % ATTENTION! If this is 1, make sure fc is aligned with bin file!!!
 
@@ -66,7 +66,15 @@ else
 end
 
 % cell_info
-
+uldl_str = [ ...
+        'D S U U U D S U U U'; ...
+        'D S U U D D S U U D'; ...
+        'D S U D D D S U D D'; ...
+        'D S U U U D D D D D'; ...
+        'D S U U D D D D D D';
+        'D S U D D D D D D D';
+        'D S U U U D S U U D'
+        ];
 % for cell_idx = 1 : length(cell_info)
 for cell_idx = 1 : 1
     cell_tmp = cell_info(cell_idx);
@@ -113,11 +121,18 @@ for cell_idx = 1 : 1
         % identify uldl_cfg if TDD mode
         cell_tmp = get_uldl_cfg(cell_tmp, pcfich_info( (subframe_base_idx+1) : (subframe_base_idx+10) ));
         uldl_cfg(radioframe_idx) = cell_tmp.uldl_cfg;
-        
-        % % decode pdcch
-        for subframe_idx = 1 : 10
-            pdcch_info{subframe_base_idx+subframe_idx} = decode_pdcch(cell_tmp, pcfich_info(subframe_base_idx+subframe_idx), subframe_idx-1, tfg_comp(:,:,subframe_idx), ce_tfg(:,:,:, subframe_idx), np_ce(subframe_idx,:));
+        if cell_tmp.uldl_cfg >= 0 % TDD and valid pcfich/UL-DL-PATTERN detected
+            disp(uldl_str(cell_tmp.uldl_cfg+1,:));
+        elseif cell_tmp.uldl_cfg == -2 % FDD and valid pcfich/UL-DL-PATTERN detected
+            disp('D D D D D D D D D D');
+        else
+            disp('- - - - - - - - - -');
         end
+        
+%         % % decode pdcch
+%         for subframe_idx = 1 : 10
+%             pdcch_info{subframe_base_idx+subframe_idx} = decode_pdcch(cell_tmp, pcfich_info(subframe_base_idx+subframe_idx), subframe_idx-1, tfg_comp(:,:,subframe_idx), ce_tfg(:,:,:, subframe_idx), np_ce(subframe_idx,:));
+%         end
         
     end
 end

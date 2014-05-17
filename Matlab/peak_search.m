@@ -43,6 +43,7 @@ while (1)
   % The following are filled in after the sss search
   rec.n_id_1=NaN;
   rec.cp_type='';
+  rec.cp_type_val = -1;
   rec.frame_start=NaN;
   rec.freq_fine=NaN;
   % The following are filled in after time / frequency estimation and
@@ -56,7 +57,7 @@ while (1)
   rec.n_id_cell=NaN;
   rec.n_ports=NaN;
   rec.duplex_mode=NaN;
-  rec.phich_dur_value = -1;
+  rec.phich_dur_val = -1;
   
   if sampling_carrier_twist
     rec.k_factor = (fc-rec.freq)/fc;

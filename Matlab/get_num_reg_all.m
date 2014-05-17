@@ -1,0 +1,1 @@
+function num_reg_all = get_num_reg_all(peak, sym_idx)

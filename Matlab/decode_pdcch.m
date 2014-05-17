@@ -1,5 +1,8 @@
 function pdcch_info = decode_pdcch(peak, pcfich_info, subframe_idx, tfg, ce_tfg, np_ce)
-pdcch_info = 0;
+if pcfich_info == 0 % no PDCCH in this subframe
+    pdcch_info = NaN;
+    return;
+end
 
 % subframe_idx = mod(subframe_idx, 10);
 start_slot_idx = subframe_idx*2;
@@ -15,21 +18,21 @@ n_ports = peak.n_ports;
 uldl_cfg = peak.uldl_cfg;
 
 % decide number of ofdm symbols of phich and pdcch
-if peak.phich_dur_value == 0 % normal
+if peak.phich_dur_val == 0 % normal
     n_phich_symb = 1;
-elseif peak.phich_dur_value == 1 % extended
+elseif peak.phich_dur_val == 1 % extended
     if (peak.duplex_mode == 1) && ( subframe_idx==1 || subframe_idx==6 ) % TDD
         n_phich_symb = 2;
     else
         n_phich_symb = 3;
     end
 else
-    disp('Invalid peak.phich_dur_value!');
+    disp('Invalid peak.phich_dur_val!');
     return;
 end
 
 if n_rb_dl > 10
-    if peak.phich_dur_value == 1 % extended
+    if peak.phich_dur_val == 1 % extended
         n_pdcch_symb = n_phich_symb;
     else
         n_pdcch_symb = pcfich_info;

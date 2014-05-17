@@ -5,6 +5,7 @@ n_ports = peak.n_ports;
 n_symb_dl = peak.n_symb_dl;
 n_id_cell = peak.n_id_cell;
 n_rb_dl = peak.n_rb_dl;
+uldl_cfg = peak.uldl_cfg;
 
 pcfich_idx_set = get_pcfich_sc_idx(n_id_cell, n_rb_dl, n_symb_dl); % only valid for the first ofdm symbol
 

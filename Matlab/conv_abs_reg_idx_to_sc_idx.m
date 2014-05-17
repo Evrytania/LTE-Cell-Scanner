@@ -1,0 +1,1 @@
+function sc_idx = conv_abs_reg_idx_to_sc_idx( phich_abs_reg_table(nibar) )

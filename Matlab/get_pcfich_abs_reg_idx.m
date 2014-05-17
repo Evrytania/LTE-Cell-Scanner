@@ -1,0 +1,1 @@
+function pcfich_abs_reg_idx = get_pcfich_abs_reg_idx(peak, sym_idx)
