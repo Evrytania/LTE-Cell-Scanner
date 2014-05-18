@@ -50,4 +50,4 @@ end
 
 [pdcch_sym, pdcch_ce, reg_info] = pdcch_extract(peak, subframe_idx, tfg, ce_tfg, n_phich_symb, n_pdcch_symb);
 
-scatterplot(pdcch_sym./pdcch_ce);
+% scatterplot(pdcch_sym./pdcch_ce);
