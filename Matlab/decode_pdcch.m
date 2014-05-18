@@ -1,4 +1,5 @@
 function pdcch_info = decode_pdcch(peak, pcfich_info, subframe_idx, tfg, ce_tfg, np_ce)
+pdcch_info = 0;
 if pcfich_info == 0 % no PDCCH in this subframe
     pdcch_info = NaN;
     return;

@@ -5,7 +5,8 @@ n_ports = peak.n_ports;
 n_symb_dl = peak.n_symb_dl;
 n_id_cell = peak.n_id_cell;
 n_rb_dl = peak.n_rb_dl;
-uldl_cfg = peak.uldl_cfg;
+nSC = 12*n_rb_dl;
+% uldl_cfg = peak.uldl_cfg;
 
 pcfich_idx_set = get_pcfich_sc_idx(n_id_cell, n_rb_dl, n_symb_dl); % only valid for the first ofdm symbol
 
@@ -51,7 +52,7 @@ for i = 0 : (n_pdcch_symb-1)
     end
 
     if i < n_phich_symb
-        phich_sc_idx = get_phich_sc_idx(peak, subframe_idx, i, idx_rs_occupied, pcfich_sc_idx);
+        phich_sc_idx = get_phich_sc_idx(peak, subframe_idx, i);
     else
         phich_sc_idx = [];
     end
@@ -60,7 +61,7 @@ for i = 0 : (n_pdcch_symb-1)
     pdcch_sc_idx([idx_rs_occupied, pcfich_sc_idx, phich_sc_idx]) = 0;
     pdcch_sc_idx = find(pdcch_sc_idx);
     
-    pdcch_sc_idx_store{i} = pdcch_sc_idx;
+    pdcch_sc_idx_store{i+1} = pdcch_sc_idx;
     pdcch_sym_count = pdcch_sym_count + length(pdcch_sc_idx);
 end
 
@@ -74,7 +75,7 @@ for i=1:n_pdcch_symb
     pdcch_sym( (pdcch_sym_count+1):(pdcch_sym_count+tmp_count)  ) = tfg(i, pdcch_sc_idx);
     
     for j = 1 : n_ports
-        pdcch_ce(j,:) = ce(i, pdcch_sc_idx, j);
+        pdcch_ce(j, (pdcch_sym_count+1):(pdcch_sym_count+tmp_count) ) = ce(i, pdcch_sc_idx, j);
     end
     
     pdcch_sym_count = pdcch_sym_count + tmp_count;

@@ -1,7 +1,8 @@
-function sc_idx = conv_abs_reg_idx_to_sc_idx( peak, sym_idx, abs_reg_idx )
+function num_reg_all = get_num_ctrl_reg_all(peak, sym_idx)
 % this function only valid for the 1st slot of subframe
 % because control domain only exists in the 1st slot of subframe
 
+n_rb_dl = peak.n_rb_dl;
 n_ports = peak.n_ports;
 cp_type_val = peak.cp_type_val;
 
@@ -32,10 +33,4 @@ else
     return;
 end
 
-if reg_x == 3
-    sp = abs_reg_idx*4;
-    sc_idx = sp : (sp + 3);
-elseif reg_x == 2
-    sp = abs_reg_idx*6;
-    sc_idx = [sp+1, sp+2, sp+4, sp+5];
-end
+num_reg_all = reg_x*n_rb_dl;

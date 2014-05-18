@@ -1,4 +1,4 @@
-function phich_sc_idx = get_phich_sc_idx(peak, subframe_idx, sym_idx, idx_rs_occupied, pcfich_sc_idx)
+function phich_sc_idx = get_phich_sc_idx(peak, subframe_idx, sym_idx)
 
 % shortcuts
 duplex_mode = peak.duplex_mode;
@@ -8,6 +8,7 @@ n_rb_dl = peak.n_rb_dl;
 nSC = n_rb_dl*12;
 uldl_cfg = peak.uldl_cfg;
 n_id_cell = peak.n_id_cell;
+phich_dur_val = peak.phich_dur_val;
 
 Ng = phich_res;
 
@@ -31,7 +32,7 @@ if duplex_mode == 1 % TDD
         0  0 -1  0  0  0  0  0  1  0; ...
         1  1 -1 -1 -1  1  1 -1 -1  1
         ];
-    mi = mi_table(uldl_cfg+1, subframe_idx);
+    mi = mi_table(uldl_cfg+1, subframe_idx+1);
 end
 
 if cp_type_val == 0
@@ -55,9 +56,12 @@ else
 end
 
 all_sc_idx = zeros(1, nSC);
+num_reg_all = get_num_ctrl_reg_all(peak, sym_idx);
 pcfich_abs_reg_idx = get_pcfich_abs_reg_idx(peak, sym_idx);
-num_reg_all = get_num_reg_all(peak, sym_idx);
 
+n_reg = [num_reg_all-4, num_reg_all, num_reg_all];
+
+% table used to convert relative phich reg idx to absolute reg idx
 phich_abs_reg_table = 0:(num_reg_all-1);
 phich_abs_reg_table(pcfich_abs_reg_idx+1) = [];
 
@@ -79,7 +83,7 @@ for mp = 0 : max_mp
                 n_reg_1 = n_reg(1+1);
                 nibar = mod( floor(n_id_cell*n_reg_lip/n_reg_1) + mp + floor(i*n_reg_lip/3) , n_reg_lip);
             end
-            sc_idx = conv_abs_reg_idx_to_sc_idx( phich_abs_reg_table(nibar) );
+            sc_idx = conv_abs_reg_idx_to_sc_idx( peak, sym_idx, phich_abs_reg_table(nibar) );
             all_sc_idx(sc_idx+1) = 1;
         end
     end
