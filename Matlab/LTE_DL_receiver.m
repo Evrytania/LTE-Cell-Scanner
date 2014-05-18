@@ -122,16 +122,21 @@ for cell_idx = 1 : 1
         cell_tmp = get_uldl_cfg(cell_tmp, pcfich_info( (subframe_base_idx+1) : (subframe_base_idx+10) ));
         uldl_cfg(radioframe_idx) = cell_tmp.uldl_cfg;
         if cell_tmp.uldl_cfg >= 0 % TDD and valid pcfich/UL-DL-PATTERN detected
-            disp(uldl_str(cell_tmp.uldl_cfg+1,:));
+            disp([num2str(cell_tmp.uldl_cfg) ' ' uldl_str(cell_tmp.uldl_cfg+1,:)]);
         elseif cell_tmp.uldl_cfg == -2 % FDD and valid pcfich/UL-DL-PATTERN detected
-            disp('D D D D D D D D D D');
-        else
-            disp('- - - - - - - - - -');
+            disp('0 D D D D D D D D D D');
         end
         
         % % decode pdcch
         for subframe_idx = 1 : 10
-            pdcch_info{subframe_base_idx+subframe_idx} = decode_pdcch(cell_tmp, pcfich_info(subframe_base_idx+subframe_idx), subframe_idx-1, tfg_comp(:,:,subframe_idx), ce_tfg(:,:,:, subframe_idx), np_ce(subframe_idx,:));
+            [pdcch_info{subframe_base_idx+subframe_idx}, reg_info] = decode_pdcch(cell_tmp, pcfich_info(subframe_base_idx+subframe_idx), subframe_idx-1, tfg_comp(:,:,subframe_idx), ce_tfg(:,:,:, subframe_idx), np_ce(subframe_idx,:));
+%             for i=1:length(reg_info.reg_map)
+%                 subplot(2,2,i); bar(reg_info.reg_map{i}); axis tight;
+%             end
+%             for i=(length(reg_info.reg_map)+1):4
+%                 subplot(2,2,i); plot(NaN);
+%             end
+%             a = 1;
         end
         
     end

@@ -32,10 +32,20 @@ else
     return;
 end
 
+num_abs_reg_idx = length(abs_reg_idx);
 if reg_x == 3
-    sp = abs_reg_idx*4;
-    sc_idx = sp : (sp + 3);
+    sp = abs_reg_idx(:).*4;
+    sc_idx = kron(ones(1,4), sp) + kron( ones(num_abs_reg_idx,1), 0:3 );
+%     for i = 1 : num_abs_reg_idx
+%         sc_idx(i,:) = sp(i) : (sp(i) + 3);
+%     end
 elseif reg_x == 2
-    sp = abs_reg_idx*6;
-    sc_idx = [sp+1, sp+2, sp+4, sp+5];
+    sp = abs_reg_idx(:).*6;
+    sc_idx = kron(ones(1,4), sp) + kron( ones(num_abs_reg_idx,1), [1 2 4 5] );
+%     for i = 1 : num_abs_reg_idx
+%         sc_idx(i,:) = [sp(i)+1, sp(i)+2, sp(i)+4, sp(i)+5];
+%     end
 end
+
+sc_idx = sc_idx.';
+sc_idx = sc_idx(:).';
