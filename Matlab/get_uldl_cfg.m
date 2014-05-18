@@ -17,11 +17,12 @@ elseif peak.duplex_mode == 1 % TDD
     
     diff_flag = sum(abs(kron(ones(7,1), pcfich_info) - uldl_table), 2);
     
-    peak_out.uldl_cfg = find(diff_flag==0) - 1;
+    [~, min_idx] = min(diff_flag);
+    peak_out.uldl_cfg = min_idx - 1;
     
-    if isempty(peak_out.uldl_cfg)
-        peak_out.uldl_cfg = -1;
-    end
+%     if isempty(peak_out.uldl_cfg)
+%         peak_out.uldl_cfg = -1;
+%     end
 else
     disp('duplex_mode has to be 0(FDD) or 1(TDD)');
 end
