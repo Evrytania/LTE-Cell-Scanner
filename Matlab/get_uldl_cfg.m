@@ -1,9 +1,10 @@
 function peak_out = get_uldl_cfg(peak, pcfich_info)
 
+peak_out = peak;
+
 if peak.duplex_mode == 0
     peak_out.uldl_cfg = -2; % default UL DL configuration: all DL (FDD) or invalid TDD
 elseif peak.duplex_mode == 1 % TDD
-    peak_out = peak;
     uldl_table = [ ...
         1 1 0 0 0 1 1 0 0 0; ...
         1 1 0 0 1 1 1 0 0 1; ...

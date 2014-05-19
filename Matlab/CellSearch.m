@@ -139,7 +139,7 @@ else
             
             cell_info = [cell_info peak];
             
-            if tdd_flag == 1
+            if peak.duplex_mode == 1
                 cell_mode_str = 'TDD';
             else
                 cell_mode_str = 'FDD';

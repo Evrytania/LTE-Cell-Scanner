@@ -19,9 +19,9 @@ end
 % n_ofdm = size(tfg,1);
 n_rb_dl = peak.n_rb_dl;
 % nSC = n_rb_dl*12;
-% n_id_cell = peak.n_id_cell;
+n_id_cell = peak.n_id_cell;
 % n_symb_dl = peak.n_symb_dl;
-% n_ports = peak.n_ports;
+n_ports = peak.n_ports;
 % uldl_cfg = peak.uldl_cfg;
 
 % decide number of ofdm symbols of phich and pdcch
@@ -50,4 +50,32 @@ end
 
 [pdcch_sym, pdcch_ce, reg_info] = pdcch_extract(peak, subframe_idx, tfg, ce_tfg, n_phich_symb, n_pdcch_symb);
 
-% scatterplot(pdcch_sym./pdcch_ce);
+N_REG = length(pdcch_sym)/4;
+N_CCE = floor(N_REG/9);
+
+num_CCE = 16;  % common search space
+L_set = [4 8]; % common search space
+Y = 0;         % common search space
+for l = 1 : length(L_set)
+    L = L_set(l);
+    M = num_CCE/L;
+    for m = 0 : (M-1)
+        sc_idx = zeros(L, 36);
+        for i = 0 : (L-1)
+            CCE_idx = L*( mod( Y+m, floor(N_CCE/L) ) ) + i;
+            sc_idx(i+1, :) = CCE_idx*36 : (CCE_idx*36 + 35);
+        end
+        sc_idx = sc_idx.';
+        sc_idx = sc_idx(:).'; 
+        
+        sym = vec2mat( pdcch_sym(sc_idx+1), 4 ); % group into quadruplet
+        M_quad = size(sym,1);
+        ce = zeros(M_quad, size(sym,2), n_ports);
+        for i = 1 : n_ports
+            ce(:,:,i) = vec2mat( pdcch_ce(i, sc_idx+1), 4 );
+        end
+        
+        sym = pdcch_de_cyclic_shift(sym, n_id_cell); % quadruplet idx is in the 1st dim!
+        ce = pdcch_de_cyclic_shift(ce, n_id_cell); % quadruplet idx is in the 1st dim!
+    end
+end
