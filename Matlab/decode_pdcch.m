@@ -55,7 +55,9 @@ N_CCE = floor(N_REG/9);
 
 num_CCE = 16;  % common search space
 L_set = [4 8]; % common search space
+bits_set = [288 576];
 Y = 0;         % common search space
+pdcch_info = [];
 for l = 1 : length(L_set)
     L = L_set(l);
     M = num_CCE/L;
@@ -77,5 +79,19 @@ for l = 1 : length(L_set)
         
         sym = pdcch_de_cyclic_shift(sym, n_id_cell); % quadruplet idx is in the 1st dim!
         ce = pdcch_de_cyclic_shift(ce, n_id_cell); % quadruplet idx is in the 1st dim!
+        
+        sym = sym.';
+        sym = sym(:).';
+        
+        ce_restore = zeros(n_ports, M_quad*4);
+        for i = 1 : n_ports
+            tmp_ce = ce(:,:,i);
+            tmp_ce = tmp_ce.';
+            tmp_ce = tmp_ce(:).';
+            ce_restore(i,:) = tmp_ce;
+        end
+        
+        tmp_info = pdcch_bit_level_proc(peak, subframe_idx*2, sym, ce_restore, np_ce, bits_set(l));
+        pdcch_info = [pdcch_info tmp_info];
     end
 end
