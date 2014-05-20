@@ -129,15 +129,12 @@ for cell_idx = 1 : 1
         
         % % decode pdcch
         for subframe_idx = 1 : 10
-            [pdcch_info{subframe_base_idx+subframe_idx}, reg_info] = decode_pdcch(cell_tmp, pcfich_info(subframe_base_idx+subframe_idx), subframe_idx-1, tfg_comp(:,:,subframe_idx), ce_tfg(:,:,:, subframe_idx), np_ce(subframe_idx,:));
-            disp(pdcch_info{subframe_base_idx+subframe_idx});
-%             for i=1:length(reg_info.reg_map)
-%                 subplot(2,2,i); bar(reg_info.reg_map{i}); axis tight;
-%             end
-%             for i=(length(reg_info.reg_map)+1):4
-%                 subplot(2,2,i); plot(NaN);
-%             end
-%             a = 1;
+%             [pdcch_info{subframe_base_idx+subframe_idx}, reg_info] = decode_pdcch(cell_tmp, pcfich_info(subframe_base_idx+subframe_idx), subframe_idx-1, tfg_comp(:,:,subframe_idx), ce_tfg(:,:,:, subframe_idx), np_ce(subframe_idx,:));
+%             disp(pdcch_info{subframe_base_idx+subframe_idx});
+%             [sc_map, reg_info1] = get_sc_map(cell_tmp, pcfich_info(subframe_base_idx+subframe_idx), subframe_idx-1);
+            [sc_map, reg_info1] = get_sc_map(cell_tmp, 3, subframe_idx-1);
+            plot_sc_map(sc_map, tfg_comp(:,:,subframe_idx));
+            clf;
         end
         
     end

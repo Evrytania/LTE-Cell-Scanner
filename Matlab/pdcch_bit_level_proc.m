@@ -5,6 +5,30 @@ n_id_cell = peak.n_id_cell;
 c_init = floor(slot_idx/2)*(2^9) + n_id_cell;
 np_mean = mean(np_ce);
 
+num_quadruplet = size(pdcch_sym, 1);
+v = lte_subblock_interleave(1:num_quadruplet);
+v = v(~isnan(v));
+deinterleave_order = zeros(1, num_quadruplet);
+deinterleave_order(v) = 1:num_quadruplet;
+
+pdcch_sym = pdcch_sym(deinterleave_order, :);
+
+pdcch_ce_deinterleave = pdcch_ce;
+for i = 1 : n_ports
+    pdcch_ce_deinterleave(:,:,i) = pdcch_ce(deinterleave_order,:,i);
+end
+
+pdcch_sym = pdcch_sym.';
+pdcch_sym = pdcch_sym(:).';
+
+pdcch_ce = zeros(n_ports, num_quadruplet*4);
+for i = 1 : n_ports
+    tmp_ce = pdcch_ce_deinterleave(:,:,i);
+    tmp_ce = tmp_ce.';
+    tmp_ce = tmp_ce(:).';
+    pdcch_ce(i,:) = tmp_ce;
+end
+
 if (n_ports==1)
     
     gain=conj(pdcch_ce(1,:))./absx2(pdcch_ce(1,:));

@@ -2,6 +2,11 @@ function sc_idx = conv_abs_reg_idx_to_sc_idx( peak, sym_idx, abs_reg_idx )
 % this function only valid for the 1st slot of subframe
 % because control domain only exists in the 1st slot of subframe
 
+if isempty(abs_reg_idx)
+    sc_idx = [];
+    return;
+end
+
 if abs_reg_idx<0
     sc_idx = [];
     return;

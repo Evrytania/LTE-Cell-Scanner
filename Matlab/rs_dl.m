@@ -1,4 +1,4 @@
-function [r shift]=rs_dl(slot_num,sym_num,port_num,n_id_cell,n_rb_dl,cp_type)
+function [r, shift]=rs_dl(slot_num,sym_num,port_num,n_id_cell,n_rb_dl,cp_type)
 
 % [r shift]=rs_dl(slot_num,sym_num,port_num,n_id_cell,n_rb_dl,cp_type)
 %
