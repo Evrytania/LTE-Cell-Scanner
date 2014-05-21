@@ -130,15 +130,14 @@ for cell_idx = 1 : 1
         
         figure(1); pcolor(abs(tfg_comp_radioframe)'); shading flat; colorbar;
         
-%         % % decode pdcch
-%         for subframe_idx = 1 : 10
-%             tfg_comp = tfg_comp_radioframe( (subframe_idx-1)*n_symb_per_subframe+1 : subframe_idx*n_symb_per_subframe, :);
-%             [sc_map, reg_info] = get_sc_map(cell_tmp, pcfich_info(subframe_base_idx+subframe_idx), subframe_idx-1);
-%             pdcch_info{subframe_base_idx+subframe_idx} = decode_pdcch(cell_tmp, reg_info, subframe_idx-1, tfg_comp, ce_tfg(:,:,:, subframe_idx), np_ce(subframe_idx,:));
-%             disp(pdcch_info{subframe_base_idx+subframe_idx});
-%             figure(2); plot_sc_map(sc_map, tfg_comp);
-%             clf;
-%         end
+        % % decode pdcch
+        for subframe_idx = 1 : 10
+            tfg_comp = tfg_comp_radioframe( (subframe_idx-1)*n_symb_per_subframe+1 : subframe_idx*n_symb_per_subframe, :);
+            [sc_map, reg_info] = get_sc_map(cell_tmp, pcfich_info(subframe_base_idx+subframe_idx), subframe_idx-1);
+            pdcch_info{subframe_base_idx+subframe_idx} = decode_pdcch(cell_tmp, reg_info, subframe_idx-1, tfg_comp, ce_tfg(:,:,:, subframe_idx), np_ce(subframe_idx,:));
+            disp(pdcch_info{subframe_base_idx+subframe_idx});
+            figure(2); plot_sc_map(sc_map, tfg_comp);
+        end
         
     end
 end

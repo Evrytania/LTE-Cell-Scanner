@@ -51,7 +51,7 @@ slot_num = subframe_idx*2; % control domain only exist in the 1st slot of each s
 for i = 0 : (n_pdcch_symb-1)
     
     % rs
-    for port_idx = 0 : n_ports
+    for port_idx = 0 : (n_ports-1)
         [~, shift]=rs_dl(slot_num, i, port_idx, n_id_cell, n_rb_dl, cp_type);
         if ~isnan(shift)
             sc_idx = (1+shift) : 6 : (n_rb_dl*12);
