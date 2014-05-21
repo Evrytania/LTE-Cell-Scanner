@@ -94,7 +94,7 @@ for cell_idx = 1 : 1
     nSC = cell_tmp.n_rb_dl*12;
     n_ports = cell_tmp.n_ports;
     
-    tfg_comp = zeros(n_symb_per_subframe, nSC, 10);
+    tfg_comp_radioframe = zeros(n_symb_per_subframe*10, nSC);
     ce_tfg = NaN(n_symb_per_subframe, nSC, n_ports, 10);
     np_ce = zeros(10, n_ports);
     % % ----------------following process radio frame by radio frame-------------------
@@ -107,15 +107,16 @@ for cell_idx = 1 : 1
             sp = (subframe_base_idx + subframe_idx-1)*n_symb_per_subframe + 1;
             ep = sp + n_symb_per_subframe - 1;
 
-            [tfg_comp(:,:,subframe_idx), ~, ~] = tfoec_subframe(cell_tmp, subframe_idx-1, tfg(sp:ep, :), tfg_timestamp(sp:ep), fc, sampling_carrier_twist);
+            [tfg_comp, ~, ~] = tfoec_subframe(cell_tmp, subframe_idx-1, tfg(sp:ep, :), tfg_timestamp(sp:ep), fc, sampling_carrier_twist);
+            tfg_comp_radioframe( (subframe_idx-1)*n_symb_per_subframe+1 : subframe_idx*n_symb_per_subframe, :) = tfg_comp;
             
             % Channel estimation
             for i=1:n_ports
-                [ce_tfg(:,:,i, subframe_idx), np_ce(subframe_idx, i)] = chan_est_subframe(cell_tmp, subframe_idx-1, tfg_comp(:,:,subframe_idx), i-1);
+                [ce_tfg(:,:,i, subframe_idx), np_ce(subframe_idx, i)] = chan_est_subframe(cell_tmp, subframe_idx-1, tfg_comp, i-1);
             end
 
             % pcfich decoding
-            [pcfich_info(subframe_base_idx+subframe_idx), pcfich_corr(subframe_base_idx+subframe_idx)] = decode_pcfich(cell_tmp, subframe_idx-1, tfg_comp(:,:,subframe_idx), ce_tfg(:,:,:, subframe_idx));
+            [pcfich_info(subframe_base_idx+subframe_idx), pcfich_corr(subframe_base_idx+subframe_idx)] = decode_pcfich(cell_tmp, subframe_idx-1, tfg_comp, ce_tfg(:,:,:, subframe_idx));
         end
         
         % identify uldl_cfg if TDD mode
@@ -127,15 +128,17 @@ for cell_idx = 1 : 1
             disp('0 D D D D D D D D D D');
         end
         
-        % % decode pdcch
-        for subframe_idx = 1 : 10
-%             [pdcch_info{subframe_base_idx+subframe_idx}, reg_info] = decode_pdcch(cell_tmp, pcfich_info(subframe_base_idx+subframe_idx), subframe_idx-1, tfg_comp(:,:,subframe_idx), ce_tfg(:,:,:, subframe_idx), np_ce(subframe_idx,:));
+        figure(1); pcolor(abs(tfg_comp_radioframe)'); shading flat; colorbar;
+        
+%         % % decode pdcch
+%         for subframe_idx = 1 : 10
+%             tfg_comp = tfg_comp_radioframe( (subframe_idx-1)*n_symb_per_subframe+1 : subframe_idx*n_symb_per_subframe, :);
+%             [sc_map, reg_info] = get_sc_map(cell_tmp, pcfich_info(subframe_base_idx+subframe_idx), subframe_idx-1);
+%             pdcch_info{subframe_base_idx+subframe_idx} = decode_pdcch(cell_tmp, reg_info, subframe_idx-1, tfg_comp, ce_tfg(:,:,:, subframe_idx), np_ce(subframe_idx,:));
 %             disp(pdcch_info{subframe_base_idx+subframe_idx});
-%             [sc_map, reg_info1] = get_sc_map(cell_tmp, pcfich_info(subframe_base_idx+subframe_idx), subframe_idx-1);
-            [sc_map, reg_info1] = get_sc_map(cell_tmp, 3, subframe_idx-1);
-            plot_sc_map(sc_map, tfg_comp(:,:,subframe_idx));
-            clf;
-        end
+%             figure(2); plot_sc_map(sc_map, tfg_comp);
+%             clf;
+%         end
         
     end
 end
@@ -146,9 +149,9 @@ val_set = pcfich_info(pcfich_info>0);
 disp(['subframe  ' num2str(sf_set)]);
 disp(['num pdcch ' num2str(val_set)]);
 
-subplot(4,1,1); plot(pcfich_corr); axis tight;
-subplot(4,1,2); plot(sf_set, val_set, 'b.-'); axis tight;
-subplot(4,1,3);
-a = zeros(1, max(sf_set)); a(sf_set) = 1;
-pcolor([a;a]); shading faceted;  axis tight;
-subplot(4,1,4); plot(uldl_cfg);
+% subplot(4,1,1); plot(pcfich_corr); axis tight;
+% subplot(4,1,2); plot(sf_set, val_set, 'b.-'); axis tight;
+% subplot(4,1,3);
+% a = zeros(1, max(sf_set)); a(sf_set) = 1;
+% pcolor([a;a]); shading faceted;  axis tight;
+% subplot(4,1,4); plot(uldl_cfg);
