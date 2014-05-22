@@ -1,4 +1,4 @@
-function d_est=lte_conv_deratematch(e_est,n_c);
+function d_est=lte_conv_deratematch(e_est,n_c)
 
 % d_est=lte_conv_deratematch(e_est,n_c);
 %

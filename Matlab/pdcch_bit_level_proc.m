@@ -18,17 +18,37 @@ for i = 1 : n_ports
     pdcch_ce_all(i,:) = tmp_ce;
 end
 
+% DCI format for common search space
+% format0     1+1+2+13+5+1+2+3+2+2+1=33 bits (padding 0 to equal to 1A)
+% 
+% format1A    C-RNTI, SPS C-RNTI FDD: 1+1+1+13+12+5+3+2+2=40 bits (will be pad to 41)
+% format1A    C-RNTI, SPS C-RNTI TDD: 1+1+1+13+12+5+4+2+2=41 bits
+% format1A    RA-RNTI, P-RNTI, or SI-RNTI FDD: 1+1+1+13+12+5+3+1+2+1+1=41bits
+% format1A    RA-RNTI, P-RNTI, or SI-RNTI TDD: 1+1+1+13+12+5+4+1+2+1+1=42bits
+% 
+% format1C    RA-RNTI, P-RNTI, or SI-RNTI: 1 + 9 + 5 = 15bits
+% format1C    M-RNTI: 8+7 = 15bits
+% 
+% format3     TPC-RNTI: 2*N bits (will be pad to format 0 length)
+% format3A    TPC-RNTI: N bits (will be pad to format 0 length)
+
 % -------blind search -----------
 N_REG = length(pdcch_sym_all)/4;
 N_CCE = floor(N_REG/9);
 
 num_CCE = 16;  % common search space
 L_set = [4 8]; % common search space
-bits_set = [288 576];
+
+if peak.duplex_mode == 1 % TDD
+    bits_set = [21 8] + 16;
+else % FDD
+    bits_set = [21 8] + 16;
+end
+% bits_set = [288 576];
+
 Y = 0;         % common search space
 pdcch_info = [];
 for l = 1 : length(L_set)
-    num_bits = bits_set(l);
     L = L_set(l);
     M = num_CCE/L;
     for m = 0 : (M-1)
@@ -101,27 +121,32 @@ for l = 1 : length(L_set)
         e_est=deqam(syms,np,'QAM','LTE');
 
         % ----------Unscramble---------------
-        scr=lte_pn(c_init,length(e_est));
+        scr = lte_pn(c_init, 2*(sc_idx(end)+1));
+        scr = scr( (end-length(e_est)+1) : end);
         e_est(scr==1)=1-e_est(scr==1);
 
-        % Undo ratematching
-        d_est=lte_conv_deratematch(e_est, num_bits);
-        % Viterbi decode
-        c_est=lte_conv_decode(d_est);
-        % Calculate the received CRC
-        crc_est=lte_calc_crc(c_est(1:(num_bits-16)),16);
-        %c_est(25:end)
-        % Apply CRC mask
-        if (n_ports==2)
-            crc_est=1-crc_est;
-        elseif (n_ports==4)
-            crc_est(2:2:end)=1-crc_est(2:2:end);
-        end
-        %crc_est
-        a = xor(crc_est, c_est((end-15):end) );
+        for i = 1 : length(bits_set)
+            num_bits = bits_set(i);
 
-        bits = [dec2hex(bi2de(a)) ' ' dec2hex(bi2de(a(end:-1:1)))  ' ' ] ;
-        pdcch_info = [pdcch_info bits];
+            % Undo ratematching
+            d_est=lte_conv_deratematch(e_est, num_bits);
+            % Viterbi decode
+            c_est=lte_conv_decode(d_est);
+            % Calculate the received CRC
+            crc_est=lte_calc_crc(c_est(1:(num_bits-16)),16);
+            %c_est(25:end)
+            % Apply CRC mask
+            if (n_ports==2)
+                crc_est=1-crc_est;
+            elseif (n_ports==4)
+                crc_est(2:2:end)=1-crc_est(2:2:end);
+            end
+            %crc_est
+            a = xor(crc_est, c_est((end-15):end) );
+
+            bits = [dec2hex(bi2de(a)) ' ' dec2hex(bi2de(a(end:-1:1)))  ' ' ] ;
+            pdcch_info = [pdcch_info bits];
+        end
     end
 end
 
