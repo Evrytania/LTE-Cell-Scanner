@@ -1,4 +1,4 @@
-function [pdcch_sym, pdcch_ce]=pdcch_extract(peak, reg_info, tfg, ce)
+function [pdcch_sym, pdcch_ce]=pdcch_extract(peak, reg_info, tfg, ce, subframe_idx)
 % only operate on the first slot
 
 n_ports = peak.n_ports;
@@ -54,3 +54,42 @@ for k = 0 : (nSC - 1)
 
     end
 end
+
+% % % -----------
+% enb.CellRefP = peak.n_ports;
+% enb.NCellID = peak.n_id_cell;
+% enb.NSubframe = subframe_idx;
+% enb.NDLRB = peak.n_rb_dl;
+% if peak.cp_type_val == 0
+%     enb.CyclicPrefix = 'Normal';
+% else
+%     enb.CyclicPrefix = 'Extended';
+% end
+% enb.CFI = reg_info.n_pdcch_symb;
+% if peak.phich_res == 1
+%     enb.Ng = 'One';
+% elseif peak.phich_res == 2
+%     enb.Ng = 'Two';
+% elseif peak.phich_res == 0.5
+%     enb.Ng = 'Half';
+% elseif peak.phich_res == 1/6
+%     enb.Ng = 'Sixth';
+% end
+% if peak.phich_dur_val == 0
+%     enb.PHICHDuration = 'Normal';
+% else
+%     enb.PHICHDuration = 'Extended';
+% end
+% enb.NFrame = peak.sfn;
+% 
+% if peak.duplex_mode == 0
+%     enb.DuplexMode = 'FDD';
+% elseif peak.duplex_mode == 1
+%     enb.DuplexMode = 'TDD';
+% end
+% enb.TDDConfig = peak.uldl_cfg;
+% 
+% ind = ltePDCCHIndices(enb);
+% tfg = tfg.';
+% pdcch_sym1 = tfg(ind);
+% figure; plot(abs(pdcch_sym(:) - pdcch_sym1(:)));
