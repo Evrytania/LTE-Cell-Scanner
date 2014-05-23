@@ -39,10 +39,10 @@ N_CCE = floor(N_REG/9);
 num_CCE = 16;  % common search space
 L_set = [4 8]; % common search space
 
-if peak.duplex_mode == 1 % TDD
-    bits_set = [21 8] + 16;
+if peak.duplex_mode == 1 % TDD % careful on this!!! need improve
+    bits_set = [31 15] + 16;
 else % FDD
-    bits_set = [21 8] + 16;
+    bits_set = [31 15] + 16;
 end
 % bits_set = [288 576];
 
