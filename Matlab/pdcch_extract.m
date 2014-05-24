@@ -1,4 +1,4 @@
-function [pdcch_sym, pdcch_ce]=pdcch_extract(peak, reg_info, tfg, ce, subframe_idx)
+function [pdcch_sym, pdcch_ce]=pdcch_extract(peak, reg_info, tfg, ce)
 % only operate on the first slot
 
 n_ports = peak.n_ports;

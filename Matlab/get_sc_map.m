@@ -6,6 +6,10 @@ function [sc_map, reg_info] = get_sc_map(peak, pcfich_info, subframe_idx)
 % 3 -- phich
 % 4 -- pdcch
 
+if pcfich_info<=0
+    pcfich_info = 3; % fake one to see
+end
+
 n_rb_dl = peak.n_rb_dl;
 n_ports = peak.n_ports;
 cp_type = peak.cp_type;

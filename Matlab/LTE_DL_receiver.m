@@ -67,13 +67,13 @@ end
 
 % cell_info
 uldl_str = [ ...
-        'D S U U U D S U U U'; ...
-        'D S U U D D S U U D'; ...
-        'D S U D D D S U D D'; ...
-        'D S U U U D D D D D'; ...
-        'D S U U D D D D D D';
-        'D S U D D D D D D D';
-        'D S U U U D S U U D'
+        '|D|S|U|U|U|D|S|U|U|U|'; ...
+        '|D|S|U|U|D|D|S|U|U|D|'; ...
+        '|D|S|U|D|D|D|S|U|D|D|'; ...
+        '|D|S|U|U|U|D|D|D|D|D|'; ...
+        '|D|S|U|U|D|D|D|D|D|D|';
+        '|D|S|U|D|D|D|D|D|D|D|';
+        '|D|S|U|U|U|D|S|U|U|D|'
         ];
 % for cell_idx = 1 : length(cell_info)
 for cell_idx = 1 : 1
@@ -122,20 +122,31 @@ for cell_idx = 1 : 1
         % identify uldl_cfg if TDD mode
         cell_tmp = get_uldl_cfg(cell_tmp, pcfich_info( (subframe_base_idx+1) : (subframe_base_idx+10) ));
         uldl_cfg(radioframe_idx) = cell_tmp.uldl_cfg;
+        sfn = mod(cell_tmp.sfn+radioframe_idx-1, 1023);
+        cell_info_post_str = [ ' CID-' num2str(cell_tmp.n_id_cell) ' nPort-' num2str(cell_tmp.n_ports) ' CP-' cell_tmp.cp_type ' PHICH-DUR-' cell_tmp.phich_dur '-RES-' num2str(cell_tmp.phich_res)];
         if cell_tmp.uldl_cfg >= 0 % TDD and valid pcfich/UL-DL-PATTERN detected
-            disp([num2str(cell_tmp.uldl_cfg) ' ' uldl_str(cell_tmp.uldl_cfg+1,:)]);
+            disp(['TDD SFN-' num2str(sfn) ' ULDL-' num2str(cell_tmp.uldl_cfg) '-' uldl_str(cell_tmp.uldl_cfg+1,:) cell_info_post_str]);
         elseif cell_tmp.uldl_cfg == -2 % FDD and valid pcfich/UL-DL-PATTERN detected
-            disp('0 D D D D D D D D D D');
+            disp(['FDD SFN-' num2str(sfn) ' ULDL-0: D D D D D D D D D D' cell_info_post_str]);
         end
         
-        figure(1); pcolor(abs(tfg_comp_radioframe)'); shading flat; colorbar; drawnow;
+        figure(2); pcolor(abs(tfg_comp_radioframe)'); shading flat; colorbar; drawnow;
         
         % % decode pdcch
         for subframe_idx = 1 : 10
             tfg_comp = tfg_comp_radioframe( (subframe_idx-1)*n_symb_per_subframe+1 : subframe_idx*n_symb_per_subframe, :);
             [sc_map, reg_info] = get_sc_map(cell_tmp, pcfich_info(subframe_base_idx+subframe_idx), subframe_idx-1);
             pdcch_info{subframe_base_idx+subframe_idx} = decode_pdcch(cell_tmp, reg_info, subframe_idx-1, tfg_comp, ce_tfg(:,:,:, subframe_idx), np_ce(subframe_idx,:));
-            disp(['SF' num2str(subframe_idx-1) ': ' pdcch_info{subframe_base_idx+subframe_idx}]);
+            disp(['SF' num2str(subframe_idx-1) ' PHICH' num2str(reg_info.n_phich_symb) ' PDCCH' num2str(reg_info.n_pdcch_symb) ' RNTI: ' pdcch_info{subframe_base_idx+subframe_idx}.rnti_str]);
+            if ~isempty(pdcch_info{subframe_base_idx+subframe_idx}.si_rnti_info)
+                num_info = size(pdcch_info{subframe_base_idx+subframe_idx}.si_rnti_info,1);
+                for info_idx = 1 : num_info
+                    format1A_bits = pdcch_info{subframe_base_idx+subframe_idx}.si_rnti_info(info_idx,:);
+                    format1A_location = pdcch_info{subframe_base_idx+subframe_idx}.si_rnti_location(info_idx,:);
+                    dci_str = parse_DCI_format1A(cell_tmp, 0, format1A_bits);
+                    disp(['No.' num2str(format1A_location(1)) ' ' num2str(format1A_location(2)) 'CCE: ' dci_str]);
+                end
+            end
 %             figure(2); plot_sc_map(sc_map, tfg_comp);
         end
         
