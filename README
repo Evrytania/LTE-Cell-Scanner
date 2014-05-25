@@ -1,10 +1,10 @@
 An OpenCL accelerated TDD/FDD LTE Scanner. By Jiao Xianjun (putaoshu@gmail.com).
 
--------------------------------News:-------------------------------
+-------------------------------News:----------------------------------
 
 2014-05: 20MHz LTE PDCCH DCI format1A for SI-RNTI has been detected successfully from HACKRF captured signal. Run: Matlab/LTE_DL_receiver.m
 
------------------------------------------------------------------
+----------------------------------------------------------------------
 
 Before explore this LTE Scanner, it's better for you to do some homeworks:
 
@@ -35,9 +35,9 @@ Introduction video before: (inside China) http://pan.baidu.com/s/1o6qbLGY ,
 Introduction video before: (inside China) http://v.youku.com/v_show/id_XNjc1MjIzMDEy.html ,
 (outside China) http://www.youtube.com/watch?v=4zRLgxzn4Pc
 
------------------------------------------------------------------
+----------------------------------------------------------------------
 New features and Usages
------------------------------------------------------------------
+----------------------------------------------------------------------
 
 "CellSearch --help" to see all options.
 
@@ -82,7 +82,7 @@ Default value is 2. Number of workitems of PSS correlation'2nd-NDrange-dimension
 
 Optimal number of workitems is platform-device dependent. Optimal values should be found according to your computer configuration.
 
-2. -----TDD, ext-LNB/mixer, pre-search algorithm improvement-----
+2. -----TDD, ext-LNB/mixer, pre-search algorithm improvement----
 
 "CellSearch --freq-start 1860e6 -t"
 
@@ -106,7 +106,7 @@ See detailed explanation in https://github.com/JiaoXianjun/rtl-sdr-LTE , and vid
 
 "CellSearch test/noise.bin --num-try 10" performs 10 tries of searching at frequency 1.86GHz (When signal is weak, only one try may not have you good luck)
 
-5. ----------------------HACKRF support----------------------
+5. ----------------------HACKRF support-------------------------
 
 Make sure hackrf host software (libhackrf) has been installed.
 
@@ -114,7 +114,7 @@ Program will select presented hardware automatically when it runs.
 
 If both rtl-sdr and hackrf are presented, use "-i 1000" to force using hackrf, use "-i" in normal way to use rtl-sdr.
 
-6. ----------------------manual gain mode--------------------
+6. ----------------------manual gain mode-----------------------
 
 Use "-g X" to set gain value X to hardware.
 
