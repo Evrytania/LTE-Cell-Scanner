@@ -1,7 +1,9 @@
 % Jiao Xianjun (putaoshu@gmail.com; putaoshu@msn.com)
 % LTE_DL_receiver.m
-
+% use hackrf to process all 20MHz LTE bandwidth.
+% usage
 % Some scripts are borrowed from:
+% https://github.com/JiaoXianjun/LTE-Cell-Scanner
 % https://github.com/JiaoXianjun/rtl-sdr-LTE
 % https://github.com/Evrytania/LTE-Cell-Scanner
 % https://github.com/Evrytania/Matlab-Library
@@ -14,13 +16,13 @@ close all;
 
 % ------------------------------------------------------------------------------------
 % % bin file captured by hackrf_transfer  
+filename = '../test/f2360_s19.2_bw20_1s_hackrf_bda.bin'; fc = 2360e6;
 % filename = '../test/f2585_s19.2_bw20_1s_hackrf_bda.bin'; fc = 2585e6;
 % filename = '../test/f2585_s19.2_bw20_1s_hackrf_bda1.bin'; fc = 2585e6;
 % filename = '../test/f1860_s19.2_bw20_1s_hackrf_home1.bin'; fc = 1860e6;
 % filename = '../test/f1860_s19.2_bw20_1s_hackrf_home.bin'; fc = 1860e6;
 % filename = '../test/f1890_s19.2_bw20_1s_hackrf_home.bin'; fc = 1890e6;
 % filename = '../test/f1890_s19.2_bw20_1s_hackrf_home1.bin'; fc = 1890e6;
-filename = '../test/f2360_s19.2_bw20_1s_hackrf_bda.bin'; fc = 2360e6;
 
 sampling_carrier_twist = 0; % ATTENTION! If this is 1, make sure fc is aligned with bin file!!!
 
@@ -63,6 +65,7 @@ if isempty(dir([filename(1:end-4) '.mat']))
     save([filename(1:end-4) '.mat'], 'r_pbch', 'r_20M', 'cell_info');
 else
     load([filename(1:end-4) '.mat']);
+%     [cell_info, r_pbch, r_20M] = CellSearch(r_pbch, r_20M, f_search_set, fc);
 end
 
 % cell_info
@@ -126,11 +129,13 @@ for cell_idx = 1 : 1
         cell_info_post_str = [ ' CID-' num2str(cell_tmp.n_id_cell) ' nPort-' num2str(cell_tmp.n_ports) ' CP-' cell_tmp.cp_type ' PHICH-DUR-' cell_tmp.phich_dur '-RES-' num2str(cell_tmp.phich_res)];
         if cell_tmp.uldl_cfg >= 0 % TDD and valid pcfich/UL-DL-PATTERN detected
             disp(['TDD SFN-' num2str(sfn) ' ULDL-' num2str(cell_tmp.uldl_cfg) '-' uldl_str(cell_tmp.uldl_cfg+1,:) cell_info_post_str]);
+            title_str = ['TDD SFN-' num2str(sfn) ' ULDL-' num2str(cell_tmp.uldl_cfg) cell_info_post_str];
         elseif cell_tmp.uldl_cfg == -2 % FDD and valid pcfich/UL-DL-PATTERN detected
             disp(['FDD SFN-' num2str(sfn) ' ULDL-0: D D D D D D D D D D' cell_info_post_str]);
+            title_str = ['FDD SFN-' num2str(sfn) ' ULDL-0' cell_info_post_str];
         end
         
-        figure(2); pcolor(abs(tfg_comp_radioframe)'); shading flat; colorbar; drawnow;
+        figure(2); pcolor(abs(tfg_comp_radioframe)'); shading flat; colorbar; title(title_str); xlabel('OFDM symbol idx'); ylabel('subcarrier idx'); drawnow;
         
         % % decode pdcch
         for subframe_idx = 1 : 10
@@ -143,11 +148,13 @@ for cell_idx = 1 : 1
                 for info_idx = 1 : num_info
                     format1A_bits = pdcch_info{subframe_base_idx+subframe_idx}.si_rnti_info(info_idx,:);
                     format1A_location = pdcch_info{subframe_base_idx+subframe_idx}.si_rnti_location(info_idx,:);
-                    dci_str = parse_DCI_format1A(cell_tmp, 0, format1A_bits);
+                    [dci_str, dci_info] = parse_DCI_format1A(cell_tmp, 0, format1A_bits);
                     disp(['No.' num2str(format1A_location(1)) ' ' num2str(format1A_location(2)) 'CCE: ' dci_str]);
+                    sib_pdsch = pdsch_extract(cell_tmp, reg_info, dci_info, subframe_idx-1, tfg_comp);
+                    figure(3); plot(real(sib_pdsch), imag(sib_pdsch), 'r.'); title('raw SIB PDSCH');  xlabel('real'); ylabel('imag'); drawnow;
                 end
             end
-%             figure(2); plot_sc_map(sc_map, tfg_comp);
+%             figure(4); plot_sc_map(sc_map, tfg_comp);
         end
         
     end

@@ -1,4 +1,6 @@
-function dci_str = parse_DCI_format1A(peak, space_ind, bits)
+function [dci_str, dci_info] = parse_DCI_format1A(peak, space_ind, bits)
+% PDCCH with DCI format 1A, 1B, 1C and 1D have a type 2 resource allocation
+
 n_rb_dl = peak.n_rb_dl;
 % n_rb_ul = n_rb_dl;
 duplex_mode = peak.duplex_mode;
@@ -33,11 +35,37 @@ sp = 1;
 FLAG = bi2de( bits(sp : sp+FLAG_len-1), 'left-msb');
 sp = sp + FLAG_len;
 
-VRB = bi2de( bits(sp : sp+VRB_len-1), 'left-msb');
+if FLAG == 0
+    dci_str = ['FLAG-' num2str(FLAG) 'Attention! This is a format0 DCI! Not 1A!'];
+    return;
+end
+
+VRB = bi2de( bits(sp : sp+VRB_len-1), 'left-msb'); % value 0 indicates Localized and value 1 indicates Distributed VRB assignment
 sp = sp + VRB_len;
+
+if VRB == 0
+    VRB_str = 'Localized VRB';
+else
+    VRB_str = 'Distributed VRB';
+end
 
 RBassign = bi2de( bits(sp : sp+RBassign_len-1), 'left-msb');
 sp = sp + RBassign_len;
+
+L_CRBs = floor(RBassign/n_rb_dl) + 1;
+if (L_CRBs-1) < floor(n_rb_dl/2)
+    RB_start = RBassign - n_rb_dl*(L_CRBs - 1);
+else
+    L_CRBs = n_rb_ld + 1 - floor(RBassign/n_rb_ld);
+    if (L_CRBs-1) < floor(n_rb_dl/2)
+        disp('Abnormal!');
+        return;
+    else
+        RB_start = n_rb_dl*(n_rb_dl - L_CRBs + 1) + (n_rb_dl-1) - RBassign;
+    end
+end
+
+RBassign_str = ['from RB' num2str(RB_start) ' to RB' num2str(RB_start+L_CRBs-1)];
 
 MCS = bi2de( bits(sp : sp+MCS_len-1), 'left-msb');
 sp = sp + MCS_len;
@@ -56,8 +84,10 @@ sp = sp + TPC_len;
 
 DAI = bi2de( bits(sp : sp+DAI_len-1), 'left-msb');
 
-dci_str = ['FLAG-' num2str(FLAG) ' VRB-' num2str(VRB) ...
-     ' RBassign-' num2str(RBassign)  ' MCS-' num2str(MCS) ...
+dci_str = [VRB_str ' ' RBassign_str ' MCS-' num2str(MCS) ...
       ' HARQ-' num2str(HARQ)  ' NEWind-' num2str(NEW) ...
        ' RV-' num2str(RV)  ' TPC-' num2str(TPC) ...
         ' DAI-' num2str(DAI)];
+
+dci_info.RB_start = RB_start;
+dci_info.L_CRBs = L_CRBs;
