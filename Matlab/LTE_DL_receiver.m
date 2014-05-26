@@ -1,7 +1,10 @@
 % Jiao Xianjun (putaoshu@gmail.com; putaoshu@msn.com)
 % LTE_DL_receiver.m
-% use hackrf to process all 20MHz LTE bandwidth.
-% usage
+% Use hackrf to process all 20MHz LTE bandwidth.
+
+% Use commands in test/cap_LTE_with_HACKRF.txt to capture 20MHz LTE signal,
+% then use this script to process it by setting correct "filename".
+
 % Some scripts are borrowed from:
 % https://github.com/JiaoXianjun/LTE-Cell-Scanner
 % https://github.com/JiaoXianjun/rtl-sdr-LTE
