@@ -8,7 +8,8 @@ n_ports = peak.n_ports;
 [pdcch_sym, pdcch_ce] = pdcch_extract(peak, reg_info, tfg, ce_tfg);
 
 if isempty(pdcch_sym)
-    pdcch_info = [];
+    pdcch_info.rnti_str = [];
+    pdcch_info.si_rnti_info = [];
     return;
 end
 

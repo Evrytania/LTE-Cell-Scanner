@@ -2,7 +2,7 @@ An OpenCL accelerated TDD/FDD LTE Scanner. By Jiao Xianjun (putaoshu@gmail.com).
 
 -------------------------------News:----------------------------------
 
-2014-05: 20MHz LTE PDCCH DCI format1A for SI-RNTI has been detected successfully from HACKRF captured signal. Run: Matlab/LTE_DL_receiver.m
+2014-05: 20MHz LTE PDCCH DCI format1A for SI-RNTI has been detected successfully from HACKRF captured signal, and corresponding SIB PDSCH constellation is shown. Run: Matlab/LTE_DL_receiver.m
 
 ----------------------------------------------------------------------
 

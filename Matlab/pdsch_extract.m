@@ -1,4 +1,4 @@
-function syms = pdsch_extract(peak, reg_info, dci_info, subframe_idx, tfg)
+function [syms, ce_extract] = pdsch_extract(peak, reg_info, dci_info, subframe_idx, tfg, ce)
 
 n_rb_dl = peak.n_rb_dl;
 n_ports = peak.n_ports;
@@ -41,4 +41,14 @@ end
 
 syms = tfg( (n_pdcch_symb+1) : end, (sc_sp+1):(sc_ep+1)).';
 syms = syms(:).';
-syms = syms(~isnan(syms));
+ef_logical = ~isnan(syms);
+syms = syms(ef_logical);
+
+ce_extract = zeros(n_ports, length(syms));
+
+for i = 1 : n_ports
+    ce_tmp = ce( (n_pdcch_symb+1) : end, (sc_sp+1):(sc_ep+1), i).';
+    ce_tmp = ce_tmp(:).';
+    ce_tmp = ce_tmp(ef_logical);
+    ce_extract(i, :) = ce_tmp;
+end
