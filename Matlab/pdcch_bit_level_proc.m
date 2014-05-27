@@ -19,7 +19,7 @@ num_CCE = 16;  % common search space
 L_set = [4 8]; % common search space
 
 bits_set = L_set.*9.*4.*2;
-info_bits_set = [31 41] + 16;
+info_bits_set = [ get_num_DCI_bits(peak, '1A', 0)  get_num_DCI_bits(peak, '1A-RA-C-RNTI', 0)] + 16;
 
 max_num = length(L_set)*sum(num_CCE./L_set);
 pdcch_info.rnti_str = zeros(max_num, 8);

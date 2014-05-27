@@ -152,7 +152,7 @@ for cell_idx = 1 : 1
                     format1A_bits = pdcch_info{subframe_base_idx+subframe_idx}.si_rnti_info(info_idx,:);
                     format1A_location = pdcch_info{subframe_base_idx+subframe_idx}.si_rnti_location(info_idx,:);
                     [dci_str, dci_info] = parse_DCI_format1A(cell_tmp, 0, format1A_bits);
-                    disp(['No.' num2str(format1A_location(1)) ' ' num2str(format1A_location(2)) 'CCE: ' dci_str]);
+                    disp(['    No.' num2str(format1A_location(1)) ' ' num2str(format1A_location(2)) 'CCE: ' dci_str]);
 %                     syms = decode_pdsch(cell_tmp, reg_info, dci_info, subframe_idx-1, tfg_comp, ce_tfg(:,:,:, subframe_idx), np_ce(subframe_idx,:), 0);
 %                     figure(3); plot(real(syms), imag(syms), 'r.');
                     syms = decode_pdsch(cell_tmp, reg_info, dci_info, subframe_idx-1, tfg_comp, ce_tfg(:,:,:, subframe_idx), np_ce(subframe_idx,:), 1);
