@@ -81,8 +81,9 @@ uldl_str = [ ...
         '|D|S|U|D|D|D|D|D|D|D|';
         '|D|S|U|U|U|D|S|U|U|D|'
         ];
-% for cell_idx = 1 : length(cell_info)
-for cell_idx = 1 : 1
+tic;
+for cell_idx = 1 : length(cell_info)
+% for cell_idx = 1 : 1
     cell_tmp = cell_info(cell_idx);
     [tfg, tfg_timestamp, cell_tmp]=extract_tfg(cell_tmp,r_20M,fc,sampling_carrier_twist, cell_tmp.n_rb_dl);
 %     [tfg_comp, tfg_comp_timestamp, cell_tmp]=tfoec(cell_tmp, tfg, tfg_timestamp, fc, sampling_carrier_twist, cell_tmp.n_rb_dl);
@@ -175,6 +176,8 @@ sf_set = find(pcfich_info>0);
 val_set = pcfich_info(pcfich_info>0);
 disp(['subframe  ' num2str(sf_set)]);
 disp(['num pdcch ' num2str(val_set)]);
+
+toc
 
 % subplot(4,1,1); plot(pcfich_corr); axis tight;
 % subplot(4,1,2); plot(sf_set, val_set, 'b.-'); axis tight;

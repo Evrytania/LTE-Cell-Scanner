@@ -52,59 +52,9 @@ for i = 1 : n_ports
     pdcch_ce(i,:) = tmp_ce;
 end
 
-np_mean = mean(np_ce);
-if (n_ports==1)
-
-    gain=conj(pdcch_ce(1,:))./absx2(pdcch_ce(1,:));
-    syms=pdcch_sym.*gain;
-    np=np_mean*absx2(gain);
-
-elseif (n_ports==2)
-
-    syms=NaN(1,length(pdcch_sym));
-    np=NaN(1,length(pdcch_sym));
-    for t=1:2:length(syms)
-        % http://en.wikipedia.org/wiki/Space-time_block_coding_based_transmit_diversity
-        h1=mean(pdcch_ce(1,t:t+1));
-        h2=mean(pdcch_ce(2,t:t+1));
-        x1=pdcch_sym(t);
-        x2=pdcch_sym(t+1);
-        scale=sum(absx2([h1 h2]));
-        syms(t)=(conj(h1)*x1+h2*conj(x2))/scale;
-        syms(t+1)=conj((-conj(h2)*x1+h1*conj(x2))/scale);
-        np(t)=(abs(h1)/scale)^2*np_mean+(abs(h2)/scale)^2*np_mean;
-        np(t+1)=np(t);
-    end
-    % 3dB factor comes from precoding for transmit diversity
-    syms=syms*sqrt(2);
-
-elseif (n_ports==4)
-
-    syms=NaN(1,length(pdcch_sym));
-    np=NaN(1,length(pdcch_sym));
-    for t=1:2:length(syms)
-        % http://en.wikipedia.org/wiki/Space-time_block_coding_based_transmit_diversity
-        if (mod(t,4)==1)
-          h1=mean(pdcch_ce(1,t:t+1));
-          h2=mean(pdcch_ce(3,t:t+1));
-        else
-          h1=mean(pdcch_ce(2,t:t+1));
-          h2=mean(pdcch_ce(4,t:t+1));
-        end
-        x1=pdcch_sym(t);
-        x2=pdcch_sym(t+1);
-        scale=sum(absx2([h1 h2]));
-        syms(t)=(conj(h1)*x1+h2*conj(x2))/scale;
-        syms(t+1)=conj((-conj(h2)*x1+h1*conj(x2))/scale);
-        np(t)=(abs(h1)/scale)^2*np_mean+(abs(h2)/scale)^2*np_mean;
-        np(t+1)=np(t);
-    end
-    % 3dB factor comes from precoding for transmit diversity
-    syms=syms*sqrt(2);
-
-else
-    error('Check code...');
-end
+% -----------equalization----------
+mmse_flag = 0;
+[syms, np] = LTE_SFBC_demod(pdcch_sym, pdcch_ce, np_ce, n_ports, mmse_flag);
 
 % ------Extract the bits---------
 e_est = deqam(syms, np, 'QAM', 'LTE');

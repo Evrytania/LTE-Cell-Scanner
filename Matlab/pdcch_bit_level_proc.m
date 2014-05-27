@@ -14,6 +14,9 @@ function pdcch_info = pdcch_bit_level_proc(peak, e_est)
 % to get_num_DCI_bits(), you will find there are only two types of length:
 % 31 and 41.
 
+% for matlab native viterbi decoder
+Hdec = comm.ViterbiDecoder( poly2trellis(7,[133 171 165]), 'TerminationMethod', 'Terminated');
+
 % -------blind search in common search space-----------
 num_CCE = 16;  % common search space
 L_set = [4 8]; % common search space
@@ -42,16 +45,17 @@ for l = 1 : length(L_set)
             d_est=lte_conv_deratematch(e_est_tmp, num_bits);
             
             % Viterbi decode
-            c_est=lte_conv_decode(d_est);
+%             c_est=lte_conv_decode(d_est);
+            llr = -log((d_est(:).')./((1-d_est(:)).'));
+            llr(llr>300) = 300;
+            c_est = step(Hdec, [llr, llr, llr].').';
+            c_est = c_est(length(d_est) + 1 : 2*length(d_est) );
             
             % Calculate the received CRC
             crc_est=lte_calc_crc(c_est(1:(num_bits-16)),16);
 
             % Apply CRC mask
             b = xor(crc_est, c_est((end-15):end) );
-
-%             bits = [dec2hex(bi2de(a, 'left-msb'), 4) ' '] ;
-%             pdcch_info = [pdcch_info bits];
 
             a = bi2de(b, 'left-msb');
             if a == hex2dec('FFFF')
@@ -61,8 +65,9 @@ for l = 1 : length(L_set)
                 si_rnti_count = si_rnti_count + 1;
             elseif a == hex2dec('FFFE')
                 rnti_str = ' P-RNTI ';
-            elseif a >= 0 && a <= hex2dec('3D')
-                rnti_str = ' X-RNTI ';
+            elseif a >= 1 && a <= hex2dec('3C')
+%                 rnti_str = ' X-RNTI ';
+                rnti_str = [' 0x' dec2hex(a, 4) ' '];
             else
                 rnti_str = -1;
             end
