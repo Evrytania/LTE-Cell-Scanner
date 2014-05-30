@@ -42,6 +42,7 @@ end
 
 phich_abs_reg_idx_pre_calc = get_phich_abs_reg_idx(peak, subframe_idx, n_phich_symb);
 
+reg_info.CFI = pcfich_info;
 reg_info.n_phich_symb = n_phich_symb;
 reg_info.n_pdcch_symb = n_pdcch_symb;
 reg_info.reg_map = cell(1, n_pdcch_symb);

@@ -89,5 +89,15 @@ dci_str = [VRB_str ' ' RBassign_str ' MCS-' num2str(MCS) ...
        ' RV-' num2str(RV)  ' TPC-' num2str(TPC) ...
         ' DAI-' num2str(DAI)];
 
+dci_info.FLAG = FLAG;
+dci_info.VRB = VRB;
+dci_info.RBassign = RBassign;
+dci_info.MCS = MCS;
+dci_info.HARQ = HARQ;
+dci_info.NEW = NEW;
+dci_info.RV = RV;
+dci_info.TPC = TPC;
+dci_info.DAI = DAI;
+
 dci_info.RB_start = RB_start;
 dci_info.L_CRBs = L_CRBs;
