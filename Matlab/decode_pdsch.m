@@ -67,9 +67,11 @@ tbsize = get_tbsize(dci_info.MCS, SIB_nRB);
 
 % [bits, blkcrc, ~] = lteDLSCHDecode(enb, enb.PDSCH, tbsize, llr,[]);
 [bits, blkcrc] = pdsch_bit_level_proc( llr.', tbsize);
-% plot(double(bits.') - bits_tmp(1:tbsize));
+% plot(double(bits_tmp) - bits(1:tbsize).');
 % subplot(2,1,1); plot(bits);
 % subplot(2,1,2); plot(bits_tmp(1:tbsize),'r');
+ref_bits = [0  1  1  1  0  0  0  0  0  1  0  1  0  0  0  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  1  0  0  0  1  0  0  1  0  0  1  1  1  0  0  0  1  0  1  0  0  1  0  0  0  0  1  1  0  1  1  0  0  0  0  0  0  0  0  0  1  1  0  0  0  0  0  1  0  0  0  1  1  0  1  0  1  1  0  0  1  1  1  0  0  0  0  1  0  0  1  0  0  0  0  1  0  0  0  0  0  0  1  0  0  0  0  0  1  0  0  0  1  0  0  1  0  0  1  1  1  1  1  0  1  1  0  0  1];
+plot(ref_bits - bits(1:144));
 
 sib_info.bits = bits(:).';
 sib_info.blkcrc = blkcrc;
