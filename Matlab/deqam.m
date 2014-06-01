@@ -108,9 +108,10 @@ end
 const_prob=exp(absx2(repmat(map_flat,n_sym,1)-repmat(transpose(syms),1,2^bps))./repmat(transpose(-np),1,2^bps));
 
 % to avoid NaN
+min_val = 1e-120;
 for i=1: (2^bps)
     a = const_prob(:,i);
-    a(a<1e-20) = 1e-20;
+    a(a<min_val) = min_val;
     const_prob(:,i) = a;
 end
 
@@ -128,7 +129,8 @@ end
 
 bits=reshape(transpose(bit_prob),1,n_sym*bps);
 
+min_val = 1e-15;
 % Correct machine truncation errors
-bits(bits<0)=0;
-bits(bits>1)=1;
+bits(bits<=min_val)=min_val;
+bits(bits>=(1-min_val))=1-min_val;
 

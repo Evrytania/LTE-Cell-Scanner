@@ -48,6 +48,7 @@ for l = 1 : length(L_set)
 %             c_est=lte_conv_decode(d_est);
             llr = -log((d_est(:).')./((1-d_est(:)).'));
             llr(llr>300) = 300;
+            llr(llr<-300) = -300;
             c_est = step(Hdec, [llr, llr, llr].').';
             c_est = c_est(length(d_est) + 1 : 2*length(d_est) );
             

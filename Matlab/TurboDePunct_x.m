@@ -1,0 +1,9 @@
+function cp = TurboDePunct_x(c, alpha)
+L_total = length(c)/3;
+ctemp = vec2mat(c, 3).';
+        cp = zeros(2, 2*L_total);
+        cp(1, 1:2:end) = ctemp(1,:);
+        cp(1, 2:2:end) = ctemp(2,:);
+        temp = ctemp(1,alpha);
+        cp(2, 1:2:end) = temp;
+        cp(2, 2:2:end) = ctemp(3,:);

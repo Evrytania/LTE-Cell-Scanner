@@ -101,3 +101,11 @@ dci_info.DAI = DAI;
 
 dci_info.RB_start = RB_start;
 dci_info.L_CRBs = L_CRBs;
+
+if dci_info.MCS >=0 && dci_info.MCS <= 9
+    dci_info.bits_per_sym = 2;
+elseif dci_info.MCS >=10 && dci_info.MCS <= 16
+    dci_info.bits_per_sym = 4;
+elseif dci_info.MCS >=17 && dci_info.MCS <= 28
+    dci_info.bits_per_sym = 6;
+end

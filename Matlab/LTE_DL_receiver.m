@@ -157,7 +157,7 @@ for cell_idx = 1 : length(cell_info)
 %                     syms = decode_pdsch(cell_tmp, reg_info, dci_info, subframe_idx-1, tfg_comp, ce_tfg(:,:,:, subframe_idx), np_ce(subframe_idx,:), 0);
 %                     figure(3); plot(real(syms), imag(syms), 'r.');
                     [sib_info, ~] = decode_pdsch(cell_tmp, reg_info, dci_info, subframe_idx-1, tfg_comp, ce_tfg(:,:,:, subframe_idx), np_ce(subframe_idx,:));
-                    disp(['SIB crc' num2str(sib_info.blkcrc) ': ' num2str(sib_info.bits.')]);
+                    disp(['SIB crc' num2str(sib_info.blkcrc) ': ' num2str(sib_info.bits)]);
 %                     figure(4); plot(real(syms), imag(syms), 'b.');
 %                     if mod(sfn, 2) == 0 && subframe_idx==6
 %                         title('raw SIB1 PDSCH');  xlabel('real'); ylabel('imag'); drawnow;
