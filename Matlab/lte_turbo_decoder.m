@@ -42,8 +42,7 @@ for i = 1 : code_length
     
     path_metric(1) = -tmp_info - parity(i);
     path_metric(2) = -tmp_info + parity(i);
-    path_metric(3) = -path_metric(2);
-    path_metric(4) = -path_metric(1);
+    path_metric(3:4) = -path_metric(2:-1:1);
     
     state_metric = state_proc(state_metric, path_metric);
 end
@@ -56,8 +55,7 @@ if bits_out_flag == 0
 
         path_metric(1) = -tmp_info - parity(i);
         path_metric(2) = -tmp_info + parity(i);
-        path_metric(3) = -path_metric(2);
-        path_metric(4) = -path_metric(1);
+        path_metric(3:4) = -path_metric(2:-1:1);
 
         llr_ex_tmp = bit_llr_proc(state_metric_store(i,:), state_metric, parity(i));
         llr_ex(i) = 0.7*llr_ex_tmp;
@@ -72,8 +70,7 @@ else
 
         path_metric(1) = -tmp_info - parity(i);
         path_metric(2) = -tmp_info + parity(i);
-        path_metric(3) = -path_metric(2);
-        path_metric(4) = -path_metric(1);
+        path_metric(3:4) = -path_metric(2:-1:1);
 
         llr_ex_tmp = bit_llr_proc(state_metric_store(i,:), state_metric, parity(i));
         bits(i) = (1 + sign(tmp_info + llr_ex_tmp))/2;
@@ -141,8 +138,7 @@ for i = code_length+3 : -1 : code_length+1
     % ----------conv0--------------
     path_metric(1) = -info(i) - parity0(i);
     path_metric(2) = -info(i) + parity0(i);
-    path_metric(3) = -path_metric(2);
-    path_metric(4) = -path_metric(1);
+    path_metric(3:4) = -path_metric(2:-1:1);
     
     tmp_state_in = [end_state_conv0(1), end_state_conv0(5), end_state_conv0(3), end_state_conv0(7), end_state_conv0(2), end_state_conv0(6), end_state_conv0(4), end_state_conv0(8)];
     tmp_state_out = state_proc(tmp_state_in, [path_metric(1) path_metric(3) path_metric(2) path_metric(4)]);
@@ -151,8 +147,7 @@ for i = code_length+3 : -1 : code_length+1
     % ----------conv1--------------
     path_metric(1) = -info(i+3) - parity1(i);
     path_metric(2) = -info(i+3) + parity1(i);
-    path_metric(3) = -path_metric(2);
-    path_metric(4) = -path_metric(1);
+    path_metric(3:4) = -path_metric(2:-1:1);
     
     tmp_state_in = [end_state_conv1(1), end_state_conv1(5), end_state_conv1(3), end_state_conv1(7), end_state_conv1(2), end_state_conv1(6), end_state_conv1(4), end_state_conv1(8)];
     tmp_state_out = state_proc(tmp_state_in, [path_metric(1) path_metric(3) path_metric(2) path_metric(4)]);
@@ -175,35 +170,18 @@ info(code_length+4 : code_length+6) = llr((3*code_length+7) : 2 : (3*code_length
 parity1(code_length+1 : code_length+3) = llr((3*code_length+8) : 2 : (3*code_length+12) );
 
 function state_metric_out = state_proc(state_metric_in, path_metric)
+state_metric_out(1) = max(state_metric_in(1)  + path_metric(1), state_metric_in(2)  + path_metric(4));
 
-tmp1 = state_metric_in(1)  + path_metric(1);
-tmp2 = state_metric_in(2)  + path_metric(4);
-state_metric_out(1) = max(tmp1, tmp2);
+state_metric_out(2) = max(state_metric_in(3)  + path_metric(3), state_metric_in(4)  + path_metric(2));
 
-tmp1 = state_metric_in(3)  + path_metric(3);
-tmp2 = state_metric_in(4)  + path_metric(2);
-state_metric_out(2) = max(tmp1, tmp2);
+state_metric_out(3) = max(state_metric_in(5)  + path_metric(2), state_metric_in(6)  + path_metric(3));
 
-tmp1 = state_metric_in(5)  + path_metric(2);
-tmp2 = state_metric_in(6)  + path_metric(3);
-state_metric_out(3) = max(tmp1, tmp2);
+state_metric_out(4) = max(state_metric_in(7)  + path_metric(4), state_metric_in(8)  + path_metric(1));
 
-tmp1 = state_metric_in(7)  + path_metric(4);
-tmp2 = state_metric_in(8)  + path_metric(1);
-state_metric_out(4) = max(tmp1, tmp2);
+state_metric_out(5) = max(state_metric_in(1)  + path_metric(4), state_metric_in(2)  + path_metric(1));
 
-tmp1 = state_metric_in(1)  + path_metric(4);
-tmp2 = state_metric_in(2)  + path_metric(1);
-state_metric_out(5) = max(tmp1, tmp2);
+state_metric_out(6) = max(state_metric_in(3)  + path_metric(2), state_metric_in(4)  + path_metric(3));
 
-tmp1 = state_metric_in(3)  + path_metric(2);
-tmp2 = state_metric_in(4)  + path_metric(3);
-state_metric_out(6) = max(tmp1, tmp2);
+state_metric_out(7) = max(state_metric_in(5)  + path_metric(3), state_metric_in(6)  + path_metric(2));
 
-tmp1 = state_metric_in(5)  + path_metric(3);
-tmp2 = state_metric_in(6)  + path_metric(2);
-state_metric_out(7) = max(tmp1, tmp2);
-
-tmp1 = state_metric_in(7)  + path_metric(1);
-tmp2 = state_metric_in(8)  + path_metric(4);
-state_metric_out(8) = max(tmp1, tmp2);
+state_metric_out(8) = max(state_metric_in(7)  + path_metric(1), state_metric_in(8)  + path_metric(4));
