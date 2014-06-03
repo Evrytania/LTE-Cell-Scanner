@@ -13,7 +13,9 @@ elseif cp_type_val == 1
 end
 
 RB_start = dci_info.RB_start;
+
 L_CRBs = dci_info.L_CRBs;
+% L_CRBs = dci_info.N_1A_PRB; % only care about 1A SI-RNTI PDSCH now!  according to 36.212 5.3.3.1.3
 
 sc_sp = RB_start*12;
 sc_ep = (RB_start + L_CRBs - 1)*12 + 11;

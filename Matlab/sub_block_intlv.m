@@ -1,8 +1,8 @@
 function [v, R] = sub_block_intlv(d, i)
 D = length(d);
 C = 32;
-R = ceil(D./C);
-Kpi = R.*C;
+R = ceil(D/C);
+Kpi = R*C;
 ND = Kpi - D;
 y = [-63534.*ones(1, ND), d];
 ymat = vec2mat(y, C);

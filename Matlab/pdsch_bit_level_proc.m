@@ -1,5 +1,5 @@
-function [bits, blkcrc] = pdsch_bit_level_proc( llr, tbsize)
-min_val = 1;
+function [bits, blkcrc] = pdsch_bit_level_proc( llr, tbsize, max_num_HARQ, rv)
+min_val = 5;
 llr(llr>min_val) = min_val;
 llr(llr<-min_val) = -min_val;
 
@@ -9,7 +9,7 @@ currentCBS = length(llr);
 niter_turbocode = 6;
 L_total = tbsize+24;
 
-punct_pattern = LTE_intlv_punct(1:(3*L_total + 12), currentCBS);
+punct_pattern = LTE_intlv_punct(1:(3*L_total + 12), currentCBS, max_num_HARQ, rv);
 % alphaLTE = intlvLTE(L_total);
 % cl = 4; cg = [13 15]; fg = 13;
 % trellis_dec = ctrellis_gen(cl, cg, fg);

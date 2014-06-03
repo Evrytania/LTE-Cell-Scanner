@@ -80,6 +80,7 @@ RV = bi2de( bits(sp : sp+RV_len-1), 'left-msb');
 sp = sp + RV_len;
 
 TPC = bi2de( bits(sp : sp+TPC_len-1), 'left-msb');
+TPC_LSB = bits(sp+TPC_len-1);
 sp = sp + TPC_len;
 
 DAI = bi2de( bits(sp : sp+DAI_len-1), 'left-msb');
@@ -100,7 +101,14 @@ dci_info.TPC = TPC;
 dci_info.DAI = DAI;
 
 dci_info.RB_start = RB_start;
-dci_info.L_CRBs = L_CRBs;
+dci_info.L_CRBs = L_CRBs; 
+
+% we only care about 1A now according to 36.212 5.3.3.1.3
+if TPC_LSB == 0
+    dci_info.N_1A_PRB = 2;
+else
+    dci_info.N_1A_PRB = 3;
+end
 
 if dci_info.MCS >=0 && dci_info.MCS <= 9
     dci_info.bits_per_sym = 2;

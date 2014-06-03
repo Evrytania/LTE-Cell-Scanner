@@ -28,42 +28,47 @@ for i = 1 : code_length
     j = j + 1;
 end
 
-bits_encoded(j) = xor(reg0(2), reg0(3));
-j = j + 1;
-bits_encoded(j) = xor(reg0(1), reg0(3));
-reg0(2:3) = reg0(1:2);
-reg0(1) = 0;
+for i = 1 : 3
+    bits_encoded(j) = xor(reg0(2), reg0(3));
+    j = j + 1;
+    bits_encoded(j) = xor(reg0(1), reg0(3));
+    reg0(2:3) = reg0(1:2);
+    reg0(1) = 0;
 
-j = j + 1;
-bits_encoded(j) = xor(reg0(2), reg0(3));
-j = j + 1;
-bits_encoded(j) = xor(reg0(1), reg0(3));
-reg0(2:3) = reg0(1:2);
-reg0(1) = 0;
+    j = j + 1;
+end
+% bits_encoded(j) = xor(reg0(2), reg0(3));
+% j = j + 1;
+% bits_encoded(j) = xor(reg0(1), reg0(3));
+% reg0(2:3) = reg0(1:2);
+% reg0(1) = 0;
+% 
+% j = j + 1;
+% bits_encoded(j) = xor(reg0(2), reg0(3));
+% j = j + 1;
+% bits_encoded(j) = xor(reg0(1), reg0(3));
 
-j = j + 1;
-bits_encoded(j) = xor(reg0(2), reg0(3));
-j = j + 1;
-bits_encoded(j) = xor(reg0(1), reg0(3));
+% j = j + 1;
 
-j = j + 1;
-bits_encoded(j) = xor(reg1(2), reg1(3));
-j = j + 1;
-bits_encoded(j) = xor(reg1(1), reg1(3));
-reg1(2:3) = reg1(1:2);
-reg1(1) = 0;
+for i = 1 : 3
+    bits_encoded(j) = xor(reg1(2), reg1(3));
+    j = j + 1;
+    bits_encoded(j) = xor(reg1(1), reg1(3));
+    reg1(2:3) = reg1(1:2);
+    reg1(1) = 0;
 
-j = j + 1;
-bits_encoded(j) = xor(reg1(2), reg1(3));
-j = j + 1;
-bits_encoded(j) = xor(reg1(1), reg1(3));
-reg1(2:3) = reg1(1:2);
-reg1(1) = 0;
-
-j = j + 1;
-bits_encoded(j) = xor(reg1(2), reg1(3));
-j = j + 1;
-bits_encoded(j) = xor(reg1(1), reg1(3));
-
-
-
+    j = j + 1;
+end
+% bits_encoded(j) = xor(reg1(2), reg1(3));
+% j = j + 1;
+% bits_encoded(j) = xor(reg1(1), reg1(3));
+% reg1(2:3) = reg1(1:2);
+% reg1(1) = 0;
+% 
+% j = j + 1;
+% bits_encoded(j) = xor(reg1(2), reg1(3));
+% j = j + 1;
+% bits_encoded(j) = xor(reg1(1), reg1(3));
+% 
+% 
+% 

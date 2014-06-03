@@ -2,9 +2,9 @@
 clear all;
 close all;
 
-code_length = 64;
+code_length = 6144;
 
-EbN0 = [2];
+EbN0 = [0.6];
 snr = EbN0 - 10.*log10((3*code_length+12)/code_length) + 10.*log10(2);
 
 ber = zeros(1, length(EbN0));

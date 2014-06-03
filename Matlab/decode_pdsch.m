@@ -1,6 +1,8 @@
 function [sib_info, syms] = decode_pdsch(peak, reg_info, dci_info, subframe_idx, tfg, ce, np_ce)
 
 n_ports = peak.n_ports;
+max_num_HARQ = peak.max_num_HARQ;
+rv = dci_info.RV;
 
 [syms, ce] = pdsch_extract(peak, reg_info, dci_info, subframe_idx, tfg, ce);
 
@@ -58,20 +60,27 @@ scr = lte_pn(c_init, length(e_est));
 e_est(scr==1)=1-e_est(scr==1);
 llr = log(e_est./(1-e_est)).';
 
-if mod(dci_info.TPC, 2)
-    SIB_nRB = 3;
-else
-    SIB_nRB = 2;
-end
-tbsize = get_tbsize(dci_info.MCS, SIB_nRB);
+% mmse_flag = 1;
+% [syms, np] = LTE_SFBC_demod(syms, ce, np_ce, n_ports, mmse_flag);
+% llr = zeros(2*length(syms),1);
+% llr(1:2:end) = -real(syms);
+% llr(2:2:end) = -imag(syms);
+% c_init = subframe_idx*(2^9) + peak.n_id_cell + enb.PDSCH.RNTI*(2^14);
+% scr = lte_pn(c_init, length(llr));
+% llr(scr==1) = -1.*llr(scr==1);
+
+tbsize = get_tbsize(dci_info.MCS, dci_info.N_1A_PRB);
 
 % [bits, blkcrc, ~] = lteDLSCHDecode(enb, enb.PDSCH, tbsize, llr,[]);
-[bits, blkcrc] = pdsch_bit_level_proc( llr.', tbsize);
+[bits, blkcrc] = pdsch_bit_level_proc( llr.', tbsize, max_num_HARQ, rv);
 % plot(double(bits_tmp) - bits(1:tbsize).');
 % subplot(2,1,1); plot(bits);
 % subplot(2,1,2); plot(bits_tmp(1:tbsize),'r');
 ref_bits = [0  1  1  1  0  0  0  0  0  1  0  1  0  0  0  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  1  0  0  0  1  0  0  1  0  0  1  1  1  0  0  0  1  0  1  0  0  1  0  0  0  0  1  1  0  1  1  0  0  0  0  0  0  0  0  0  1  1  0  0  0  0  0  1  0  0  0  1  1  0  1  0  1  1  0  0  1  1  1  0  0  0  0  1  0  0  1  0  0  0  0  1  0  0  0  0  0  0  1  0  0  0  0  0  1  0  0  0  1  0  0  1  0  0  1  1  1  1  1  0  1  1  0  0  1];
-plot(ref_bits - bits(1:144));
+subplot(2,1,1); plot(ref_bits);
+subplot(2,1,2); plot(bits(1:144));
+sum(xor(ref_bits, bits(1:144)))
+% % plot(ref_bits - bits(1:144));
 
 sib_info.bits = bits(:).';
 sib_info.blkcrc = blkcrc;
