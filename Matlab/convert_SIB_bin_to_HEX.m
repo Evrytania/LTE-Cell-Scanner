@@ -1,4 +1,5 @@
-a = load('f2360_s19.2_bw20_1s_hackrf_bda_SIB.txt');
+function hex_out = convert_SIB_bin_to_HEX(a)
+% a = load('f2360_s19.2_bw20_1s_hackrf_bda_SIB.txt');
 
 num_hex = length(a)/4;
 

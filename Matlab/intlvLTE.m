@@ -381,6 +381,6 @@ b=[3	10
 f1 = b(Kidx,1);
 f2 = b(Kidx,2);
 
-alpha = mod( (f1.*(1:K) + f2.*(1:K).*(1:K)), K);
+alpha = mod( (f1.*(0:(K-1)) + f2.*(0:(K-1)).*(0:(K-1))), K);
 
 alpha = alpha + 1;

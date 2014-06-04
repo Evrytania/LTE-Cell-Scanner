@@ -8,11 +8,12 @@ w(Kpi+2:2:end) = v2;
 
 C = 1; % attention. need to change according to Code block segmentation and code block CRC attachment
 
-N_soft = 250368; % cat 1
+% N_soft = 0;
+% N_soft = 250368; % cat 1
 % N_soft = 1237248; % cat 2
 % N_soft = 1237248; % cat 3
 % N_soft = 1827072; % cat 4
-% N_soft = 3667200; % cat 5
+N_soft = 3667200; % cat 5
 % N_soft = 3667200; % cat 5
 % N_soft = 3654144; % cat 6
 % N_soft = 3654144; % cat 7
@@ -35,6 +36,7 @@ M_DL_HARQ = max_num_HARQ;
 N_IR = floor( N_soft/( Kc*K_MIMO*min(M_DL_HARQ, M_limit) ) );
 
 Ncb = min(floor(N_IR/C), Kw);
+% Ncb = length(w);
 
 k0 = R*( 2 + 2*rv*ceil(Ncb/(8*R)) );
 
