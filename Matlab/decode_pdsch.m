@@ -82,5 +82,5 @@ tbsize = get_tbsize(dci_info.MCS, dci_info.N_1A_PRB);
 % sum(xor(ref_bits, bits(1:144)))
 % % plot(ref_bits - bits(1:144));
 
-sib_info.bits = bits(:).';
+sib_info.bits = bits(1:tbsize);
 sib_info.blkcrc = blkcrc;
