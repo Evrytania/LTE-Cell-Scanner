@@ -19,8 +19,8 @@ close all;
 
 % ------------------------------------------------------------------------------------
 % % bin file captured by hackrf_transfer  
-% filename = '../test/f2360_s19.2_bw20_1s_hackrf_bda.bin'; fc = 2360e6;
-filename = '../test/f2585_s19.2_bw20_1s_hackrf_bda.bin'; fc = 2585e6;
+filename = '../test/f2360_s19.2_bw20_1s_hackrf_bda.bin'; fc = 2360e6;
+% filename = '../test/f2585_s19.2_bw20_1s_hackrf_bda.bin'; fc = 2585e6;
 % filename = '../test/f2585_s19.2_bw20_1s_hackrf_bda1.bin'; fc = 2585e6;
 % filename = '../test/f1860_s19.2_bw20_1s_hackrf_home1.bin'; fc = 1860e6;
 % filename = '../test/f1860_s19.2_bw20_1s_hackrf_home.bin'; fc = 1860e6;
@@ -153,12 +153,12 @@ for cell_idx = 1 : length(cell_info)
                     format1A_bits = pdcch_info{subframe_base_idx+subframe_idx}.si_rnti_info(info_idx,:);
                     format1A_location = pdcch_info{subframe_base_idx+subframe_idx}.si_rnti_location(info_idx,:);
                     [dci_str, dci_info] = parse_DCI_format1A(cell_tmp, 0, format1A_bits);
-                    disp(['    No.' num2str(format1A_location(1)) ' ' num2str(format1A_location(2)) 'CCE: ' dci_str]);
+                    disp(['    PDCCH   No.' num2str(format1A_location(1)) '  ' num2str(format1A_location(2)) 'CCE: ' dci_str]);
 %                     syms = decode_pdsch(cell_tmp, reg_info, dci_info, subframe_idx-1, tfg_comp, ce_tfg(:,:,:, subframe_idx), np_ce(subframe_idx,:), 0);
 %                     figure(3); plot(real(syms), imag(syms), 'r.');
                     [sib_info, ~] = decode_pdsch(cell_tmp, reg_info, dci_info, subframe_idx-1, tfg_comp, ce_tfg(:,:,:, subframe_idx), np_ce(subframe_idx,:));
-%                     parse_SIB(sib_info);
-                    disp(['SIB crc' num2str(sib_info.blkcrc) ': ' num2str(sib_info.bits)]);
+                    parse_SIB(sib_info);
+%                     disp(['SIB crc' num2str(sib_info.blkcrc) ': ' num2str(sib_info.bits)]);
 %                     figure(4); plot(real(syms), imag(syms), 'b.');
 %                     if mod(sfn, 2) == 0 && subframe_idx==6
 %                         title('raw SIB1 PDSCH');  xlabel('real'); ylabel('imag'); drawnow;

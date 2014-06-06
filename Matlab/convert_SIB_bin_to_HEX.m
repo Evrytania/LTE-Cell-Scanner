@@ -3,11 +3,11 @@ function hex_out = convert_SIB_bin_to_HEX(a)
 
 num_hex = length(a)/4;
 
-hex_out = [];
+hex_out = zeros(1, num_hex);
 for i = 1 : num_hex
     sp = (i-1)*4 + 1;
     ep = sp + 3;
     tmp_bin = bi2de(a(sp:ep), 'left-msb');
-    hex_out = [hex_out dec2hex(tmp_bin)];
+    hex_out(i) = dec2hex(tmp_bin);
 end
-disp(hex_out)
+% disp(char(hex_out))
