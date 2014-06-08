@@ -19,9 +19,11 @@ close all;
 
 % ------------------------------------------------------------------------------------
 % % bin file captured by hackrf_transfer  
-filename = '../test/f2360_s19.2_bw20_1s_hackrf_bda.bin'; fc = 2360e6;
+% filename = '../test/f2565_s19.2_bw20_1s_hackrf_tsinghua.bin';  fc = 2565e6;
+% filename = '../test/f2585_s19.2_bw20_1s_hackrf_tsinghua.bin';  fc = 2585e6;
+% filename = '../test/f2360_s19.2_bw20_1s_hackrf_bda.bin'; fc = 2360e6;
 % filename = '../test/f2585_s19.2_bw20_1s_hackrf_bda.bin'; fc = 2585e6;
-% filename = '../test/f2585_s19.2_bw20_1s_hackrf_bda1.bin'; fc = 2585e6;
+filename = '../test/f2585_s19.2_bw20_1s_hackrf_bda1.bin'; fc = 2585e6;
 % filename = '../test/f1860_s19.2_bw20_1s_hackrf_home1.bin'; fc = 1860e6;
 % filename = '../test/f1860_s19.2_bw20_1s_hackrf_home.bin'; fc = 1860e6;
 % filename = '../test/f1890_s19.2_bw20_1s_hackrf_home.bin'; fc = 1890e6;

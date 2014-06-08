@@ -1,0 +1,8 @@
+asn1c: https://github.com/vlm/asn1c
+lameditor: http://sourceforge.net/projects/lameditor/
+
+mkdir ~/git/asn1c/examples/sample.source.LTERRC
+cd ~/git/asn1c/examples/sample.source.LTERRC
+cp ~/git/lameditor-1.0/src/getasn/36331-850.asn ./
+asn1c -gen-PER 36331-850.asn
+
