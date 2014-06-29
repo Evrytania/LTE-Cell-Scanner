@@ -1,0 +1,8 @@
+RectangleModule1 DEFINITIONS ::= BEGIN
+Rectangle ::= SEQUENCE {
+height INTEGER,
+width
+INTEGER
+}
+END
+
