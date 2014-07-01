@@ -7,6 +7,7 @@ end
 
 bits = sib_info.bits;
 
+% % % -----------------------------------------------
 hex_str = char(convert_SIB_bin_to_HEX(bits));
 % disp(['PDCCH No.0 4CCE:
 disp(['    PDSCH   SIB  (HEX): ' hex_str]);
