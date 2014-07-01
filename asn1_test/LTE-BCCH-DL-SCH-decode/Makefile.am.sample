@@ -3,6 +3,8 @@ ASN_MODULE_SOURCES=	\
 	BCCH-BCH-MessageType.c	\
 	BCCH-DL-SCH-Message.c	\
 	BCCH-DL-SCH-MessageType.c	\
+	MCCH-Message.c	\
+	MCCH-MessageType.c	\
 	PCCH-Message.c	\
 	PCCH-MessageType.c	\
 	DL-CCCH-Message.c	\
@@ -15,59 +17,138 @@ ASN_MODULE_SOURCES=	\
 	UL-DCCH-MessageType.c	\
 	CounterCheck.c	\
 	CounterCheck-r8-IEs.c	\
+	CounterCheck-v8a0-IEs.c	\
 	DRB-CountMSB-InfoList.c	\
 	DRB-CountMSB-Info.c	\
 	CounterCheckResponse.c	\
 	CounterCheckResponse-r8-IEs.c	\
+	CounterCheckResponse-v8a0-IEs.c	\
 	DRB-CountInfoList.c	\
 	DRB-CountInfo.c	\
 	CSFBParametersRequestCDMA2000.c	\
 	CSFBParametersRequestCDMA2000-r8-IEs.c	\
+	CSFBParametersRequestCDMA2000-v8a0-IEs.c	\
 	CSFBParametersResponseCDMA2000.c	\
 	CSFBParametersResponseCDMA2000-r8-IEs.c	\
+	CSFBParametersResponseCDMA2000-v8a0-IEs.c	\
 	DLInformationTransfer.c	\
 	DLInformationTransfer-r8-IEs.c	\
+	DLInformationTransfer-v8a0-IEs.c	\
 	HandoverFromEUTRAPreparationRequest.c	\
 	HandoverFromEUTRAPreparationRequest-r8-IEs.c	\
+	HandoverFromEUTRAPreparationRequest-v890-IEs.c	\
+	HandoverFromEUTRAPreparationRequest-v920-IEs.c	\
+	HandoverFromEUTRAPreparationRequest-v1020-IEs.c	\
+	InDeviceCoexIndication-r11.c	\
+	InDeviceCoexIndication-r11-IEs.c	\
+	AffectedCarrierFreqList-r11.c	\
+	AffectedCarrierFreq-r11.c	\
+	TDM-AssistanceInfo-r11.c	\
+	IDC-SubframePatternList-r11.c	\
+	IDC-SubframePattern-r11.c	\
+	InterFreqRSTDMeasurementIndication-r10.c	\
+	InterFreqRSTDMeasurementIndication-r10-IEs.c	\
+	RSTD-InterFreqInfoList-r10.c	\
+	RSTD-InterFreqInfo-r10.c	\
+	LoggedMeasurementConfiguration-r10.c	\
+	LoggedMeasurementConfiguration-r10-IEs.c	\
+	LoggedMeasurementConfiguration-v1080-IEs.c	\
+	LoggedMeasurementConfiguration-v1130-IEs.c	\
 	MasterInformationBlock.c	\
+	MBMSCountingRequest-r10.c	\
+	CountingRequestList-r10.c	\
+	CountingRequestInfo-r10.c	\
+	MBMSCountingResponse-r10.c	\
+	MBMSCountingResponse-r10-IEs.c	\
+	CountingResponseList-r10.c	\
+	CountingResponseInfo-r10.c	\
+	MBMSInterestIndication-r11.c	\
+	MBMSInterestIndication-r11-IEs.c	\
+	MBSFNAreaConfiguration-r9.c	\
+	MBSFNAreaConfiguration-v930-IEs.c	\
+	CommonSF-AllocPatternList-r9.c	\
 	MeasurementReport.c	\
 	MeasurementReport-r8-IEs.c	\
+	MeasurementReport-v8a0-IEs.c	\
 	MobilityFromEUTRACommand.c	\
 	MobilityFromEUTRACommand-r8-IEs.c	\
+	MobilityFromEUTRACommand-v8a0-IEs.c	\
+	MobilityFromEUTRACommand-v8d0-IEs.c	\
+	MobilityFromEUTRACommand-r9-IEs.c	\
+	MobilityFromEUTRACommand-v930-IEs.c	\
+	MobilityFromEUTRACommand-v960-IEs.c	\
 	Handover.c	\
 	CellChangeOrder.c	\
 	SI-OrPSI-GERAN.c	\
-	SystemInfoListGERAN.c	\
+	E-CSFB-r9.c	\
 	Paging.c	\
+	Paging-v890-IEs.c	\
+	Paging-v920-IEs.c	\
+	Paging-v1130-IEs.c	\
 	PagingRecordList.c	\
 	PagingRecord.c	\
 	PagingUE-Identity.c	\
 	IMSI.c	\
 	IMSI-Digit.c	\
+	ProximityIndication-r9.c	\
+	ProximityIndication-r9-IEs.c	\
+	ProximityIndication-v930-IEs.c	\
+	RNReconfiguration-r10.c	\
+	RNReconfiguration-r10-IEs.c	\
+	RN-SystemInfo-r10.c	\
+	RNReconfigurationComplete-r10.c	\
+	RNReconfigurationComplete-r10-IEs.c	\
 	RRCConnectionReconfiguration.c	\
 	RRCConnectionReconfiguration-r8-IEs.c	\
+	RRCConnectionReconfiguration-v890-IEs.c	\
+	RRCConnectionReconfiguration-v920-IEs.c	\
+	RRCConnectionReconfiguration-v1020-IEs.c	\
+	RRCConnectionReconfiguration-v1130-IEs.c	\
+	SCellToAddModList-r10.c	\
+	SCellToAddMod-r10.c	\
+	SCellToReleaseList-r10.c	\
 	SecurityConfigHO.c	\
 	RRCConnectionReconfigurationComplete.c	\
 	RRCConnectionReconfigurationComplete-r8-IEs.c	\
+	RRCConnectionReconfigurationComplete-v8a0-IEs.c	\
+	RRCConnectionReconfigurationComplete-v1020-IEs.c	\
+	RRCConnectionReconfigurationComplete-v1130-IEs.c	\
 	RRCConnectionReestablishment.c	\
 	RRCConnectionReestablishment-r8-IEs.c	\
+	RRCConnectionReestablishment-v8a0-IEs.c	\
 	RRCConnectionReestablishmentComplete.c	\
 	RRCConnectionReestablishmentComplete-r8-IEs.c	\
+	RRCConnectionReestablishmentComplete-v920-IEs.c	\
+	RRCConnectionReestablishmentComplete-v8a0-IEs.c	\
+	RRCConnectionReestablishmentComplete-v1020-IEs.c	\
+	RRCConnectionReestablishmentComplete-v1130-IEs.c	\
 	RRCConnectionReestablishmentReject.c	\
 	RRCConnectionReestablishmentReject-r8-IEs.c	\
+	RRCConnectionReestablishmentReject-v8a0-IEs.c	\
 	RRCConnectionReestablishmentRequest.c	\
 	RRCConnectionReestablishmentRequest-r8-IEs.c	\
 	ReestabUE-Identity.c	\
 	ReestablishmentCause.c	\
 	RRCConnectionReject.c	\
 	RRCConnectionReject-r8-IEs.c	\
+	RRCConnectionReject-v8a0-IEs.c	\
+	RRCConnectionReject-v1020-IEs.c	\
+	RRCConnectionReject-v1130-IEs.c	\
 	RRCConnectionRelease.c	\
 	RRCConnectionRelease-r8-IEs.c	\
+	RRCConnectionRelease-v890-IEs.c	\
+	RRCConnectionRelease-v9e0-IEs.c	\
+	RRCConnectionRelease-v920-IEs.c	\
+	RRCConnectionRelease-v1020-IEs.c	\
 	ReleaseCause.c	\
 	RedirectedCarrierInfo.c	\
+	RedirectedCarrierInfo-v9e0.c	\
+	CarrierFreqListUTRA-TDD-r10.c	\
 	IdleModeMobilityControlInfo.c	\
+	IdleModeMobilityControlInfo-v9e0.c	\
 	FreqPriorityListEUTRA.c	\
 	FreqPriorityEUTRA.c	\
+	FreqPriorityEUTRA-v9e0.c	\
 	FreqsPriorityListGERAN.c	\
 	FreqsPriorityGERAN.c	\
 	FreqPriorityListUTRA-FDD.c	\
@@ -78,112 +159,278 @@ ASN_MODULE_SOURCES=	\
 	BandClassPriorityHRPD.c	\
 	BandClassPriorityList1XRTT.c	\
 	BandClassPriority1XRTT.c	\
+	CellInfoListGERAN-r9.c	\
+	CellInfoGERAN-r9.c	\
+	CellInfoListUTRA-FDD-r9.c	\
+	CellInfoUTRA-FDD-r9.c	\
+	CellInfoListUTRA-TDD-r9.c	\
+	CellInfoUTRA-TDD-r9.c	\
+	CellInfoListUTRA-TDD-r10.c	\
+	CellInfoUTRA-TDD-r10.c	\
 	RRCConnectionRequest.c	\
 	RRCConnectionRequest-r8-IEs.c	\
 	InitialUE-Identity.c	\
 	EstablishmentCause.c	\
 	RRCConnectionSetup.c	\
 	RRCConnectionSetup-r8-IEs.c	\
+	RRCConnectionSetup-v8a0-IEs.c	\
 	RRCConnectionSetupComplete.c	\
 	RRCConnectionSetupComplete-r8-IEs.c	\
+	RRCConnectionSetupComplete-v8a0-IEs.c	\
+	RRCConnectionSetupComplete-v1020-IEs.c	\
+	RRCConnectionSetupComplete-v1130-IEs.c	\
+	RRCConnectionSetupComplete-v12xy-IEs.c	\
 	RegisteredMME.c	\
 	SecurityModeCommand.c	\
 	SecurityModeCommand-r8-IEs.c	\
+	SecurityModeCommand-v8a0-IEs.c	\
 	SecurityConfigSMC.c	\
 	SecurityModeComplete.c	\
 	SecurityModeComplete-r8-IEs.c	\
+	SecurityModeComplete-v8a0-IEs.c	\
 	SecurityModeFailure.c	\
 	SecurityModeFailure-r8-IEs.c	\
+	SecurityModeFailure-v8a0-IEs.c	\
 	SystemInformation.c	\
 	SystemInformation-r8-IEs.c	\
+	SystemInformation-v8a0-IEs.c	\
 	SystemInformationBlockType1.c	\
+	SystemInformationBlockType1-v890-IEs.c	\
+	SystemInformationBlockType1-v8h0-IEs.c	\
+	SystemInformationBlockType1-v9e0-IEs.c	\
+	SystemInformationBlockType1-v920-IEs.c	\
+	SystemInformationBlockType1-v1130-IEs.c	\
 	PLMN-IdentityList.c	\
 	PLMN-IdentityInfo.c	\
 	SchedulingInfoList.c	\
 	SchedulingInfo.c	\
 	SIB-MappingInfo.c	\
 	SIB-Type.c	\
+	CellSelectionInfo-v920.c	\
+	CellSelectionInfo-v1130.c	\
+	UEAssistanceInformation-r11.c	\
+	UEAssistanceInformation-r11-IEs.c	\
 	UECapabilityEnquiry.c	\
 	UECapabilityEnquiry-r8-IEs.c	\
+	UECapabilityEnquiry-v8a0-IEs.c	\
 	UE-CapabilityRequest.c	\
 	UECapabilityInformation.c	\
 	UECapabilityInformation-r8-IEs.c	\
+	UECapabilityInformation-v8a0-IEs.c	\
+	UEInformationRequest-r9.c	\
+	UEInformationRequest-r9-IEs.c	\
+	UEInformationRequest-v930-IEs.c	\
+	UEInformationRequest-v1020-IEs.c	\
+	UEInformationRequest-v1130-IEs.c	\
+	UEInformationRequest-v12xy-IEs.c	\
+	UEInformationResponse-r9.c	\
+	UEInformationResponse-r9-IEs.c	\
+	UEInformationResponse-v9e0-IEs.c	\
+	UEInformationResponse-v930-IEs.c	\
+	UEInformationResponse-v1020-IEs.c	\
+	UEInformationResponse-v1130-IEs.c	\
+	UEInformationResponse-v12xy-IEs.c	\
+	RLF-Report-r9.c	\
+	RLF-Report-v9e0.c	\
+	MeasResultList2EUTRA-r9.c	\
+	MeasResultList2EUTRA-v9e0.c	\
+	MeasResult2EUTRA-r9.c	\
+	MeasResult2EUTRA-v9e0.c	\
+	MeasResultList2UTRA-r9.c	\
+	MeasResult2UTRA-r9.c	\
+	MeasResultList2CDMA2000-r9.c	\
+	MeasResult2CDMA2000-r9.c	\
+	LogMeasReport-r10.c	\
+	LogMeasInfoList-r10.c	\
+	LogMeasInfo-r10.c	\
+	MeasResultList2GERAN-r10.c	\
+	ConnEstFailReport-r11.c	\
+	NumberOfPreamblesSent-r11.c	\
+	TimeSinceFailure-r11.c	\
+	MobilityHistoryReport-r12.c	\
 	ULHandoverPreparationTransfer.c	\
 	ULHandoverPreparationTransfer-r8-IEs.c	\
+	ULHandoverPreparationTransfer-v8a0-IEs.c	\
 	ULInformationTransfer.c	\
 	ULInformationTransfer-r8-IEs.c	\
+	ULInformationTransfer-v8a0-IEs.c	\
 	SystemInformationBlockType2.c	\
+	SystemInformationBlockType2-v8h0-IEs.c	\
+	SystemInformationBlockType2-v9e0-IEs.c	\
 	AC-BarringConfig.c	\
 	MBSFN-SubframeConfigList.c	\
-	MBSFN-SubframeConfig.c	\
 	SystemInformationBlockType3.c	\
 	SystemInformationBlockType4.c	\
 	IntraFreqNeighCellList.c	\
 	IntraFreqNeighCellInfo.c	\
 	IntraFreqBlackCellList.c	\
 	SystemInformationBlockType5.c	\
+	SystemInformationBlockType5-v8h0-IEs.c	\
+	SystemInformationBlockType5-v9e0-IEs.c	\
 	InterFreqCarrierFreqList.c	\
 	InterFreqCarrierFreqInfo.c	\
+	InterFreqCarrierFreqInfo-v8h0.c	\
+	InterFreqCarrierFreqInfo-v9e0.c	\
 	InterFreqNeighCellList.c	\
 	InterFreqNeighCellInfo.c	\
 	InterFreqBlackCellList.c	\
-	InterFreqBlackCellInfo.c	\
 	SystemInformationBlockType6.c	\
+	SystemInformationBlockType6-v8h0-IEs.c	\
 	CarrierFreqListUTRA-FDD.c	\
 	CarrierFreqUTRA-FDD.c	\
+	CarrierFreqInfoUTRA-FDD-v8h0.c	\
 	CarrierFreqListUTRA-TDD.c	\
 	CarrierFreqUTRA-TDD.c	\
+	FreqBandIndicator-UTRA-FDD.c	\
 	SystemInformationBlockType7.c	\
 	CarrierFreqsInfoListGERAN.c	\
 	CarrierFreqsInfoGERAN.c	\
 	SystemInformationBlockType8.c	\
 	CellReselectionParametersCDMA2000.c	\
+	CellReselectionParametersCDMA2000-r11.c	\
+	CellReselectionParametersCDMA2000-v920.c	\
 	NeighCellListCDMA2000.c	\
 	NeighCellCDMA2000.c	\
+	NeighCellCDMA2000-r11.c	\
 	NeighCellsPerBandclassListCDMA2000.c	\
 	NeighCellsPerBandclassCDMA2000.c	\
+	NeighCellsPerBandclassCDMA2000-r11.c	\
+	NeighCellListCDMA2000-v920.c	\
+	NeighCellCDMA2000-v920.c	\
+	NeighCellsPerBandclassListCDMA2000-v920.c	\
+	NeighCellsPerBandclassCDMA2000-v920.c	\
 	PhysCellIdListCDMA2000.c	\
+	PhysCellIdListCDMA2000-v920.c	\
 	BandClassListCDMA2000.c	\
 	BandClassInfoCDMA2000.c	\
+	AC-BarringConfig1XRTT-r9.c	\
+	SIB8-PerPLMN-List-r11.c	\
+	SIB8-PerPLMN-r11.c	\
+	ParametersCDMA2000-r11.c	\
 	SystemInformationBlockType9.c	\
 	SystemInformationBlockType10.c	\
 	SystemInformationBlockType11.c	\
+	SystemInformationBlockType12-r9.c	\
+	SystemInformationBlockType13-r9.c	\
+	SystemInformationBlockType14-r11.c	\
+	EAB-ConfigPLMN-r11.c	\
+	EAB-Config-r11.c	\
+	SystemInformationBlockType15-r11.c	\
+	MBMS-SAI-List-r11.c	\
+	MBMS-SAI-r11.c	\
+	MBMS-SAI-InterFreqList-r11.c	\
+	MBMS-SAI-InterFreqList-v1140.c	\
+	MBMS-SAI-InterFreq-r11.c	\
+	MBMS-SAI-InterFreq-v1140.c	\
+	SystemInformationBlockType16-r11.c	\
 	AntennaInfoCommon.c	\
 	AntennaInfoDedicated.c	\
+	AntennaInfoDedicated-v920.c	\
+	AntennaInfoDedicated-r10.c	\
+	AntennaInfoDedicated-v12xx.c	\
+	AntennaInfoUL-r10.c	\
 	CQI-ReportConfig.c	\
+	CQI-ReportConfig-v920.c	\
+	CQI-ReportConfig-r10.c	\
+	CQI-ReportConfig-v1130.c	\
+	CQI-ReportConfigSCell-r10.c	\
 	CQI-ReportPeriodic.c	\
+	CQI-ReportPeriodic-r10.c	\
+	CQI-ReportPeriodic-v1130.c	\
+	CQI-ReportPeriodicProcExtToAddModList-r11.c	\
+	CQI-ReportPeriodicProcExtToReleaseList-r11.c	\
+	CQI-ReportPeriodicProcExt-r11.c	\
+	CQI-ReportAperiodic-r10.c	\
+	CQI-ReportAperiodicProc-r11.c	\
+	CQI-ReportModeAperiodic.c	\
+	CQI-ReportBoth-r11.c	\
+	CSI-IM-ConfigToAddModList-r11.c	\
+	CSI-IM-ConfigToReleaseList-r11.c	\
+	CSI-ProcessToAddModList-r11.c	\
+	CSI-ProcessToReleaseList-r11.c	\
+	CQI-ReportBothProc-r11.c	\
+	CQI-ReportPeriodicProcExtId-r11.c	\
+	CrossCarrierSchedulingConfig-r10.c	\
+	CSI-IM-Config-r11.c	\
+	CSI-IM-ConfigId-r11.c	\
+	CSI-Process-r11.c	\
+	P-C-AndCBSR-r11.c	\
+	CSI-ProcessId-r11.c	\
+	CSI-RS-Config-r10.c	\
+	CSI-RS-ConfigNZP-r11.c	\
+	CSI-RS-ConfigNZPId-r11.c	\
+	CSI-RS-ConfigZP-r11.c	\
+	CSI-RS-ConfigZPId-r11.c	\
+	DMRS-Config-r11.c	\
 	DRB-Identity.c	\
+	EPDCCH-Config-r11.c	\
+	EPDCCH-SetConfigToAddModList-r11.c	\
+	EPDCCH-SetConfigToReleaseList-r11.c	\
+	EPDCCH-SetConfig-r11.c	\
+	EPDCCH-SetConfigId-r11.c	\
 	LogicalChannelConfig.c	\
 	MAC-MainConfig.c	\
+	MAC-MainConfigSCell-r11.c	\
 	DRX-Config.c	\
+	DRX-Config-v1130.c	\
+	STAG-ToReleaseList-r11.c	\
+	STAG-ToAddModList-r11.c	\
+	STAG-ToAddMod-r11.c	\
+	STAG-Id-r11.c	\
 	PDCP-Config.c	\
 	PDSCH-ConfigCommon.c	\
 	PDSCH-ConfigDedicated.c	\
+	PDSCH-ConfigDedicated-v1130.c	\
+	RE-MappingQCLConfigToAddModList-r11.c	\
+	RE-MappingQCLConfigToReleaseList-r11.c	\
+	PDSCH-RE-MappingQCL-Config-r11.c	\
+	PDSCH-RE-MappingQCL-ConfigId-r11.c	\
 	PHICH-Config.c	\
 	PhysicalConfigDedicated.c	\
+	PhysicalConfigDedicatedSCell-r10.c	\
+	CSI-RS-ConfigNZPToAddModList-r11.c	\
+	CSI-RS-ConfigNZPToReleaseList-r11.c	\
+	CSI-RS-ConfigZPToAddModList-r11.c	\
+	CSI-RS-ConfigZPToReleaseList-r11.c	\
 	P-Max.c	\
 	PRACH-ConfigSIB.c	\
 	PRACH-Config.c	\
+	PRACH-ConfigSCell-r10.c	\
 	PRACH-ConfigInfo.c	\
 	PresenceAntennaPort1.c	\
 	PUCCH-ConfigCommon.c	\
 	PUCCH-ConfigDedicated.c	\
+	PUCCH-ConfigDedicated-v1020.c	\
+	PUCCH-ConfigDedicated-v1130.c	\
+	N1PUCCH-AN-CS-r10.c	\
 	PUSCH-ConfigCommon.c	\
 	PUSCH-ConfigDedicated.c	\
+	PUSCH-ConfigDedicated-v1020.c	\
+	PUSCH-ConfigDedicated-v1130.c	\
+	PUSCH-ConfigDedicatedSCell-r10.c	\
 	UL-ReferenceSignalsPUSCH.c	\
 	RACH-ConfigCommon.c	\
+	RACH-ConfigCommonSCell-r11.c	\
+	PowerRampingParameters.c	\
+	PreambleTransMax.c	\
 	RACH-ConfigDedicated.c	\
 	RadioResourceConfigCommonSIB.c	\
 	RadioResourceConfigCommon.c	\
+	RadioResourceConfigCommonSCell-r10.c	\
 	BCCH-Config.c	\
 	PCCH-Config.c	\
 	UL-CyclicPrefixLength.c	\
 	RadioResourceConfigDedicated.c	\
+	RadioResourceConfigDedicatedSCell-r10.c	\
 	SRB-ToAddModList.c	\
 	SRB-ToAddMod.c	\
 	DRB-ToAddModList.c	\
 	DRB-ToAddMod.c	\
 	DRB-ToReleaseList.c	\
+	MeasSubframePatternPCell-r10.c	\
+	NeighCellsCRS-Info-r11.c	\
+	CRS-AssistanceInfoList-r11.c	\
+	CRS-AssistanceInfo-r11.c	\
 	RLC-Config.c	\
 	UL-AM-RLC.c	\
 	DL-AM-RLC.c	\
@@ -195,26 +442,44 @@ ASN_MODULE_SOURCES=	\
 	PollByte.c	\
 	T-Reordering.c	\
 	T-StatusProhibit.c	\
+	RLF-TimersAndConstants-r9.c	\
+	RN-SubframeConfig-r10.c	\
 	SchedulingRequestConfig.c	\
+	SchedulingRequestConfig-v1020.c	\
 	SoundingRS-UL-ConfigCommon.c	\
 	SoundingRS-UL-ConfigDedicated.c	\
+	SoundingRS-UL-ConfigDedicated-v1020.c	\
+	SoundingRS-UL-ConfigDedicatedAperiodic-r10.c	\
+	SRS-ConfigAp-r10.c	\
+	SRS-AntennaPort.c	\
 	SPS-Config.c	\
 	SPS-ConfigDL.c	\
 	SPS-ConfigUL.c	\
-	N1-PUCCH-AN-PersistentList.c	\
+	N1PUCCH-AN-PersistentList.c	\
 	TDD-Config.c	\
+	TDD-Config-v1130.c	\
 	TimeAlignmentTimer.c	\
 	TPC-PDCCH-Config.c	\
 	TPC-Index.c	\
 	UplinkPowerControlCommon.c	\
+	UplinkPowerControlCommon-v1020.c	\
+	UplinkPowerControlCommonSCell-r10.c	\
+	UplinkPowerControlCommonSCell-v1130.c	\
 	UplinkPowerControlDedicated.c	\
+	UplinkPowerControlDedicated-v1020.c	\
+	UplinkPowerControlDedicated-v1130.c	\
+	UplinkPowerControlDedicatedSCell-r10.c	\
 	DeltaFList-PUCCH.c	\
+	DeltaTxD-OffsetListPUCCH-r10.c	\
+	DeltaTxD-OffsetListPUCCH-v1130.c	\
 	NextHopChainingCount.c	\
 	SecurityAlgorithmConfig.c	\
 	ShortMAC-I.c	\
 	AdditionalSpectrumEmission.c	\
 	ARFCN-ValueCDMA2000.c	\
 	ARFCN-ValueEUTRA.c	\
+	ARFCN-ValueEUTRA-v9e0.c	\
+	ARFCN-ValueEUTRA-r9.c	\
 	ARFCN-ValueGERAN.c	\
 	ARFCN-ValueUTRA.c	\
 	BandclassCDMA2000.c	\
@@ -223,23 +488,36 @@ ASN_MODULE_SOURCES=	\
 	CarrierFreqGERAN.c	\
 	CarrierFreqsGERAN.c	\
 	ExplicitListOfARFCNs.c	\
+	CarrierFreqListMBMS-r11.c	\
 	CDMA2000-Type.c	\
 	CellIdentity.c	\
 	CellIndexList.c	\
 	CellIndex.c	\
 	CellReselectionPriority.c	\
 	CSFB-RegistrationParam1XRTT.c	\
+	CSFB-RegistrationParam1XRTT-v920.c	\
 	CellGlobalIdEUTRA.c	\
 	CellGlobalIdUTRA.c	\
 	CellGlobalIdGERAN.c	\
 	CellGlobalIdCDMA2000.c	\
+	CSG-Identity.c	\
+	FreqBandIndicator.c	\
+	FreqBandIndicator-v9e0.c	\
+	FreqBandIndicator-r11.c	\
 	MobilityControlInfo.c	\
 	CarrierBandwidthEUTRA.c	\
 	CarrierFreqEUTRA.c	\
+	CarrierFreqEUTRA-v9e0.c	\
 	MobilityParametersCDMA2000.c	\
 	MobilityStateParameters.c	\
+	MultiBandInfoList.c	\
+	MultiBandInfoList-v9e0.c	\
+	MultiBandInfoList-r11.c	\
+	MultiBandInfo-v9e0.c	\
 	PhysCellId.c	\
 	PhysCellIdRange.c	\
+	PhysCellIdRangeUTRA-FDDList-r9.c	\
+	PhysCellIdRangeUTRA-FDD-r9.c	\
 	PhysCellIdCDMA2000.c	\
 	PhysCellIdGERAN.c	\
 	PhysCellIdUTRA-FDD.c	\
@@ -248,19 +526,26 @@ ASN_MODULE_SOURCES=	\
 	MCC.c	\
 	MNC.c	\
 	MCC-MNC-Digit.c	\
+	PLMN-IdentityList3-r11.c	\
 	PreRegistrationInfoHRPD.c	\
 	SecondaryPreRegistrationZoneIdListHRPD.c	\
 	PreRegistrationZoneIdHRPD.c	\
+	Q-QualMin-r9.c	\
 	Q-RxLevMin.c	\
 	Q-OffsetRange.c	\
 	Q-OffsetRangeInterRAT.c	\
 	ReselectionThreshold.c	\
+	ReselectionThresholdQ-r9.c	\
+	SCellIndex-r10.c	\
+	ServCellIndex-r10.c	\
 	SpeedStateScaleFactors.c	\
+	SystemInfoListGERAN.c	\
 	SystemTimeInfoCDMA2000.c	\
 	TrackingAreaCode.c	\
 	T-Reselection.c	\
 	AllowedMeasBandwidth.c	\
 	Hysteresis.c	\
+	LocationInfo-r10.c	\
 	MeasConfig.c	\
 	MeasIdToRemoveList.c	\
 	MeasObjectToRemoveList.c	\
@@ -268,27 +553,40 @@ ASN_MODULE_SOURCES=	\
 	MeasGapConfig.c	\
 	MeasId.c	\
 	MeasIdToAddModList.c	\
+	MeasIdToAddModList-v12xy.c	\
 	MeasIdToAddMod.c	\
+	MeasIdToAddMod-v12xy.c	\
 	MeasObjectCDMA2000.c	\
 	CellsToAddModListCDMA2000.c	\
 	CellsToAddModCDMA2000.c	\
 	MeasObjectEUTRA.c	\
+	MeasObjectEUTRA-v9e0.c	\
 	CellsToAddModList.c	\
 	CellsToAddMod.c	\
 	BlackCellsToAddModList.c	\
 	BlackCellsToAddMod.c	\
+	MeasCycleSCell-r10.c	\
+	MeasSubframePatternConfigNeigh-r10.c	\
+	MeasSubframeCellList-r10.c	\
+	AltTTT-CellsToAddModList-r12.c	\
+	AltTTT-CellsToAddMod-r12.c	\
 	MeasObjectGERAN.c	\
 	MeasObjectId.c	\
 	MeasObjectToAddModList.c	\
+	MeasObjectToAddModList-v9e0.c	\
 	MeasObjectToAddMod.c	\
+	MeasObjectToAddMod-v9e0.c	\
 	MeasObjectUTRA.c	\
 	CellsToAddModListUTRA-FDD.c	\
 	CellsToAddModUTRA-FDD.c	\
 	CellsToAddModListUTRA-TDD.c	\
 	CellsToAddModUTRA-TDD.c	\
+	CSG-AllowedReportingCells-r9.c	\
 	MeasResults.c	\
 	MeasResultListEUTRA.c	\
 	MeasResultEUTRA.c	\
+	MeasResultServFreqList-r10.c	\
+	MeasResultServFreq-r10.c	\
 	MeasResultListUTRA.c	\
 	MeasResultUTRA.c	\
 	MeasResultListGERAN.c	\
@@ -296,10 +594,13 @@ ASN_MODULE_SOURCES=	\
 	MeasResultsCDMA2000.c	\
 	MeasResultListCDMA2000.c	\
 	MeasResultCDMA2000.c	\
+	MeasResultForECID-r9.c	\
 	PLMN-IdentityList2.c	\
+	AdditionalSI-Info-r9.c	\
 	QuantityConfig.c	\
 	QuantityConfigEUTRA.c	\
 	QuantityConfigUTRA.c	\
+	QuantityConfigUTRA-v1020.c	\
 	QuantityConfigGERAN.c	\
 	QuantityConfigCDMA2000.c	\
 	ReportConfigEUTRA.c	\
@@ -315,33 +616,104 @@ ASN_MODULE_SOURCES=	\
 	RSRP-Range.c	\
 	RSRQ-Range.c	\
 	TimeToTrigger.c	\
+	AbsoluteTimeInfo-r10.c	\
+	AreaConfiguration-r10.c	\
+	AreaConfiguration-v1130.c	\
+	CellGlobalIdList-r10.c	\
+	TrackingAreaCodeList-r10.c	\
+	TrackingAreaCodeList-v1130.c	\
 	C-RNTI.c	\
 	DedicatedInfoCDMA2000.c	\
 	DedicatedInfoNAS.c	\
 	FilterCoefficient.c	\
+	LoggingDuration-r10.c	\
+	LoggingInterval-r10.c	\
+	MeasSubframePattern-r10.c	\
 	MMEC.c	\
 	NeighCellConfig.c	\
+	OtherConfig-r9.c	\
+	IDC-Config-r11.c	\
+	ObtainLocationConfig-r11.c	\
+	PowerPrefIndicationConfig-r11.c	\
+	ReportProximityConfig-r9.c	\
 	RAND-CDMA2000.c	\
 	RAT-Type.c	\
 	RRC-TransactionIdentifier.c	\
 	S-TMSI.c	\
+	TraceReference-r10.c	\
 	UE-CapabilityRAT-ContainerList.c	\
 	UE-CapabilityRAT-Container.c	\
 	UE-EUTRA-Capability.c	\
+	UE-EUTRA-Capability-v9a0-IEs.c	\
+	UE-EUTRA-Capability-v9c0-IEs.c	\
+	UE-EUTRA-Capability-v9d0-IEs.c	\
+	UE-EUTRA-Capability-v9e0-IEs.c	\
+	UE-EUTRA-Capability-v9h0-IEs.c	\
+	UE-EUTRA-Capability-v10c0-IEs.c	\
+	UE-EUTRA-Capability-v920-IEs.c	\
+	UE-EUTRA-Capability-v940-IEs.c	\
+	UE-EUTRA-Capability-v1020-IEs.c	\
+	UE-EUTRA-Capability-v1060-IEs.c	\
+	UE-EUTRA-Capability-v1090-IEs.c	\
+	UE-EUTRA-Capability-v1130-IEs.c	\
+	UE-EUTRA-Capability-v1170-IEs.c	\
+	UE-EUTRA-CapabilityAddXDD-Mode-r9.c	\
+	UE-EUTRA-CapabilityAddXDD-Mode-v1060.c	\
+	UE-EUTRA-CapabilityAddXDD-Mode-v1130.c	\
 	AccessStratumRelease.c	\
 	PDCP-Parameters.c	\
+	PDCP-Parameters-v1130.c	\
 	PhyLayerParameters.c	\
+	PhyLayerParameters-v920.c	\
+	PhyLayerParameters-v9d0.c	\
+	PhyLayerParameters-v1020.c	\
+	PhyLayerParameters-v1130.c	\
+	PhyLayerParameters-v1170.c	\
+	NonContiguousUL-RA-WithinCC-List-r10.c	\
+	NonContiguousUL-RA-WithinCC-r10.c	\
 	RF-Parameters.c	\
+	RF-Parameters-v9e0.c	\
+	RF-Parameters-v1020.c	\
+	RF-Parameters-v1060.c	\
+	RF-Parameters-v1090.c	\
+	RF-Parameters-v1130.c	\
+	SupportedBandCombination-r10.c	\
+	SupportedBandCombinationExt-r10.c	\
+	SupportedBandCombination-v1090.c	\
+	SupportedBandCombination-v1130.c	\
+	BandCombinationParameters-r10.c	\
+	BandCombinationParametersExt-r10.c	\
+	BandCombinationParameters-v1090.c	\
+	BandCombinationParameters-v1130.c	\
+	SupportedBandwidthCombinationSet-r10.c	\
+	BandParameters-r10.c	\
+	BandParameters-v1090.c	\
+	BandParameters-v1130.c	\
+	BandParametersUL-r10.c	\
+	CA-MIMO-ParametersUL-r10.c	\
+	BandParametersDL-r10.c	\
+	CA-MIMO-ParametersDL-r10.c	\
+	CA-BandwidthClass-r10.c	\
+	MIMO-CapabilityUL-r10.c	\
+	MIMO-CapabilityDL-r10.c	\
 	SupportedBandListEUTRA.c	\
+	SupportedBandListEUTRA-v9e0.c	\
 	SupportedBandEUTRA.c	\
+	SupportedBandEUTRA-v9e0.c	\
 	MeasParameters.c	\
+	MeasParameters-v1020.c	\
+	MeasParameters-v1130.c	\
 	BandListEUTRA.c	\
+	BandCombinationListEUTRA-r10.c	\
 	BandInfoEUTRA.c	\
 	InterFreqBandList.c	\
 	InterFreqBandInfo.c	\
 	InterRAT-BandList.c	\
 	InterRAT-BandInfo.c	\
 	IRAT-ParametersUTRA-FDD.c	\
+	IRAT-ParametersUTRA-v920.c	\
+	IRAT-ParametersUTRA-v9c0.c	\
+	IRAT-ParametersUTRA-v9h0.c	\
 	SupportedBandListUTRA-FDD.c	\
 	SupportedBandUTRA-FDD.c	\
 	IRAT-ParametersUTRA-TDD128.c	\
@@ -353,38 +725,81 @@ ASN_MODULE_SOURCES=	\
 	IRAT-ParametersUTRA-TDD768.c	\
 	SupportedBandListUTRA-TDD768.c	\
 	SupportedBandUTRA-TDD768.c	\
+	IRAT-ParametersUTRA-TDD-v1020.c	\
 	IRAT-ParametersGERAN.c	\
+	IRAT-ParametersGERAN-v920.c	\
 	SupportedBandListGERAN.c	\
 	SupportedBandGERAN.c	\
 	IRAT-ParametersCDMA2000-HRPD.c	\
 	SupportedBandListHRPD.c	\
 	IRAT-ParametersCDMA2000-1XRTT.c	\
+	IRAT-ParametersCDMA2000-1XRTT-v920.c	\
+	IRAT-ParametersCDMA2000-1XRTT-v1020.c	\
+	IRAT-ParametersCDMA2000-v1130.c	\
 	SupportedBandList1XRTT.c	\
+	CSG-ProximityIndicationParameters-r9.c	\
+	NeighCellSI-AcquisitionParameters-r9.c	\
+	SON-Parameters-r9.c	\
+	UE-BasedNetwPerfMeasParameters-r10.c	\
+	OTDOA-PositioningCapabilities-r10.c	\
+	Other-Parameters-r11.c	\
 	UE-TimersAndConstants.c	\
+	VisitedCellInfoList-r12.c	\
+	VisitedCellInfo-r12.c	\
+	MBMS-NotificationConfig-r9.c	\
+	MBSFN-AreaInfoList-r9.c	\
+	MBSFN-AreaInfo-r9.c	\
+	MBSFN-SubframeConfig.c	\
+	PMCH-InfoList-r9.c	\
+	PMCH-Info-r9.c	\
+	MBMS-SessionInfoList-r9.c	\
+	MBMS-SessionInfo-r9.c	\
+	PMCH-Config-r9.c	\
+	TMGI-r9.c	\
+	VarConnEstFailReport-r11.c	\
+	VarLogMeasConfig-r10.c	\
+	VarLogMeasConfig-r11.c	\
+	VarLogMeasReport-r10.c	\
+	VarLogMeasReport-r11.c	\
+	LogMeasInfoList2-r10.c	\
 	VarMeasConfig.c	\
 	VarMeasReportList.c	\
 	VarMeasReport.c	\
 	CellsTriggeredList.c	\
+	VarMobilityHistoryReport-r12.c	\
+	VarRLF-Report-r10.c	\
+	VarRLF-Report-r11.c	\
 	VarShortMAC-Input.c	\
 	HandoverCommand.c	\
 	HandoverCommand-r8-IEs.c	\
 	HandoverPreparationInformation.c	\
 	HandoverPreparationInformation-r8-IEs.c	\
+	HandoverPreparationInformation-v920-IEs.c	\
+	HandoverPreparationInformation-v9d0-IEs.c	\
+	HandoverPreparationInformation-v9e0-IEs.c	\
+	HandoverPreparationInformation-v1130-IEs.c	\
+	HandoverPreparationInformation-v12xy-IEs.c	\
 	UERadioAccessCapabilityInformation.c	\
 	UERadioAccessCapabilityInformation-r8-IEs.c	\
 	AS-Config.c	\
+	AS-Config-v9e0.c	\
 	AS-Context.c	\
+	AS-Context-v1130.c	\
 	ReestablishmentInfo.c	\
 	AdditionalReestabInfoList.c	\
 	AdditionalReestabInfo.c	\
 	Key-eNodeB-Star.c	\
-	RRM-Config.c
+	RRM-Config.c	\
+	CandidateCellInfoList-r10.c	\
+	CandidateCellInfo-r10.c
 
 ASN_MODULE_HEADERS=	\
 	BCCH-BCH-Message.h	\
 	BCCH-BCH-MessageType.h	\
 	BCCH-DL-SCH-Message.h	\
 	BCCH-DL-SCH-MessageType.h	\
+	MCCH-Message.h	\
+	MCCH-MessageType.h	\
 	PCCH-Message.h	\
 	PCCH-MessageType.h	\
 	DL-CCCH-Message.h	\
@@ -397,59 +812,138 @@ ASN_MODULE_HEADERS=	\
 	UL-DCCH-MessageType.h	\
 	CounterCheck.h	\
 	CounterCheck-r8-IEs.h	\
+	CounterCheck-v8a0-IEs.h	\
 	DRB-CountMSB-InfoList.h	\
 	DRB-CountMSB-Info.h	\
 	CounterCheckResponse.h	\
 	CounterCheckResponse-r8-IEs.h	\
+	CounterCheckResponse-v8a0-IEs.h	\
 	DRB-CountInfoList.h	\
 	DRB-CountInfo.h	\
 	CSFBParametersRequestCDMA2000.h	\
 	CSFBParametersRequestCDMA2000-r8-IEs.h	\
+	CSFBParametersRequestCDMA2000-v8a0-IEs.h	\
 	CSFBParametersResponseCDMA2000.h	\
 	CSFBParametersResponseCDMA2000-r8-IEs.h	\
+	CSFBParametersResponseCDMA2000-v8a0-IEs.h	\
 	DLInformationTransfer.h	\
 	DLInformationTransfer-r8-IEs.h	\
+	DLInformationTransfer-v8a0-IEs.h	\
 	HandoverFromEUTRAPreparationRequest.h	\
 	HandoverFromEUTRAPreparationRequest-r8-IEs.h	\
+	HandoverFromEUTRAPreparationRequest-v890-IEs.h	\
+	HandoverFromEUTRAPreparationRequest-v920-IEs.h	\
+	HandoverFromEUTRAPreparationRequest-v1020-IEs.h	\
+	InDeviceCoexIndication-r11.h	\
+	InDeviceCoexIndication-r11-IEs.h	\
+	AffectedCarrierFreqList-r11.h	\
+	AffectedCarrierFreq-r11.h	\
+	TDM-AssistanceInfo-r11.h	\
+	IDC-SubframePatternList-r11.h	\
+	IDC-SubframePattern-r11.h	\
+	InterFreqRSTDMeasurementIndication-r10.h	\
+	InterFreqRSTDMeasurementIndication-r10-IEs.h	\
+	RSTD-InterFreqInfoList-r10.h	\
+	RSTD-InterFreqInfo-r10.h	\
+	LoggedMeasurementConfiguration-r10.h	\
+	LoggedMeasurementConfiguration-r10-IEs.h	\
+	LoggedMeasurementConfiguration-v1080-IEs.h	\
+	LoggedMeasurementConfiguration-v1130-IEs.h	\
 	MasterInformationBlock.h	\
+	MBMSCountingRequest-r10.h	\
+	CountingRequestList-r10.h	\
+	CountingRequestInfo-r10.h	\
+	MBMSCountingResponse-r10.h	\
+	MBMSCountingResponse-r10-IEs.h	\
+	CountingResponseList-r10.h	\
+	CountingResponseInfo-r10.h	\
+	MBMSInterestIndication-r11.h	\
+	MBMSInterestIndication-r11-IEs.h	\
+	MBSFNAreaConfiguration-r9.h	\
+	MBSFNAreaConfiguration-v930-IEs.h	\
+	CommonSF-AllocPatternList-r9.h	\
 	MeasurementReport.h	\
 	MeasurementReport-r8-IEs.h	\
+	MeasurementReport-v8a0-IEs.h	\
 	MobilityFromEUTRACommand.h	\
 	MobilityFromEUTRACommand-r8-IEs.h	\
+	MobilityFromEUTRACommand-v8a0-IEs.h	\
+	MobilityFromEUTRACommand-v8d0-IEs.h	\
+	MobilityFromEUTRACommand-r9-IEs.h	\
+	MobilityFromEUTRACommand-v930-IEs.h	\
+	MobilityFromEUTRACommand-v960-IEs.h	\
 	Handover.h	\
 	CellChangeOrder.h	\
 	SI-OrPSI-GERAN.h	\
-	SystemInfoListGERAN.h	\
+	E-CSFB-r9.h	\
 	Paging.h	\
+	Paging-v890-IEs.h	\
+	Paging-v920-IEs.h	\
+	Paging-v1130-IEs.h	\
 	PagingRecordList.h	\
 	PagingRecord.h	\
 	PagingUE-Identity.h	\
 	IMSI.h	\
 	IMSI-Digit.h	\
+	ProximityIndication-r9.h	\
+	ProximityIndication-r9-IEs.h	\
+	ProximityIndication-v930-IEs.h	\
+	RNReconfiguration-r10.h	\
+	RNReconfiguration-r10-IEs.h	\
+	RN-SystemInfo-r10.h	\
+	RNReconfigurationComplete-r10.h	\
+	RNReconfigurationComplete-r10-IEs.h	\
 	RRCConnectionReconfiguration.h	\
 	RRCConnectionReconfiguration-r8-IEs.h	\
+	RRCConnectionReconfiguration-v890-IEs.h	\
+	RRCConnectionReconfiguration-v920-IEs.h	\
+	RRCConnectionReconfiguration-v1020-IEs.h	\
+	RRCConnectionReconfiguration-v1130-IEs.h	\
+	SCellToAddModList-r10.h	\
+	SCellToAddMod-r10.h	\
+	SCellToReleaseList-r10.h	\
 	SecurityConfigHO.h	\
 	RRCConnectionReconfigurationComplete.h	\
 	RRCConnectionReconfigurationComplete-r8-IEs.h	\
+	RRCConnectionReconfigurationComplete-v8a0-IEs.h	\
+	RRCConnectionReconfigurationComplete-v1020-IEs.h	\
+	RRCConnectionReconfigurationComplete-v1130-IEs.h	\
 	RRCConnectionReestablishment.h	\
 	RRCConnectionReestablishment-r8-IEs.h	\
+	RRCConnectionReestablishment-v8a0-IEs.h	\
 	RRCConnectionReestablishmentComplete.h	\
 	RRCConnectionReestablishmentComplete-r8-IEs.h	\
+	RRCConnectionReestablishmentComplete-v920-IEs.h	\
+	RRCConnectionReestablishmentComplete-v8a0-IEs.h	\
+	RRCConnectionReestablishmentComplete-v1020-IEs.h	\
+	RRCConnectionReestablishmentComplete-v1130-IEs.h	\
 	RRCConnectionReestablishmentReject.h	\
 	RRCConnectionReestablishmentReject-r8-IEs.h	\
+	RRCConnectionReestablishmentReject-v8a0-IEs.h	\
 	RRCConnectionReestablishmentRequest.h	\
 	RRCConnectionReestablishmentRequest-r8-IEs.h	\
 	ReestabUE-Identity.h	\
 	ReestablishmentCause.h	\
 	RRCConnectionReject.h	\
 	RRCConnectionReject-r8-IEs.h	\
+	RRCConnectionReject-v8a0-IEs.h	\
+	RRCConnectionReject-v1020-IEs.h	\
+	RRCConnectionReject-v1130-IEs.h	\
 	RRCConnectionRelease.h	\
 	RRCConnectionRelease-r8-IEs.h	\
+	RRCConnectionRelease-v890-IEs.h	\
+	RRCConnectionRelease-v9e0-IEs.h	\
+	RRCConnectionRelease-v920-IEs.h	\
+	RRCConnectionRelease-v1020-IEs.h	\
 	ReleaseCause.h	\
 	RedirectedCarrierInfo.h	\
+	RedirectedCarrierInfo-v9e0.h	\
+	CarrierFreqListUTRA-TDD-r10.h	\
 	IdleModeMobilityControlInfo.h	\
+	IdleModeMobilityControlInfo-v9e0.h	\
 	FreqPriorityListEUTRA.h	\
 	FreqPriorityEUTRA.h	\
+	FreqPriorityEUTRA-v9e0.h	\
 	FreqsPriorityListGERAN.h	\
 	FreqsPriorityGERAN.h	\
 	FreqPriorityListUTRA-FDD.h	\
@@ -460,112 +954,278 @@ ASN_MODULE_HEADERS=	\
 	BandClassPriorityHRPD.h	\
 	BandClassPriorityList1XRTT.h	\
 	BandClassPriority1XRTT.h	\
+	CellInfoListGERAN-r9.h	\
+	CellInfoGERAN-r9.h	\
+	CellInfoListUTRA-FDD-r9.h	\
+	CellInfoUTRA-FDD-r9.h	\
+	CellInfoListUTRA-TDD-r9.h	\
+	CellInfoUTRA-TDD-r9.h	\
+	CellInfoListUTRA-TDD-r10.h	\
+	CellInfoUTRA-TDD-r10.h	\
 	RRCConnectionRequest.h	\
 	RRCConnectionRequest-r8-IEs.h	\
 	InitialUE-Identity.h	\
 	EstablishmentCause.h	\
 	RRCConnectionSetup.h	\
 	RRCConnectionSetup-r8-IEs.h	\
+	RRCConnectionSetup-v8a0-IEs.h	\
 	RRCConnectionSetupComplete.h	\
 	RRCConnectionSetupComplete-r8-IEs.h	\
+	RRCConnectionSetupComplete-v8a0-IEs.h	\
+	RRCConnectionSetupComplete-v1020-IEs.h	\
+	RRCConnectionSetupComplete-v1130-IEs.h	\
+	RRCConnectionSetupComplete-v12xy-IEs.h	\
 	RegisteredMME.h	\
 	SecurityModeCommand.h	\
 	SecurityModeCommand-r8-IEs.h	\
+	SecurityModeCommand-v8a0-IEs.h	\
 	SecurityConfigSMC.h	\
 	SecurityModeComplete.h	\
 	SecurityModeComplete-r8-IEs.h	\
+	SecurityModeComplete-v8a0-IEs.h	\
 	SecurityModeFailure.h	\
 	SecurityModeFailure-r8-IEs.h	\
+	SecurityModeFailure-v8a0-IEs.h	\
 	SystemInformation.h	\
 	SystemInformation-r8-IEs.h	\
+	SystemInformation-v8a0-IEs.h	\
 	SystemInformationBlockType1.h	\
+	SystemInformationBlockType1-v890-IEs.h	\
+	SystemInformationBlockType1-v8h0-IEs.h	\
+	SystemInformationBlockType1-v9e0-IEs.h	\
+	SystemInformationBlockType1-v920-IEs.h	\
+	SystemInformationBlockType1-v1130-IEs.h	\
 	PLMN-IdentityList.h	\
 	PLMN-IdentityInfo.h	\
 	SchedulingInfoList.h	\
 	SchedulingInfo.h	\
 	SIB-MappingInfo.h	\
 	SIB-Type.h	\
+	CellSelectionInfo-v920.h	\
+	CellSelectionInfo-v1130.h	\
+	UEAssistanceInformation-r11.h	\
+	UEAssistanceInformation-r11-IEs.h	\
 	UECapabilityEnquiry.h	\
 	UECapabilityEnquiry-r8-IEs.h	\
+	UECapabilityEnquiry-v8a0-IEs.h	\
 	UE-CapabilityRequest.h	\
 	UECapabilityInformation.h	\
 	UECapabilityInformation-r8-IEs.h	\
+	UECapabilityInformation-v8a0-IEs.h	\
+	UEInformationRequest-r9.h	\
+	UEInformationRequest-r9-IEs.h	\
+	UEInformationRequest-v930-IEs.h	\
+	UEInformationRequest-v1020-IEs.h	\
+	UEInformationRequest-v1130-IEs.h	\
+	UEInformationRequest-v12xy-IEs.h	\
+	UEInformationResponse-r9.h	\
+	UEInformationResponse-r9-IEs.h	\
+	UEInformationResponse-v9e0-IEs.h	\
+	UEInformationResponse-v930-IEs.h	\
+	UEInformationResponse-v1020-IEs.h	\
+	UEInformationResponse-v1130-IEs.h	\
+	UEInformationResponse-v12xy-IEs.h	\
+	RLF-Report-r9.h	\
+	RLF-Report-v9e0.h	\
+	MeasResultList2EUTRA-r9.h	\
+	MeasResultList2EUTRA-v9e0.h	\
+	MeasResult2EUTRA-r9.h	\
+	MeasResult2EUTRA-v9e0.h	\
+	MeasResultList2UTRA-r9.h	\
+	MeasResult2UTRA-r9.h	\
+	MeasResultList2CDMA2000-r9.h	\
+	MeasResult2CDMA2000-r9.h	\
+	LogMeasReport-r10.h	\
+	LogMeasInfoList-r10.h	\
+	LogMeasInfo-r10.h	\
+	MeasResultList2GERAN-r10.h	\
+	ConnEstFailReport-r11.h	\
+	NumberOfPreamblesSent-r11.h	\
+	TimeSinceFailure-r11.h	\
+	MobilityHistoryReport-r12.h	\
 	ULHandoverPreparationTransfer.h	\
 	ULHandoverPreparationTransfer-r8-IEs.h	\
+	ULHandoverPreparationTransfer-v8a0-IEs.h	\
 	ULInformationTransfer.h	\
 	ULInformationTransfer-r8-IEs.h	\
+	ULInformationTransfer-v8a0-IEs.h	\
 	SystemInformationBlockType2.h	\
+	SystemInformationBlockType2-v8h0-IEs.h	\
+	SystemInformationBlockType2-v9e0-IEs.h	\
 	AC-BarringConfig.h	\
 	MBSFN-SubframeConfigList.h	\
-	MBSFN-SubframeConfig.h	\
 	SystemInformationBlockType3.h	\
 	SystemInformationBlockType4.h	\
 	IntraFreqNeighCellList.h	\
 	IntraFreqNeighCellInfo.h	\
 	IntraFreqBlackCellList.h	\
 	SystemInformationBlockType5.h	\
+	SystemInformationBlockType5-v8h0-IEs.h	\
+	SystemInformationBlockType5-v9e0-IEs.h	\
 	InterFreqCarrierFreqList.h	\
 	InterFreqCarrierFreqInfo.h	\
+	InterFreqCarrierFreqInfo-v8h0.h	\
+	InterFreqCarrierFreqInfo-v9e0.h	\
 	InterFreqNeighCellList.h	\
 	InterFreqNeighCellInfo.h	\
 	InterFreqBlackCellList.h	\
-	InterFreqBlackCellInfo.h	\
 	SystemInformationBlockType6.h	\
+	SystemInformationBlockType6-v8h0-IEs.h	\
 	CarrierFreqListUTRA-FDD.h	\
 	CarrierFreqUTRA-FDD.h	\
+	CarrierFreqInfoUTRA-FDD-v8h0.h	\
 	CarrierFreqListUTRA-TDD.h	\
 	CarrierFreqUTRA-TDD.h	\
+	FreqBandIndicator-UTRA-FDD.h	\
 	SystemInformationBlockType7.h	\
 	CarrierFreqsInfoListGERAN.h	\
 	CarrierFreqsInfoGERAN.h	\
 	SystemInformationBlockType8.h	\
 	CellReselectionParametersCDMA2000.h	\
+	CellReselectionParametersCDMA2000-r11.h	\
+	CellReselectionParametersCDMA2000-v920.h	\
 	NeighCellListCDMA2000.h	\
 	NeighCellCDMA2000.h	\
+	NeighCellCDMA2000-r11.h	\
 	NeighCellsPerBandclassListCDMA2000.h	\
 	NeighCellsPerBandclassCDMA2000.h	\
+	NeighCellsPerBandclassCDMA2000-r11.h	\
+	NeighCellListCDMA2000-v920.h	\
+	NeighCellCDMA2000-v920.h	\
+	NeighCellsPerBandclassListCDMA2000-v920.h	\
+	NeighCellsPerBandclassCDMA2000-v920.h	\
 	PhysCellIdListCDMA2000.h	\
+	PhysCellIdListCDMA2000-v920.h	\
 	BandClassListCDMA2000.h	\
 	BandClassInfoCDMA2000.h	\
+	AC-BarringConfig1XRTT-r9.h	\
+	SIB8-PerPLMN-List-r11.h	\
+	SIB8-PerPLMN-r11.h	\
+	ParametersCDMA2000-r11.h	\
 	SystemInformationBlockType9.h	\
 	SystemInformationBlockType10.h	\
 	SystemInformationBlockType11.h	\
+	SystemInformationBlockType12-r9.h	\
+	SystemInformationBlockType13-r9.h	\
+	SystemInformationBlockType14-r11.h	\
+	EAB-ConfigPLMN-r11.h	\
+	EAB-Config-r11.h	\
+	SystemInformationBlockType15-r11.h	\
+	MBMS-SAI-List-r11.h	\
+	MBMS-SAI-r11.h	\
+	MBMS-SAI-InterFreqList-r11.h	\
+	MBMS-SAI-InterFreqList-v1140.h	\
+	MBMS-SAI-InterFreq-r11.h	\
+	MBMS-SAI-InterFreq-v1140.h	\
+	SystemInformationBlockType16-r11.h	\
 	AntennaInfoCommon.h	\
 	AntennaInfoDedicated.h	\
+	AntennaInfoDedicated-v920.h	\
+	AntennaInfoDedicated-r10.h	\
+	AntennaInfoDedicated-v12xx.h	\
+	AntennaInfoUL-r10.h	\
 	CQI-ReportConfig.h	\
+	CQI-ReportConfig-v920.h	\
+	CQI-ReportConfig-r10.h	\
+	CQI-ReportConfig-v1130.h	\
+	CQI-ReportConfigSCell-r10.h	\
 	CQI-ReportPeriodic.h	\
+	CQI-ReportPeriodic-r10.h	\
+	CQI-ReportPeriodic-v1130.h	\
+	CQI-ReportPeriodicProcExtToAddModList-r11.h	\
+	CQI-ReportPeriodicProcExtToReleaseList-r11.h	\
+	CQI-ReportPeriodicProcExt-r11.h	\
+	CQI-ReportAperiodic-r10.h	\
+	CQI-ReportAperiodicProc-r11.h	\
+	CQI-ReportModeAperiodic.h	\
+	CQI-ReportBoth-r11.h	\
+	CSI-IM-ConfigToAddModList-r11.h	\
+	CSI-IM-ConfigToReleaseList-r11.h	\
+	CSI-ProcessToAddModList-r11.h	\
+	CSI-ProcessToReleaseList-r11.h	\
+	CQI-ReportBothProc-r11.h	\
+	CQI-ReportPeriodicProcExtId-r11.h	\
+	CrossCarrierSchedulingConfig-r10.h	\
+	CSI-IM-Config-r11.h	\
+	CSI-IM-ConfigId-r11.h	\
+	CSI-Process-r11.h	\
+	P-C-AndCBSR-r11.h	\
+	CSI-ProcessId-r11.h	\
+	CSI-RS-Config-r10.h	\
+	CSI-RS-ConfigNZP-r11.h	\
+	CSI-RS-ConfigNZPId-r11.h	\
+	CSI-RS-ConfigZP-r11.h	\
+	CSI-RS-ConfigZPId-r11.h	\
+	DMRS-Config-r11.h	\
 	DRB-Identity.h	\
+	EPDCCH-Config-r11.h	\
+	EPDCCH-SetConfigToAddModList-r11.h	\
+	EPDCCH-SetConfigToReleaseList-r11.h	\
+	EPDCCH-SetConfig-r11.h	\
+	EPDCCH-SetConfigId-r11.h	\
 	LogicalChannelConfig.h	\
 	MAC-MainConfig.h	\
+	MAC-MainConfigSCell-r11.h	\
 	DRX-Config.h	\
+	DRX-Config-v1130.h	\
+	STAG-ToReleaseList-r11.h	\
+	STAG-ToAddModList-r11.h	\
+	STAG-ToAddMod-r11.h	\
+	STAG-Id-r11.h	\
 	PDCP-Config.h	\
 	PDSCH-ConfigCommon.h	\
 	PDSCH-ConfigDedicated.h	\
+	PDSCH-ConfigDedicated-v1130.h	\
+	RE-MappingQCLConfigToAddModList-r11.h	\
+	RE-MappingQCLConfigToReleaseList-r11.h	\
+	PDSCH-RE-MappingQCL-Config-r11.h	\
+	PDSCH-RE-MappingQCL-ConfigId-r11.h	\
 	PHICH-Config.h	\
 	PhysicalConfigDedicated.h	\
+	PhysicalConfigDedicatedSCell-r10.h	\
+	CSI-RS-ConfigNZPToAddModList-r11.h	\
+	CSI-RS-ConfigNZPToReleaseList-r11.h	\
+	CSI-RS-ConfigZPToAddModList-r11.h	\
+	CSI-RS-ConfigZPToReleaseList-r11.h	\
 	P-Max.h	\
 	PRACH-ConfigSIB.h	\
 	PRACH-Config.h	\
+	PRACH-ConfigSCell-r10.h	\
 	PRACH-ConfigInfo.h	\
 	PresenceAntennaPort1.h	\
 	PUCCH-ConfigCommon.h	\
 	PUCCH-ConfigDedicated.h	\
+	PUCCH-ConfigDedicated-v1020.h	\
+	PUCCH-ConfigDedicated-v1130.h	\
+	N1PUCCH-AN-CS-r10.h	\
 	PUSCH-ConfigCommon.h	\
 	PUSCH-ConfigDedicated.h	\
+	PUSCH-ConfigDedicated-v1020.h	\
+	PUSCH-ConfigDedicated-v1130.h	\
+	PUSCH-ConfigDedicatedSCell-r10.h	\
 	UL-ReferenceSignalsPUSCH.h	\
 	RACH-ConfigCommon.h	\
+	RACH-ConfigCommonSCell-r11.h	\
+	PowerRampingParameters.h	\
+	PreambleTransMax.h	\
 	RACH-ConfigDedicated.h	\
 	RadioResourceConfigCommonSIB.h	\
 	RadioResourceConfigCommon.h	\
+	RadioResourceConfigCommonSCell-r10.h	\
 	BCCH-Config.h	\
 	PCCH-Config.h	\
 	UL-CyclicPrefixLength.h	\
 	RadioResourceConfigDedicated.h	\
+	RadioResourceConfigDedicatedSCell-r10.h	\
 	SRB-ToAddModList.h	\
 	SRB-ToAddMod.h	\
 	DRB-ToAddModList.h	\
 	DRB-ToAddMod.h	\
 	DRB-ToReleaseList.h	\
+	MeasSubframePatternPCell-r10.h	\
+	NeighCellsCRS-Info-r11.h	\
+	CRS-AssistanceInfoList-r11.h	\
+	CRS-AssistanceInfo-r11.h	\
 	RLC-Config.h	\
 	UL-AM-RLC.h	\
 	DL-AM-RLC.h	\
@@ -577,26 +1237,44 @@ ASN_MODULE_HEADERS=	\
 	PollByte.h	\
 	T-Reordering.h	\
 	T-StatusProhibit.h	\
+	RLF-TimersAndConstants-r9.h	\
+	RN-SubframeConfig-r10.h	\
 	SchedulingRequestConfig.h	\
+	SchedulingRequestConfig-v1020.h	\
 	SoundingRS-UL-ConfigCommon.h	\
 	SoundingRS-UL-ConfigDedicated.h	\
+	SoundingRS-UL-ConfigDedicated-v1020.h	\
+	SoundingRS-UL-ConfigDedicatedAperiodic-r10.h	\
+	SRS-ConfigAp-r10.h	\
+	SRS-AntennaPort.h	\
 	SPS-Config.h	\
 	SPS-ConfigDL.h	\
 	SPS-ConfigUL.h	\
-	N1-PUCCH-AN-PersistentList.h	\
+	N1PUCCH-AN-PersistentList.h	\
 	TDD-Config.h	\
+	TDD-Config-v1130.h	\
 	TimeAlignmentTimer.h	\
 	TPC-PDCCH-Config.h	\
 	TPC-Index.h	\
 	UplinkPowerControlCommon.h	\
+	UplinkPowerControlCommon-v1020.h	\
+	UplinkPowerControlCommonSCell-r10.h	\
+	UplinkPowerControlCommonSCell-v1130.h	\
 	UplinkPowerControlDedicated.h	\
+	UplinkPowerControlDedicated-v1020.h	\
+	UplinkPowerControlDedicated-v1130.h	\
+	UplinkPowerControlDedicatedSCell-r10.h	\
 	DeltaFList-PUCCH.h	\
+	DeltaTxD-OffsetListPUCCH-r10.h	\
+	DeltaTxD-OffsetListPUCCH-v1130.h	\
 	NextHopChainingCount.h	\
 	SecurityAlgorithmConfig.h	\
 	ShortMAC-I.h	\
 	AdditionalSpectrumEmission.h	\
 	ARFCN-ValueCDMA2000.h	\
 	ARFCN-ValueEUTRA.h	\
+	ARFCN-ValueEUTRA-v9e0.h	\
+	ARFCN-ValueEUTRA-r9.h	\
 	ARFCN-ValueGERAN.h	\
 	ARFCN-ValueUTRA.h	\
 	BandclassCDMA2000.h	\
@@ -605,23 +1283,36 @@ ASN_MODULE_HEADERS=	\
 	CarrierFreqGERAN.h	\
 	CarrierFreqsGERAN.h	\
 	ExplicitListOfARFCNs.h	\
+	CarrierFreqListMBMS-r11.h	\
 	CDMA2000-Type.h	\
 	CellIdentity.h	\
 	CellIndexList.h	\
 	CellIndex.h	\
 	CellReselectionPriority.h	\
 	CSFB-RegistrationParam1XRTT.h	\
+	CSFB-RegistrationParam1XRTT-v920.h	\
 	CellGlobalIdEUTRA.h	\
 	CellGlobalIdUTRA.h	\
 	CellGlobalIdGERAN.h	\
 	CellGlobalIdCDMA2000.h	\
+	CSG-Identity.h	\
+	FreqBandIndicator.h	\
+	FreqBandIndicator-v9e0.h	\
+	FreqBandIndicator-r11.h	\
 	MobilityControlInfo.h	\
 	CarrierBandwidthEUTRA.h	\
 	CarrierFreqEUTRA.h	\
+	CarrierFreqEUTRA-v9e0.h	\
 	MobilityParametersCDMA2000.h	\
 	MobilityStateParameters.h	\
+	MultiBandInfoList.h	\
+	MultiBandInfoList-v9e0.h	\
+	MultiBandInfoList-r11.h	\
+	MultiBandInfo-v9e0.h	\
 	PhysCellId.h	\
 	PhysCellIdRange.h	\
+	PhysCellIdRangeUTRA-FDDList-r9.h	\
+	PhysCellIdRangeUTRA-FDD-r9.h	\
 	PhysCellIdCDMA2000.h	\
 	PhysCellIdGERAN.h	\
 	PhysCellIdUTRA-FDD.h	\
@@ -630,19 +1321,26 @@ ASN_MODULE_HEADERS=	\
 	MCC.h	\
 	MNC.h	\
 	MCC-MNC-Digit.h	\
+	PLMN-IdentityList3-r11.h	\
 	PreRegistrationInfoHRPD.h	\
 	SecondaryPreRegistrationZoneIdListHRPD.h	\
 	PreRegistrationZoneIdHRPD.h	\
+	Q-QualMin-r9.h	\
 	Q-RxLevMin.h	\
 	Q-OffsetRange.h	\
 	Q-OffsetRangeInterRAT.h	\
 	ReselectionThreshold.h	\
+	ReselectionThresholdQ-r9.h	\
+	SCellIndex-r10.h	\
+	ServCellIndex-r10.h	\
 	SpeedStateScaleFactors.h	\
+	SystemInfoListGERAN.h	\
 	SystemTimeInfoCDMA2000.h	\
 	TrackingAreaCode.h	\
 	T-Reselection.h	\
 	AllowedMeasBandwidth.h	\
 	Hysteresis.h	\
+	LocationInfo-r10.h	\
 	MeasConfig.h	\
 	MeasIdToRemoveList.h	\
 	MeasObjectToRemoveList.h	\
@@ -650,27 +1348,40 @@ ASN_MODULE_HEADERS=	\
 	MeasGapConfig.h	\
 	MeasId.h	\
 	MeasIdToAddModList.h	\
+	MeasIdToAddModList-v12xy.h	\
 	MeasIdToAddMod.h	\
+	MeasIdToAddMod-v12xy.h	\
 	MeasObjectCDMA2000.h	\
 	CellsToAddModListCDMA2000.h	\
 	CellsToAddModCDMA2000.h	\
 	MeasObjectEUTRA.h	\
+	MeasObjectEUTRA-v9e0.h	\
 	CellsToAddModList.h	\
 	CellsToAddMod.h	\
 	BlackCellsToAddModList.h	\
 	BlackCellsToAddMod.h	\
+	MeasCycleSCell-r10.h	\
+	MeasSubframePatternConfigNeigh-r10.h	\
+	MeasSubframeCellList-r10.h	\
+	AltTTT-CellsToAddModList-r12.h	\
+	AltTTT-CellsToAddMod-r12.h	\
 	MeasObjectGERAN.h	\
 	MeasObjectId.h	\
 	MeasObjectToAddModList.h	\
+	MeasObjectToAddModList-v9e0.h	\
 	MeasObjectToAddMod.h	\
+	MeasObjectToAddMod-v9e0.h	\
 	MeasObjectUTRA.h	\
 	CellsToAddModListUTRA-FDD.h	\
 	CellsToAddModUTRA-FDD.h	\
 	CellsToAddModListUTRA-TDD.h	\
 	CellsToAddModUTRA-TDD.h	\
+	CSG-AllowedReportingCells-r9.h	\
 	MeasResults.h	\
 	MeasResultListEUTRA.h	\
 	MeasResultEUTRA.h	\
+	MeasResultServFreqList-r10.h	\
+	MeasResultServFreq-r10.h	\
 	MeasResultListUTRA.h	\
 	MeasResultUTRA.h	\
 	MeasResultListGERAN.h	\
@@ -678,10 +1389,13 @@ ASN_MODULE_HEADERS=	\
 	MeasResultsCDMA2000.h	\
 	MeasResultListCDMA2000.h	\
 	MeasResultCDMA2000.h	\
+	MeasResultForECID-r9.h	\
 	PLMN-IdentityList2.h	\
+	AdditionalSI-Info-r9.h	\
 	QuantityConfig.h	\
 	QuantityConfigEUTRA.h	\
 	QuantityConfigUTRA.h	\
+	QuantityConfigUTRA-v1020.h	\
 	QuantityConfigGERAN.h	\
 	QuantityConfigCDMA2000.h	\
 	ReportConfigEUTRA.h	\
@@ -697,33 +1411,104 @@ ASN_MODULE_HEADERS=	\
 	RSRP-Range.h	\
 	RSRQ-Range.h	\
 	TimeToTrigger.h	\
+	AbsoluteTimeInfo-r10.h	\
+	AreaConfiguration-r10.h	\
+	AreaConfiguration-v1130.h	\
+	CellGlobalIdList-r10.h	\
+	TrackingAreaCodeList-r10.h	\
+	TrackingAreaCodeList-v1130.h	\
 	C-RNTI.h	\
 	DedicatedInfoCDMA2000.h	\
 	DedicatedInfoNAS.h	\
 	FilterCoefficient.h	\
+	LoggingDuration-r10.h	\
+	LoggingInterval-r10.h	\
+	MeasSubframePattern-r10.h	\
 	MMEC.h	\
 	NeighCellConfig.h	\
+	OtherConfig-r9.h	\
+	IDC-Config-r11.h	\
+	ObtainLocationConfig-r11.h	\
+	PowerPrefIndicationConfig-r11.h	\
+	ReportProximityConfig-r9.h	\
 	RAND-CDMA2000.h	\
 	RAT-Type.h	\
 	RRC-TransactionIdentifier.h	\
 	S-TMSI.h	\
+	TraceReference-r10.h	\
 	UE-CapabilityRAT-ContainerList.h	\
 	UE-CapabilityRAT-Container.h	\
 	UE-EUTRA-Capability.h	\
+	UE-EUTRA-Capability-v9a0-IEs.h	\
+	UE-EUTRA-Capability-v9c0-IEs.h	\
+	UE-EUTRA-Capability-v9d0-IEs.h	\
+	UE-EUTRA-Capability-v9e0-IEs.h	\
+	UE-EUTRA-Capability-v9h0-IEs.h	\
+	UE-EUTRA-Capability-v10c0-IEs.h	\
+	UE-EUTRA-Capability-v920-IEs.h	\
+	UE-EUTRA-Capability-v940-IEs.h	\
+	UE-EUTRA-Capability-v1020-IEs.h	\
+	UE-EUTRA-Capability-v1060-IEs.h	\
+	UE-EUTRA-Capability-v1090-IEs.h	\
+	UE-EUTRA-Capability-v1130-IEs.h	\
+	UE-EUTRA-Capability-v1170-IEs.h	\
+	UE-EUTRA-CapabilityAddXDD-Mode-r9.h	\
+	UE-EUTRA-CapabilityAddXDD-Mode-v1060.h	\
+	UE-EUTRA-CapabilityAddXDD-Mode-v1130.h	\
 	AccessStratumRelease.h	\
 	PDCP-Parameters.h	\
+	PDCP-Parameters-v1130.h	\
 	PhyLayerParameters.h	\
+	PhyLayerParameters-v920.h	\
+	PhyLayerParameters-v9d0.h	\
+	PhyLayerParameters-v1020.h	\
+	PhyLayerParameters-v1130.h	\
+	PhyLayerParameters-v1170.h	\
+	NonContiguousUL-RA-WithinCC-List-r10.h	\
+	NonContiguousUL-RA-WithinCC-r10.h	\
 	RF-Parameters.h	\
+	RF-Parameters-v9e0.h	\
+	RF-Parameters-v1020.h	\
+	RF-Parameters-v1060.h	\
+	RF-Parameters-v1090.h	\
+	RF-Parameters-v1130.h	\
+	SupportedBandCombination-r10.h	\
+	SupportedBandCombinationExt-r10.h	\
+	SupportedBandCombination-v1090.h	\
+	SupportedBandCombination-v1130.h	\
+	BandCombinationParameters-r10.h	\
+	BandCombinationParametersExt-r10.h	\
+	BandCombinationParameters-v1090.h	\
+	BandCombinationParameters-v1130.h	\
+	SupportedBandwidthCombinationSet-r10.h	\
+	BandParameters-r10.h	\
+	BandParameters-v1090.h	\
+	BandParameters-v1130.h	\
+	BandParametersUL-r10.h	\
+	CA-MIMO-ParametersUL-r10.h	\
+	BandParametersDL-r10.h	\
+	CA-MIMO-ParametersDL-r10.h	\
+	CA-BandwidthClass-r10.h	\
+	MIMO-CapabilityUL-r10.h	\
+	MIMO-CapabilityDL-r10.h	\
 	SupportedBandListEUTRA.h	\
+	SupportedBandListEUTRA-v9e0.h	\
 	SupportedBandEUTRA.h	\
+	SupportedBandEUTRA-v9e0.h	\
 	MeasParameters.h	\
+	MeasParameters-v1020.h	\
+	MeasParameters-v1130.h	\
 	BandListEUTRA.h	\
+	BandCombinationListEUTRA-r10.h	\
 	BandInfoEUTRA.h	\
 	InterFreqBandList.h	\
 	InterFreqBandInfo.h	\
 	InterRAT-BandList.h	\
 	InterRAT-BandInfo.h	\
 	IRAT-ParametersUTRA-FDD.h	\
+	IRAT-ParametersUTRA-v920.h	\
+	IRAT-ParametersUTRA-v9c0.h	\
+	IRAT-ParametersUTRA-v9h0.h	\
 	SupportedBandListUTRA-FDD.h	\
 	SupportedBandUTRA-FDD.h	\
 	IRAT-ParametersUTRA-TDD128.h	\
@@ -735,32 +1520,73 @@ ASN_MODULE_HEADERS=	\
 	IRAT-ParametersUTRA-TDD768.h	\
 	SupportedBandListUTRA-TDD768.h	\
 	SupportedBandUTRA-TDD768.h	\
+	IRAT-ParametersUTRA-TDD-v1020.h	\
 	IRAT-ParametersGERAN.h	\
+	IRAT-ParametersGERAN-v920.h	\
 	SupportedBandListGERAN.h	\
 	SupportedBandGERAN.h	\
 	IRAT-ParametersCDMA2000-HRPD.h	\
 	SupportedBandListHRPD.h	\
 	IRAT-ParametersCDMA2000-1XRTT.h	\
+	IRAT-ParametersCDMA2000-1XRTT-v920.h	\
+	IRAT-ParametersCDMA2000-1XRTT-v1020.h	\
+	IRAT-ParametersCDMA2000-v1130.h	\
 	SupportedBandList1XRTT.h	\
+	CSG-ProximityIndicationParameters-r9.h	\
+	NeighCellSI-AcquisitionParameters-r9.h	\
+	SON-Parameters-r9.h	\
+	UE-BasedNetwPerfMeasParameters-r10.h	\
+	OTDOA-PositioningCapabilities-r10.h	\
+	Other-Parameters-r11.h	\
 	UE-TimersAndConstants.h	\
+	VisitedCellInfoList-r12.h	\
+	VisitedCellInfo-r12.h	\
+	MBMS-NotificationConfig-r9.h	\
+	MBSFN-AreaInfoList-r9.h	\
+	MBSFN-AreaInfo-r9.h	\
+	MBSFN-SubframeConfig.h	\
+	PMCH-InfoList-r9.h	\
+	PMCH-Info-r9.h	\
+	MBMS-SessionInfoList-r9.h	\
+	MBMS-SessionInfo-r9.h	\
+	PMCH-Config-r9.h	\
+	TMGI-r9.h	\
+	VarConnEstFailReport-r11.h	\
+	VarLogMeasConfig-r10.h	\
+	VarLogMeasConfig-r11.h	\
+	VarLogMeasReport-r10.h	\
+	VarLogMeasReport-r11.h	\
+	LogMeasInfoList2-r10.h	\
 	VarMeasConfig.h	\
 	VarMeasReportList.h	\
 	VarMeasReport.h	\
 	CellsTriggeredList.h	\
+	VarMobilityHistoryReport-r12.h	\
+	VarRLF-Report-r10.h	\
+	VarRLF-Report-r11.h	\
 	VarShortMAC-Input.h	\
 	HandoverCommand.h	\
 	HandoverCommand-r8-IEs.h	\
 	HandoverPreparationInformation.h	\
 	HandoverPreparationInformation-r8-IEs.h	\
+	HandoverPreparationInformation-v920-IEs.h	\
+	HandoverPreparationInformation-v9d0-IEs.h	\
+	HandoverPreparationInformation-v9e0-IEs.h	\
+	HandoverPreparationInformation-v1130-IEs.h	\
+	HandoverPreparationInformation-v12xy-IEs.h	\
 	UERadioAccessCapabilityInformation.h	\
 	UERadioAccessCapabilityInformation-r8-IEs.h	\
 	AS-Config.h	\
+	AS-Config-v9e0.h	\
 	AS-Context.h	\
+	AS-Context-v1130.h	\
 	ReestablishmentInfo.h	\
 	AdditionalReestabInfoList.h	\
 	AdditionalReestabInfo.h	\
 	Key-eNodeB-Star.h	\
-	RRM-Config.h
+	RRM-Config.h	\
+	CandidateCellInfoList-r10.h	\
+	CandidateCellInfo-r10.h
 
 ASN_MODULE_HEADERS+=BOOLEAN.h
 ASN_MODULE_SOURCES+=BOOLEAN.c
@@ -851,5 +1677,5 @@ clean:
 regen: regenerate-from-asn1-source
 
 regenerate-from-asn1-source:
-	asn1c -S /usr/local/share/asn1c -fcompound-names -fskeletons-copy -gen-PER -pdu=auto 36331-850.asn
+	asn1c -S /usr/local/share/asn1c -fcompound-names -fskeletons-copy -gen-PER -pdu=auto 36331-c10.asn
 

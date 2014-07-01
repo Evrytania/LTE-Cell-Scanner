@@ -21,8 +21,7 @@
 #include <asn_application.h>
 #include <asn_internal.h>	/* for _ASN_DEFAULT_STACK_MAX */
 
-#define PDU BCCH_BCH_Message
-//#define PDU BCCH_DL_SCH_Message
+#define PDU BCCH_DL_SCH_Message //(or #define PDU BCCH_BCH_Message)
 #define ASN_PDU_COLLECTION
 
 /* Convert "Type" defined by -DPDU into "asn_DEF_Type" */
