@@ -11,6 +11,7 @@ http://blog.csdn.net/peng_yw/article/details/22437251
 
 cd LTE-BCCH-DL-SCH-decode
 asn1c  -S /usr/local/share/asn1c -fcompound-names -fskeletons-copy -gen-PER -pdu=auto 36331-850.asn
+asn1c  -S /usr/local/share/asn1c -fcompound-names -fskeletons-copy -gen-PER -pdu=auto 36331-ac0.asn
 
 converter-sample.c
 add 

@@ -7,35 +7,47 @@ end
 
 bits = sib_info.bits;
 
-% % % -----------------------------------------------
-hex_str = char(convert_SIB_bin_to_HEX(bits));
-% disp(['PDCCH No.0 4CCE:
-disp(['    PDSCH   SIB  (HEX): ' hex_str]);
+fid = fopen('tmp_sib_info.per', 'w');
+fwrite(fid, bits, 'ubit1', 'b');
+fclose(fid);
 
+disp('Calling asn1c decoder (../asn1_test/LTE-BCCH-DL-SCH-decode/progname) for BCCH-DL-SCH-Message.');
+cmd_str = '../asn1_test/LTE-BCCH-DL-SCH-decode/progname tmp_sib_info.per -p BCCH-DL-SCH-Message';
+disp(cmd_str);
+
+[~, cmdout] = system(cmd_str);
+
+disp(cmdout);
+
+% % % % ---------------------original---------------------------
+% hex_str = char(convert_SIB_bin_to_HEX(bits));
+% % disp(['PDCCH No.0 4CCE:
+% disp(['    PDSCH   SIB  (HEX): ' hex_str]);
 % 
-% % 36.331 BCCH-DL-SCH-Message
-% 
-% sib2 = [];
-% TypeAndInfo.type1 = {sib2};
-% systemInformation_r8 = {sib-TypeAndInfo};
-% 
-% criticalExtensions.type1 = {systemInformation_r8};
-% criticalExtensionsFuture = [];
-% criticalExtensions.type2 = {criticalExtensionsFuture};
-% 
-% systemInformation = {criticalExtensions};
-% 
-% PLMN_Identity = {mcc, mcc};
-% 
-% plmn_IdentityList = 
-% cellAccessRelatedInfo = {plmn_IdentityList, trackingAreaCode, cellIdentity, cellBarred, intraFreqReselection, csg_Indication, csg_Identity};
-% systemInformationBlockType1 = {cellAccessRelatedInfo, cellSelectionInfo, p_Max, freqBandIndicator, schedulingInfoList, tdd_Config, si_WindowLength, systemInfoValueTag, nonCriticalExtension};
-% 
-% c1.type1 = {systemInformation};
-% c1.type2 = {systemInformationBlockType1};
-% 
-% message.type1 = { c1 };
-% messageClassExtension = [];
-% message.type2 = { messageClassExtension };
-% 
-% BCCH-DL-SCH-Message = { message };
+% % 
+% % % 36.331 BCCH-DL-SCH-Message
+% % 
+% % sib2 = [];
+% % TypeAndInfo.type1 = {sib2};
+% % systemInformation_r8 = {sib-TypeAndInfo};
+% % 
+% % criticalExtensions.type1 = {systemInformation_r8};
+% % criticalExtensionsFuture = [];
+% % criticalExtensions.type2 = {criticalExtensionsFuture};
+% % 
+% % systemInformation = {criticalExtensions};
+% % 
+% % PLMN_Identity = {mcc, mcc};
+% % 
+% % plmn_IdentityList = 
+% % cellAccessRelatedInfo = {plmn_IdentityList, trackingAreaCode, cellIdentity, cellBarred, intraFreqReselection, csg_Indication, csg_Identity};
+% % systemInformationBlockType1 = {cellAccessRelatedInfo, cellSelectionInfo, p_Max, freqBandIndicator, schedulingInfoList, tdd_Config, si_WindowLength, systemInfoValueTag, nonCriticalExtension};
+% % 
+% % c1.type1 = {systemInformation};
+% % c1.type2 = {systemInformationBlockType1};
+% % 
+% % message.type1 = { c1 };
+% % messageClassExtension = [];
+% % message.type2 = { messageClassExtension };
+% % 
+% % BCCH-DL-SCH-Message = { message };

@@ -1,10 +1,20 @@
 asn1c: https://github.com/vlm/asn1c
 lameditor: http://sourceforge.net/projects/lameditor/
 
+
+how to get 36.331 asn:
+
+1. download doc spec from http://www.3gpp.org/ftp/Specs/archive/36_series/36.331/
+36331-ac0.zip --> 36331-ac0.doc
+2. save 36331-ac0.doc to 36331-ac0.txt
+2. cd ~/git/lameditor-1.0/src/getasn/
+./getasn 36331-ac0.txt
+then get 36331-ac0.asn
+
 mkdir ~/git/asn1c/examples/sample.source.LTERRC
 cd ~/git/asn1c/examples/sample.source.LTERRC
 cp ~/git/lameditor-1.0/src/getasn/36331-850.asn ./
-asn1c -gen-PER 36331-850.asn
+
 
 a ref:
 http://blog.csdn.net/peng_yw/article/details/22437251
