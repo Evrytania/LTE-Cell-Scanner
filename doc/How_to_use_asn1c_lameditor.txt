@@ -6,3 +6,6 @@ cd ~/git/asn1c/examples/sample.source.LTERRC
 cp ~/git/lameditor-1.0/src/getasn/36331-850.asn ./
 asn1c -gen-PER 36331-850.asn
 
+a ref:
+http://blog.csdn.net/peng_yw/article/details/22437251
+
