@@ -3,6 +3,11 @@
 
 decoded by: http://www.marben-products.com/asn.1/services/decoder-asn1-lte.html
 
+or
+
+decoded by: /asn1_test/LTE-BCCH-DL-SCH-decode/progname
+don't forget compling the progname in your own computer!
+
 <BCCH-DL-SCH-Message>
   <message>
     <c1>
