@@ -1,0 +1,81 @@
+7051800111271486C0182359C242041127D9
+
+decoded by: http://www.marben-products.com/asn.1/services/decoder-asn1-lte.html
+
+<BCCH-DL-SCH-Message>
+  <message>
+    <c1>
+      <systemInformationBlockType1>
+        <cellAccessRelatedInfo>
+          <plmn-IdentityList>
+            <PLMN-IdentityInfo>
+              <plmn-Identity>
+                <mcc>
+                  <MCC-MNC-Digit>4</MCC-MNC-Digit>
+                  <MCC-MNC-Digit>6</MCC-MNC-Digit>
+                  <MCC-MNC-Digit>0</MCC-MNC-Digit>
+                </mcc>
+                <mnc>
+                  <MCC-MNC-Digit>0</MCC-MNC-Digit>
+                  <MCC-MNC-Digit>0</MCC-MNC-Digit>
+                </mnc>
+              </plmn-Identity>
+              <cellReservedForOperatorUse>
+                <notReserved/>
+              </cellReservedForOperatorUse>
+            </PLMN-IdentityInfo>
+          </plmn-IdentityList>
+          <trackingAreaCode>0001000100100111</trackingAreaCode>
+          <cellIdentity>0001010010000110110000000001</cellIdentity>
+          <cellBarred>
+            <notBarred/>
+          </cellBarred>
+          <intraFreqReselection>
+            <allowed/>
+          </intraFreqReselection>
+          <csg-Indication>
+            <false/>
+          </csg-Indication>
+        </cellAccessRelatedInfo>
+        <cellSelectionInfo>
+          <q-RxLevMin>-62</q-RxLevMin>
+        </cellSelectionInfo>
+        <p-Max>23</p-Max>
+        <freqBandIndicator>40</freqBandIndicator>
+        <schedulingInfoList>
+          <SchedulingInfo>
+            <si-Periodicity>
+              <rf16/>
+            </si-Periodicity>
+            <sib-MappingInfo>
+              <sibType3/>
+            </sib-MappingInfo>
+          </SchedulingInfo>
+          <SchedulingInfo>
+            <si-Periodicity>
+              <rf32/>
+            </si-Periodicity>
+            <sib-MappingInfo>
+              <sibType5/>
+            </sib-MappingInfo>
+          </SchedulingInfo>
+        </schedulingInfoList>
+        <tdd-Config>
+          <subframeAssignment>
+            <sa2/>
+          </subframeAssignment>
+          <specialSubframePatterns>
+            <ssp7/>
+          </specialSubframePatterns>
+        </tdd-Config>
+        <si-WindowLength>
+          <ms40/>
+        </si-WindowLength>
+        <systemInfoValueTag>25</systemInfoValueTag>
+      </systemInformationBlockType1>
+    </c1>
+  </message>
+</BCCH-DL-SCH-Message>
+
+18 bytes decoded.
+*** DECODING SUCCESSFUL ***
