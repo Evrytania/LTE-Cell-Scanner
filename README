@@ -1,4 +1,6 @@
-An OpenCL accelerated TDD/FDD LTE Scanner. By Jiao Xianjun (putaoshu@gmail.com).
+An OpenCL accelerated TDD/FDD LTE Scanner (from A/D samples to PDSCH output. RRC ASN1 messages decoded). By Jiao Xianjun (putaoshu@gmail.com).
+
+Tech blog: https://sdr-x.github.io
 
 -------------------------------News:----------------------------------
 
