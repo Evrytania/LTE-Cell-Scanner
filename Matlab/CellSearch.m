@@ -1,15 +1,13 @@
 % Jiao Xianjun (putaoshu@gmail.com; putaoshu@msn.com)
 % CellSearch.m
 % Improved LTE-Cell-Scanner (written by James Peroulas: https://github.com/Evrytania/LTE-Cell-Scanner).
-% test HACKRF now.
+% See also README in root directory, ../test, ../../rtl-sdr-LTE/scan-capture/.
 
 % Some scripts are borrowed from:
 % https://github.com/JiaoXianjun/rtl-sdr-LTE
 % https://github.com/Evrytania/LTE-Cell-Scanner
 % https://github.com/Evrytania/Matlab-Library
 % https://github.com/JiaoXianjun/multi-rtl-sdr-calibration
-
-% See also README in root directory and ../scan-capture.
 
 function [cell_info, r_pbch_sub, r_20M_sub] = CellSearch(r_pbch, r_20M, f_search_set, fc)
 
@@ -60,7 +58,6 @@ for try_idx = 1 : num_try
             disp('No valid PSS is found at pre-proc phase! Please try again.');
             peaks = [];
             detect_flag = [];
-            tdd_flags = [];
             continue;
         else
             k_factor_set=(1+period_ppm.*1e-6);
@@ -68,9 +65,7 @@ for try_idx = 1 : num_try
 
         peaks = [];
         for i=1:length(k_factor_set)
-            col_idx = i:length(k_factor_set):3*length(k_factor_set);
-
-            [xc_incoherent_collapsed_pow, xc_incoherent_collapsed_frq, n_comb_xc, n_comb_sp, xc_incoherent_single, xc_incoherent, sp_incoherent, sp]= ...
+            [xc_incoherent_collapsed_pow, xc_incoherent_collapsed_frq, n_comb_xc, ~, ~, ~, sp_incoherent, ~]= ...
             xcorr_pss(capbuf_pbch,dynamic_f_search_set(i),DS_COMB_ARM,fc,sampling_carrier_twist,k_factor_set(i), xc(:,:,i));
 
             R_th1=chi2inv(1-(10.0^(-thresh1_n_nines)), 2*n_comb_xc*(2*DS_COMB_ARM+1));
@@ -80,7 +75,7 @@ for try_idx = 1 : num_try
             peaks = [peaks tmp_peak];
         end
     else
-        [xc_incoherent_collapsed_pow, xc_incoherent_collapsed_frq, n_comb_xc, n_comb_sp, xc_incoherent_single, xc_incoherent, sp_incoherent, sp]= ...
+        [xc_incoherent_collapsed_pow, xc_incoherent_collapsed_frq, n_comb_xc, ~, ~, ~, sp_incoherent, sp]= ...
         xcorr_pss(capbuf_pbch,dynamic_f_search_set,DS_COMB_ARM,fc,sampling_carrier_twist,NaN, xc);
 
         R_th1=chi2inv(1-(10.0^(-thresh1_n_nines)), 2*n_comb_xc*(2*DS_COMB_ARM+1));
@@ -98,7 +93,7 @@ for try_idx = 1 : num_try
         if ~isnan( peak.n_id_1 )
             peak=pss_sss_foe(peak,capbuf_pbch,fc,sampling_carrier_twist,tdd_flag);
             [tfg, tfg_timestamp]=extract_tfg(peak,capbuf_pbch,fc,sampling_carrier_twist, 6);
-            [tfg_comp, tfg_comp_timestamp, peak]=tfoec(peak,tfg,tfg_timestamp,fc,sampling_carrier_twist, 6);
+            [tfg_comp, ~, peak]=tfoec(peak,tfg,tfg_timestamp,fc,sampling_carrier_twist, 6);
             peak=decode_mib(peak,tfg_comp);
             if isnan( peak.n_rb_dl)
                 continue;

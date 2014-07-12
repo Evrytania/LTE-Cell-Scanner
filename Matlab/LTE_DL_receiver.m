@@ -1,6 +1,7 @@
 % Jiao Xianjun (putaoshu@gmail.com; putaoshu@msn.com)
 % LTE_DL_receiver.m
 % Use hackrf to process all 20MHz LTE bandwidth.
+% See also README in root directory, ../test, ../../rtl-sdr-LTE/scan-capture/.
 
 % Use commands in test/cap_LTE_with_HACKRF.txt to capture 20MHz LTE signal,
 % then use this script to process it by setting correct "filename".
@@ -11,8 +12,6 @@
 % https://github.com/Evrytania/LTE-Cell-Scanner
 % https://github.com/Evrytania/Matlab-Library
 % https://github.com/JiaoXianjun/multi-rtl-sdr-calibration
-
-% See also README in root directory and ../scan-capture.
 
 clear all;
 close all;
@@ -31,17 +30,11 @@ filename = '../test/f2585_s19.2_bw20_1s_hackrf1.bin'; fc = 2585e6;
 
 sampling_carrier_twist = 0; % ATTENTION! If this is 1, make sure fc is aligned with bin file!!!
 
-num_try = 10; % how many times we try for each frequency or file
 num_radioframe = 8; % each radio frame length 10ms. MIB period is 4 radio frame
 
 raw_sampling_rate = 19.2e6; % constrained by hackrf board
 sampling_rate = 30.72e6;
 sampling_rate_pbch = sampling_rate/16; % LTE spec. 30.72MHz/16.
-
-num_subframe_per_radioframe = 10;
-len_time_subframe = 1e-3; % 1ms. LTE spec
-num_sample_per_radioframe = num_subframe_per_radioframe*len_time_subframe*sampling_rate_pbch;
-num_sample_pbch = num_radioframe*num_sample_per_radioframe;
 
 coef_pbch = fir1(254, (0.18e6*6+150e3)/raw_sampling_rate); %freqz(coef_pbch, 1, 1024);
 coef_8x_up = fir1(254, 20e6/(raw_sampling_rate*8)); %freqz(coef_8x_up, 1, 1024);
