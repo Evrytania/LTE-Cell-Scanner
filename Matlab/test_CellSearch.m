@@ -12,7 +12,7 @@
 clear all;
 close all;
 
-[filename, file_sampling_rate] = regression_test_source(source_dir_idx, varargin);
+test_source_info = regression_test_source('../regression_test_signal_file');
 
 sampling_carrier_twist = 0; % ATTENTION! If this is 1, make sure fc is aligned with bin file!!!
 
