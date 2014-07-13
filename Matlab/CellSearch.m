@@ -9,14 +9,15 @@
 % https://github.com/Evrytania/Matlab-Library
 % https://github.com/JiaoXianjun/multi-rtl-sdr-calibration
 
-function [cell_info, r_pbch_sub, r_20M_sub] = CellSearch(r_pbch, r_20M, f_search_set, fc)
+function [cell_info, r_pbch_sub, r_20M_sub] = CellSearch(r_pbch, r_20M, f_search_set, fc, sampling_carrier_twist, pss_peak_max_reserve, num_pss_period_try, combined_pss_peak_range)
+r_20M_sub = -1;
 
 [~, td_pss] = pss_gen;
 
 % f_search_set = 20e3:5e3:30e3; % change it wider if you don't know pre-information
 pss_fo_set = pss_fo_set_gen(td_pss, f_search_set);
 
-sampling_carrier_twist = 0; % ATTENTION! If this is 1, make sure fc is aligned with bin file!!!
+% sampling_carrier_twist = 0; % ATTENTION! If this is 1, make sure fc is aligned with bin file!!!
 
 num_radioframe = 8; % each radio frame length 10ms. MIB period is 4 radio frame
 
@@ -47,12 +48,15 @@ for try_idx = 1 : num_try
     sp_20M = (sp-1)*pbch_sampling_ratio + 1;
     ep_20M = ep*pbch_sampling_ratio;
     r_pbch_sub = capbuf_pbch;
-    r_20M_sub = r_20M(sp_20M:ep_20M);
+    
+    if ~isempty(r_20M)
+        r_20M_sub = r_20M(sp_20M:ep_20M);
+    end
 
     disp(['Input averaged abs: ' num2str( mean(abs([real(capbuf_pbch) imag(capbuf_pbch)])) )]);
 
     disp('sampling_ppm_f_search_set_by_pss: try ... ... ');
-    [period_ppm, dynamic_f_search_set, xc] = sampling_ppm_f_search_set_by_pss(capbuf_pbch.', f_search_set, pss_fo_set, sampling_carrier_twist);
+    [period_ppm, dynamic_f_search_set, xc] = sampling_ppm_f_search_set_by_pss(capbuf_pbch.', f_search_set, pss_fo_set, sampling_carrier_twist, pss_peak_max_reserve, num_pss_period_try, combined_pss_peak_range);
     if sampling_carrier_twist==0
         if period_ppm == inf
             disp('No valid PSS is found at pre-proc phase! Please try again.');

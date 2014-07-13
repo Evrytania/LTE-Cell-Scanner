@@ -14,37 +14,23 @@ close all;
 
 test_source_info = regression_test_source('../regression_test_signal_file');
 
-sampling_carrier_twist = 0; % ATTENTION! If this is 1, make sure fc is aligned with bin file!!!
+sampling_carrier_twist = 0;
+f_search_set = -100e3:5e3:100e3;
+pss_peak_max_reserve = 1;
+num_pss_period_try = 3;
+combined_pss_peak_range = 160;
 
-num_try = 10; % how many times we try for each frequency or file
-num_radioframe = 8; % each radio frame length 10ms. MIB period is 4 radio frame
+filename = ['CellSearch_test_twist' num2str(sampling_carrier_twist) '_fo' num2str(min(f_search_set)) 'to' num2str(max(f_search_set)) '_resv' num2str(pss_peak_max_reserve) '_numPtry' num2str(num_pss_period_try) '_Prange' num2str(combined_pss_peak_range) '.mat'];
 
-raw_sampling_rate = 19.2e6; % constrained by hackrf board
-sampling_rate = 30.72e6;
-sampling_rate_pbch = sampling_rate/16; % LTE spec. 30.72MHz/16.
-
-num_subframe_per_radioframe = 10;
-len_time_subframe = 1e-3; % 1ms. LTE spec
-num_sample_per_radioframe = num_subframe_per_radioframe*len_time_subframe*sampling_rate_pbch;
-num_sample_pbch = num_radioframe*num_sample_per_radioframe;
-
-coef_pbch = fir1(254, (0.18e6*6+150e3)/raw_sampling_rate); %freqz(coef_pbch, 1, 1024);
-coef_8x_up = fir1(254, 20e6/(raw_sampling_rate*8)); %freqz(coef_8x_up, 1, 1024);
-
-DS_COMB_ARM = 2;
-FS_LTE = 30720000;
-thresh1_n_nines=12;
-rx_cutoff=(6*12*15e3/2+4*15e3)/(FS_LTE/16/2);
-THRESH2_N_SIGMA = 3;
-
-f_search_set = 20e3:5e3:30e3; % change it wider if you don't know pre-information
-
-    r_raw = get_signal_from_bin(filename, inf);
+cell_info = cell(1, length(test_source_info));
+for i = 1 : length(test_source_info)
+    coef_pbch = pbch_filter_coef_gen(test_source_info(i).fs);
+    
+    r_raw = get_signal_from_bin(test_source_info(i).filename, inf, test_source_info(i).dev);
     r_raw = r_raw - mean(r_raw); % remove DC
 
-    r_pbch = filter_wo_tail(r_raw, coef_pbch.*5, sampling_rate_pbch/raw_sampling_rate);
-    r_20M = filter_wo_tail(r_raw, coef_8x_up.*8, 8);
-    r_20M = r_20M(1:5:end);
-    
-    plot(real(r_raw)); drawnow;
-    [cell_info, r_pbch, r_20M] = CellSearch(r_pbch, r_20M, f_search_set, fc);
+    r_pbch = filter_wo_tail(r_raw, coef_pbch, (30.72e6/16)/test_source_info(i).fs);
+    cell_info{i} = CellSearch(r_pbch, [], f_search_set, test_source_info(i).fc, sampling_carrier_twist, pss_peak_max_reserve, num_pss_period_try, combined_pss_peak_range);
+    save(filename, 'test_source_info', 'cell_info');
+end
+

@@ -20,9 +20,9 @@ close all;
 % % bin file captured by hackrf_transfer  
 % filename = '../regression_test_signal_file/f2565_s19.2_bw20_1s_hackrf_tsinghua.bin';  fc = 2565e6;
 % filename = '../regression_test_signal_file/f2585_s19.2_bw20_1s_hackrf_tsinghua.bin';  fc = 2585e6;
-% filename = '../regression_test_signal_file/f2360_s19.2_bw20_1s_hackrf.bin'; fc = 2360e6;
+filename = '../regression_test_signal_file/f2360_s19.2_bw20_1s_hackrf.bin'; fc = 2360e6;
 % filename = '../regression_test_signal_file/f2585_s19.2_bw20_1s_hackrf.bin'; fc = 2585e6;
-filename = '../regression_test_signal_file/f2585_s19.2_bw20_1s_hackrf1.bin'; fc = 2585e6;
+% filename = '../regression_test_signal_file/f2585_s19.2_bw20_1s_hackrf1.bin'; fc = 2585e6;
 % filename = '../regression_test_signal_file/f1860_s19.2_bw20_1s_hackrf_home1.bin'; fc = 1860e6;
 % filename = '../regression_test_signal_file/f1860_s19.2_bw20_1s_hackrf_home.bin'; fc = 1860e6;
 % filename = '../regression_test_signal_file/f1890_s19.2_bw20_1s_hackrf_home.bin'; fc = 1890e6;
@@ -56,7 +56,7 @@ if isempty(dir([filename(1:end-4) '.mat']))
     r_20M = r_20M(1:5:end);
     
     plot(real(r_raw)); drawnow;
-    [cell_info, r_pbch, r_20M] = CellSearch(r_pbch, r_20M, f_search_set, fc);
+    [cell_info, r_pbch, r_20M] = CellSearch(r_pbch, r_20M, f_search_set, fc, 0, 1, 3, 160);
     
     r_pbch = r_pbch.';
     r_20M = r_20M.';
