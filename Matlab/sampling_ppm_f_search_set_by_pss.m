@@ -2,12 +2,13 @@
 % Find out LTE PSS in the signal stream and correct sampling&carrier error.
 % A script of project: https://github.com/JiaoXianjun/rtl-sdr-LTE
 
-function [ppm, f_set, xc, fo_idx_set, pss_idx_set, fo_pss_idx_set, fo_with_all_pss_idx, extra_info] = sampling_ppm_f_search_set_by_pss(s, fo_search_set, pss_fo_set, sampling_carrier_twist, max_reserve, num_pss_period_try, combined_pss_peak_range)
+function [ppm, f_set, xc, fo_idx_set, pss_idx_set, fo_pss_idx_set, fo_with_all_pss_idx, extra_info] = sampling_ppm_f_search_set_by_pss(s, fo_search_set, pss_fo_set, sampling_carrier_twist, max_reserve, num_pss_period_try, combined_pss_peak_range, par_th, num_peak_th)
 % sampling period PPM! not sampling frequency PPM!
 
 % fo_search_set = -100e3 : 5e3 : 100e3; % -100kHz ~ 100 kHz with 5kHz step size
 % pss_fo_set = pss_fo_set_gen(td_pss, fo_search_set);
 
+combined_pss_peak_range_half = floor(combined_pss_peak_range/2);
 extra_info = [];
 
 len_pss = size(pss_fo_set, 1);
@@ -45,26 +46,43 @@ if sampling_carrier_twist==1
     return;
 end
 
-pss_period = [(19200/2)-1, (19200/2), (19200/2)+1];
+if num_pss_period_try == 1
+    pss_period = 19200/2;
+    shift_len = ceil( len_short./pss_period );
+elseif num_pss_period_try == 3
+    pss_period = [(19200/2)-1, (19200/2), (19200/2)+1];
+    shift_len = 1;
+else
+    disp('sampling_ppm_f_search_set_by_pss: num_pss_period_try must be 1 or 3 currently!');
+    return;
+end
 num_half_radioframe = floor( len_short./pss_period );
-max_peak_all = zeros(1, 3*num_fo_pss);
-max_idx_all = zeros(1, 3*num_fo_pss);
-peak_to_avg = zeros(1, 3*num_fo_pss);
-for i=1:3
+max_peak_all = zeros(1, num_pss_period_try*num_fo_pss);
+max_idx_all = zeros(1, num_pss_period_try*num_fo_pss);
+peak_to_avg = zeros(1, num_pss_period_try*num_fo_pss);
+for i=1:num_pss_period_try
     corr_store_tmp = corr_store(1:pss_period(i), : );
     for j=2:num_half_radioframe(i)
         sp = (j-1)*pss_period(i) + 1;
         ep = j*pss_period(i);
         corr_store_tmp = corr_store_tmp + corr_store(sp:ep, : );
     end
-    corr_store_tmp = corr_store_tmp + circshift(corr_store_tmp, [-1,0]) + circshift(corr_store_tmp, [1,0]);
+    
+    % % ---------shift add------------------------------------
+    corr_store_tmp_tmp = corr_store_tmp;
+    corr_store_tmp = zeros(pss_period(i), num_fo_pss);
+    for k = -shift_len : shift_len
+        corr_store_tmp = corr_store_tmp + circshift(corr_store_tmp_tmp, [k,0]);
+    end
+    % % ----------------end of shift add------------------------
+    
     sp = (i-1)*num_fo_pss + 1;
     ep = i*num_fo_pss;
     [max_peak_all(sp:ep), max_idx_all(sp:ep)] = max(corr_store_tmp, [], 1);
     for j=sp:ep
         tmp_peak = max_peak_all(j);
         tmp_max_idx = max_idx_all(j);
-        peak_area_range = (tmp_max_idx-80) : (tmp_max_idx+80);
+        peak_area_range = (tmp_max_idx-combined_pss_peak_range_half) : (tmp_max_idx+combined_pss_peak_range_half);
         peak_area_range = mod(peak_area_range-1, pss_period(i)) + 1;
         tmp_avg = corr_store_tmp(:, j-sp+1);
         tmp_avg(peak_area_range) = [];
@@ -76,7 +94,7 @@ end
 [~, sort_idx] = sort(max_peak_all, 'descend');
 
 % max_reserve = 1;
-above_par_idx = (peak_to_avg(sort_idx(1:max_reserve)) > 8.5);
+above_par_idx = (peak_to_avg(sort_idx(1:max_reserve)) > par_th);
 disp(['Hit        PAR ' num2str(peak_to_avg(sort_idx(1:max_reserve))) 'dB']);
 extra_info.par = peak_to_avg(sort_idx(1:max_reserve));
 
@@ -176,7 +194,7 @@ for i=1:length(sort_idx)
     first_idx = find(peak_val>peak_val_th, 1, 'first');
     last_idx = find(peak_val>peak_val_th, 1, 'last');
     
-    if last_idx-first_idx < (num_peak*2/3)
+    if last_idx-first_idx < (num_peak*num_peak_th)
         disp(['Too few peak at i=' num2str(i) ' of total ' num2str(length(sort_idx))]);
         continue;
     else

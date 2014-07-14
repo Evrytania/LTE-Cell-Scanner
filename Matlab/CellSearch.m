@@ -9,7 +9,7 @@
 % https://github.com/Evrytania/Matlab-Library
 % https://github.com/JiaoXianjun/multi-rtl-sdr-calibration
 
-function [cell_info, r_pbch_sub, r_20M_sub] = CellSearch(r_pbch, r_20M, f_search_set, fc, sampling_carrier_twist, pss_peak_max_reserve, num_pss_period_try, combined_pss_peak_range)
+function [cell_info, r_pbch_sub, r_20M_sub] = CellSearch(r_pbch, r_20M, f_search_set, fc, sampling_carrier_twist, pss_peak_max_reserve, num_pss_period_try, combined_pss_peak_range, par_th, num_peak_th)
 r_20M_sub = -1;
 
 [~, td_pss] = pss_gen;
@@ -56,7 +56,7 @@ for try_idx = 1 : num_try
     disp(['Input averaged abs: ' num2str( mean(abs([real(capbuf_pbch) imag(capbuf_pbch)])) )]);
 
     disp('sampling_ppm_f_search_set_by_pss: try ... ... ');
-    [period_ppm, dynamic_f_search_set, xc, ~, ~, ~, ~, extra_info] = sampling_ppm_f_search_set_by_pss(capbuf_pbch.', f_search_set, pss_fo_set, sampling_carrier_twist, pss_peak_max_reserve, num_pss_period_try, combined_pss_peak_range);
+    [period_ppm, dynamic_f_search_set, xc, ~, ~, ~, ~, extra_info] = sampling_ppm_f_search_set_by_pss(capbuf_pbch.', f_search_set, pss_fo_set, sampling_carrier_twist, pss_peak_max_reserve, num_pss_period_try, combined_pss_peak_range, par_th, num_peak_th);
     if sampling_carrier_twist==0
         if period_ppm == inf
             disp('No valid PSS is found at pre-proc phase! Please try again.');
@@ -91,7 +91,10 @@ for try_idx = 1 : num_try
 
         peaks=peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,dynamic_f_search_set,fc, sampling_carrier_twist,NaN);
     end
-
+    
+    for j = 1 : length(peaks)
+        peaks(j).extra_info.num_peaks_raw = length(peaks);
+    end
     tdd_flags = kron(ones(1, length(peaks)/2), [0 1]); % even: tdd_flag 0; odd : tdd_flag 1
     
     detect_flag = zeros(1, length(peaks));
