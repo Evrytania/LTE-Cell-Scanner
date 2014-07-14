@@ -238,7 +238,7 @@ n_id_1_est=n_id_1_est-1;
 L=[log_lik_nrm log_lik_ext];
 L_mean=mean(L(:));
 L_var=var(L(:));
-if nargin == 6
+if nargin == 7
     figure(2);
     plot(0:167,[log_lik_nrm log_lik_ext],[0 167],repmat(L_mean,1,2),[0 167],repmat(L_mean+sqrt(L_var)*thresh2_n_sigma,1,2));
     zgo;

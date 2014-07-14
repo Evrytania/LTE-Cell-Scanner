@@ -77,6 +77,7 @@ for try_idx = 1 : num_try
 
             tmp_peak=peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,dynamic_f_search_set(i),fc,sampling_carrier_twist,k_factor_set(i));
             for j = 1 : length(tmp_peak)
+                extra_info.try_idx = try_idx;
                 tmp_peak(j).extra_info = extra_info;
             end
             peaks = [peaks tmp_peak];
