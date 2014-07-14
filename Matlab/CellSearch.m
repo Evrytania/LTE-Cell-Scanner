@@ -56,7 +56,7 @@ for try_idx = 1 : num_try
     disp(['Input averaged abs: ' num2str( mean(abs([real(capbuf_pbch) imag(capbuf_pbch)])) )]);
 
     disp('sampling_ppm_f_search_set_by_pss: try ... ... ');
-    [period_ppm, dynamic_f_search_set, xc] = sampling_ppm_f_search_set_by_pss(capbuf_pbch.', f_search_set, pss_fo_set, sampling_carrier_twist, pss_peak_max_reserve, num_pss_period_try, combined_pss_peak_range);
+    [period_ppm, dynamic_f_search_set, xc, ~, ~, ~, ~, extra_info] = sampling_ppm_f_search_set_by_pss(capbuf_pbch.', f_search_set, pss_fo_set, sampling_carrier_twist, pss_peak_max_reserve, num_pss_period_try, combined_pss_peak_range);
     if sampling_carrier_twist==0
         if period_ppm == inf
             disp('No valid PSS is found at pre-proc phase! Please try again.');
@@ -76,6 +76,9 @@ for try_idx = 1 : num_try
             Z_th1=R_th1*sp_incoherent/rx_cutoff/137/2/n_comb_xc/(2*DS_COMB_ARM+1);
 
             tmp_peak=peak_search(xc_incoherent_collapsed_pow,xc_incoherent_collapsed_frq,Z_th1,dynamic_f_search_set(i),fc,sampling_carrier_twist,k_factor_set(i));
+            for j = 1 : length(tmp_peak)
+                tmp_peak(j).extra_info = extra_info;
+            end
             peaks = [peaks tmp_peak];
         end
     else

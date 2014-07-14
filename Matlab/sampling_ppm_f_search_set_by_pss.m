@@ -2,11 +2,13 @@
 % Find out LTE PSS in the signal stream and correct sampling&carrier error.
 % A script of project: https://github.com/JiaoXianjun/rtl-sdr-LTE
 
-function [ppm, f_set, xc, fo_idx_set, pss_idx_set, fo_pss_idx_set, fo_with_all_pss_idx] = sampling_ppm_f_search_set_by_pss(s, fo_search_set, pss_fo_set, sampling_carrier_twist, max_reserve, num_pss_period_try, combined_pss_peak_range)
+function [ppm, f_set, xc, fo_idx_set, pss_idx_set, fo_pss_idx_set, fo_with_all_pss_idx, extra_info] = sampling_ppm_f_search_set_by_pss(s, fo_search_set, pss_fo_set, sampling_carrier_twist, max_reserve, num_pss_period_try, combined_pss_peak_range)
 % sampling period PPM! not sampling frequency PPM!
 
 % fo_search_set = -100e3 : 5e3 : 100e3; % -100kHz ~ 100 kHz with 5kHz step size
 % pss_fo_set = pss_fo_set_gen(td_pss, fo_search_set);
+
+extra_info = [];
 
 len_pss = size(pss_fo_set, 1);
 num_fo_pss = size(pss_fo_set, 2);
@@ -76,6 +78,7 @@ end
 % max_reserve = 1;
 above_par_idx = (peak_to_avg(sort_idx(1:max_reserve)) > 8.5);
 disp(['Hit        PAR ' num2str(peak_to_avg(sort_idx(1:max_reserve))) 'dB']);
+extra_info.par = peak_to_avg(sort_idx(1:max_reserve));
 
 if sum(above_par_idx)==0
     xc = 0;
@@ -99,6 +102,7 @@ fo_pss_idx_set = inf(1, length(sort_idx));
 fo_idx_set = inf(1, length(sort_idx));
 
 real_count = 0;
+extra_info.num_forPPM = zeros(1, length(sort_idx));
 for i=1:length(sort_idx)
     shift_idx = floor( ( sort_idx(i)-1 )/num_fo_pss ) + 1; % 1 -- -1; 2 -- 0; 3 -- 1
     fo_pss_idx = sort_idx(i) - (shift_idx-1)*num_fo_pss;
@@ -178,6 +182,7 @@ for i=1:length(sort_idx)
     else
         disp(['Hit num forPPM ' num2str(last_idx-first_idx)]);
     end
+    extra_info.num_forPPM(i) = last_idx-first_idx;
     
     real_dist = peak_idx(last_idx) - peak_idx(first_idx);
     ideal_dist = round( real_dist/9600 )*9600;
@@ -238,3 +243,10 @@ disp(['Hit    PSS idx ' num2str(pss_idx_set)]);
 disp(['Hit     FO idx ' num2str(fo_idx_set)]);
 disp(['Hit FO_PSS idx ' num2str(fo_pss_idx_set)]);
 disp(['Hit FO_ALL_PSS ' num2str(fo_with_all_pss_idx)]);
+
+extra_info.fo = f_set./1e3;
+extra_info.ppm = ppm;
+extra_info.pss_idx = pss_idx_set;
+extra_info.fo_idx = fo_idx_set;
+extra_info.fo_pss_idx = fo_pss_idx_set;
+extra_info.fo_all_pss = fo_with_all_pss_idx;
