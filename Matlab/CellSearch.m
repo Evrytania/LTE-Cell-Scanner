@@ -37,7 +37,7 @@ rx_cutoff=(6*12*15e3/2+4*15e3)/(FS_LTE/16/2);
 THRESH2_N_SIGMA = 3;
 
 num_try = floor(length(r_pbch)/num_sample_pbch);
-
+tdd_fdd_str = {'TDD', 'FDD'};
 for try_idx = 1 : num_try
     disp(['Try idx ' num2str(try_idx)]);
 
@@ -56,7 +56,11 @@ for try_idx = 1 : num_try
     disp(['Input averaged abs: ' num2str( mean(abs([real(capbuf_pbch) imag(capbuf_pbch)])) )]);
 
     disp('sampling_ppm_f_search_set_by_pss: try ... ... ');
-    [period_ppm, dynamic_f_search_set, xc, ~, ~, ~, ~, extra_info] = sampling_ppm_f_search_set_by_pss(capbuf_pbch.', f_search_set, pss_fo_set, sampling_carrier_twist, pss_peak_max_reserve, num_pss_period_try, combined_pss_peak_range, par_th, num_peak_th);
+    if num_pss_period_try == 1
+        [period_ppm, dynamic_f_search_set, xc, ~, ~, ~, ~, extra_info] = sampling_ppm_f_search_set_by_pss_simple(capbuf_pbch.', f_search_set, pss_fo_set, sampling_carrier_twist, pss_peak_max_reserve, num_pss_period_try, combined_pss_peak_range, par_th, num_peak_th);
+    else
+        [period_ppm, dynamic_f_search_set, xc, ~, ~, ~, ~, extra_info] = sampling_ppm_f_search_set_by_pss(capbuf_pbch.', f_search_set, pss_fo_set, sampling_carrier_twist, pss_peak_max_reserve, num_pss_period_try, combined_pss_peak_range, par_th, num_peak_th);
+    end
     if sampling_carrier_twist==0
         if period_ppm == inf
             disp('No valid PSS is found at pre-proc phase! Please try again.');
@@ -95,10 +99,12 @@ for try_idx = 1 : num_try
     for j = 1 : length(peaks)
         peaks(j).extra_info.num_peaks_raw = length(peaks);
     end
+    disp(['Hit  num peaks ' num2str(length(peaks)/2) ]);
     tdd_flags = kron(ones(1, length(peaks)/2), [0 1]); % even: tdd_flag 0; odd : tdd_flag 1
     
     detect_flag = zeros(1, length(peaks));
     for i=1:length(peaks)
+        disp(['try peak ' num2str(floor((i+1)/2)) ' ' tdd_fdd_str{mod(i,2)+1} ' mode']);
         tdd_flag = tdd_flags(i);
         peak = sss_detect(peaks(i),capbuf_pbch,THRESH2_N_SIGMA,fc,sampling_carrier_twist,tdd_flag);
         if ~isnan( peak.n_id_1 )
