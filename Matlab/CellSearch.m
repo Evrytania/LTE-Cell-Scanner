@@ -97,7 +97,7 @@ for try_idx = 1 : num_try
     end
     
     for j = 1 : length(peaks)
-        peaks(j).extra_info.num_peaks_raw = length(peaks);
+        peaks(j).extra_info.num_peaks_raw = length(peaks)/2;
     end
     disp(['Hit  num peaks ' num2str(length(peaks)/2) ]);
     tdd_flags = kron(ones(1, length(peaks)/2), [0 1]); % even: tdd_flag 0; odd : tdd_flag 1

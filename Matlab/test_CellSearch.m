@@ -17,8 +17,8 @@ test_source_info = regression_test_source('../regression_test_signal_file');
 test_sp = 1;
 test_ep = length(test_source_info);
 sampling_carrier_twist = 0;
-f_search_set = -140e3:5e3:10e3;
-pss_peak_max_reserve = 2;
+f_search_set = -140e3:5e3:140e3;
+pss_peak_max_reserve = 1;
 num_pss_period_try = 1;
 combined_pss_peak_range = 160;
 par_th = 8.5;
@@ -28,9 +28,9 @@ filename = ['CellSearch_test' num2str(test_sp) 'to' num2str(test_ep) '_twist' nu
 
 cell_info = cell(1, length(test_source_info));
 for i = 1 : length(test_source_info)
-    if isempty( strfind(test_source_info(i).filename, 'f1860_s1.92_g0_1s_strong') )
-        continue;
-    end
+%     if isempty( strfind(test_source_info(i).filename, 'f1860_s1.92_g0_1s_strong') )
+%         continue;
+%     end
     disp(test_source_info(i).filename);
     coef_pbch = pbch_filter_coef_gen(test_source_info(i).fs);
     
