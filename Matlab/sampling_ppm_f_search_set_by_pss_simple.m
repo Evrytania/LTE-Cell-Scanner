@@ -72,12 +72,22 @@ for j=1:num_fo_pss
     peak_to_avg(j) = 10*log10(tmp_peak/tmp_avg);
 end
 
-[~, sort_idx] = sort(peak_to_avg, 'descend');
+max_peak_all = max(corr_store, [], 1);
+for i = 1 : max_peak_all
+    logical_tmp = corr_store(:,i) > (max_peak_all(i)*2/3);
+    max_peak_all(i) = sum( corr_store(logical_tmp,i) );
+end
+[~, sort_idx] = sort(max_peak_all, 'descend');
+
+% [~, sort_idx] = sort(peak_to_avg, 'descend');
 
 % max_reserve = 1;
 above_par_idx = (peak_to_avg(sort_idx(1:max_reserve)) > par_th);
 disp(['Hit        PAR ' num2str(peak_to_avg(sort_idx(1:max_reserve))) 'dB']);
 extra_info.par = peak_to_avg(sort_idx(1:max_reserve));
+extra_info.sort_idx = sort_idx(1:max_reserve);
+a_tmp = [fo_search_set fo_search_set fo_search_set];
+extra_info.fo_raw = a_tmp(sort_idx(1:max_reserve));
 
 if sum(above_par_idx)==0
     xc = 0;

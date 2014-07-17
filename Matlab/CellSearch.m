@@ -9,7 +9,7 @@
 % https://github.com/Evrytania/Matlab-Library
 % https://github.com/JiaoXianjun/multi-rtl-sdr-calibration
 
-function [cell_info, r_pbch_sub, r_20M_sub] = CellSearch(r_pbch, r_20M, f_search_set, fc, sampling_carrier_twist, pss_peak_max_reserve, num_pss_period_try, combined_pss_peak_range, par_th, num_peak_th)
+function [cell_info, r_pbch_sub, r_20M_sub, cell_info_return] = CellSearch(r_pbch, r_20M, f_search_set, fc, sampling_carrier_twist, pss_peak_max_reserve, num_pss_period_try, combined_pss_peak_range, par_th, num_peak_th)
 r_20M_sub = -1;
 
 [~, td_pss] = pss_gen;
@@ -134,6 +134,8 @@ for try_idx = 1 : num_try
         break;
     end
 end
+
+cell_info_return = peaks;
 
 cell_info = [];
 
