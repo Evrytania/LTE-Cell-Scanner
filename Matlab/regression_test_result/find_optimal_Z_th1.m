@@ -1,10 +1,3 @@
-% function show_result
-% conclusion: optimal parameters in test_CellSearch.m
-% % pss_peak_max_reserve = 2;
-% % num_pss_period_try = 1;
-% % combined_pss_peak_range = 160;
-% % par_th = 15;
-% % num_peak_th = 1/2; % originally is 2/3;
 
 clear all; close all;
 

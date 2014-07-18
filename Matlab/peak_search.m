@@ -36,6 +36,7 @@ while (1)
     break;
   end
   % Record this peak for further SSS processing
+  rec.Z_th1=Z_th1(peak_ind);
   rec.pow=peak_pow;
   rec.ind=peak_ind;
   rec.freq=f_search_set(xc_incoherent_collapsed_frq(peak_n_id_2+1,peak_ind));
