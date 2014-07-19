@@ -75,6 +75,8 @@ end
 legend('rsv1', 'rsv2', 'rsv4');
 cell_info4 = cell_info;
 
+sum(num_id(2,:))
+
 figure;
 subplot(2,1,1); plot(max_par(1,:),'b.-'); hold on; plot(max_par(2,:),'r.-'); hold on; plot(max_par(3,:),'k.-');
 subplot(2,1,2); plot(min_par(1,:),'b.-'); hold on; plot(min_par(2,:),'r.-'); hold on; plot(min_par(3,:),'k.-');
