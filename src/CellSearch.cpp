@@ -165,7 +165,7 @@ void parse_commandline(
   opencl_device = 0;
   filter_workitem = 32;
   xcorr_workitem = 2;
-  num_reserve = 1;
+  num_reserve = 2;
   num_loop = 0;
   gain = -9999;
 
@@ -1030,7 +1030,7 @@ int main(
 
         // Calculate the threshold vector
         double R_th1=chi2cdf_inv(1-pow(10.0,-thresh1_n_nines),2*n_comb_xc*(2*DS_COMB_ARM+1));
-        vec Z_th1=R_th1*sp_incoherent/rx_cutoff/137/2/n_comb_xc/(2*DS_COMB_ARM+1);
+        vec Z_th1=R_th1*sp_incoherent/rx_cutoff/137/n_comb_xc/(2*DS_COMB_ARM+1); // remove /2 to avoid many false alarm
 
         // Search for the peaks
         if (verbosity>=2) {
@@ -1055,7 +1055,7 @@ int main(
 
       // Calculate the threshold vector
       double R_th1=chi2cdf_inv(1-pow(10.0,-thresh1_n_nines),2*n_comb_xc*(2*DS_COMB_ARM+1));
-      vec Z_th1=R_th1*sp_incoherent/rx_cutoff/137/2/n_comb_xc/(2*DS_COMB_ARM+1);
+      vec Z_th1=R_th1*sp_incoherent/rx_cutoff/137/n_comb_xc/(2*DS_COMB_ARM+1); // remove /2 to avoid many false alarm
 
       // Search for the peaks
       if (verbosity>=2) {
@@ -1067,13 +1067,16 @@ int main(
     }
 
     detected_cells[fc_idx]=peak_search_cells;
-//    cout << detected_cells[fc_idx].size() << "\n";
+    cout << "Hit  num peaks " << detected_cells[fc_idx].size()/2 << "\n";
 
     // Loop and check each peak
     list<Cell>::iterator iterator=detected_cells[fc_idx].begin();
     int tdd_flag = 1;
+    uint16 tmp_count = 0;
     while (iterator!=detected_cells[fc_idx].end()) {
       tdd_flag = !tdd_flag;
+      cout << "try peak " << tmp_count/2 << " tdd_flag " << tdd_flag << "\n";
+      tmp_count++;
 //      cout << tdd_flag << "\n";
 //      cout << (*iterator).ind << "\n";
       // Detect SSS if possible

@@ -57,11 +57,7 @@ for try_idx = 1 : num_try
     disp(['Input averaged abs: ' num2str( mean(abs([real(capbuf_pbch) imag(capbuf_pbch)])) )]);
 
     disp('sampling_ppm_f_search_set_by_pss: try ... ... ');
-    if num_pss_period_try == 1
-        [period_ppm, dynamic_f_search_set, xc, ~, ~, ~, ~, extra_info] = sampling_ppm_f_search_set_by_pss_simple(capbuf_pbch.', f_search_set, pss_fo_set, sampling_carrier_twist, pss_peak_max_reserve, num_pss_period_try, combined_pss_peak_range, par_th, num_peak_th);
-    else
-        [period_ppm, dynamic_f_search_set, xc, ~, ~, ~, ~, extra_info] = sampling_ppm_f_search_set_by_pss(capbuf_pbch.', f_search_set, pss_fo_set, sampling_carrier_twist, pss_peak_max_reserve, num_pss_period_try, combined_pss_peak_range, par_th, num_peak_th);
-    end
+    [period_ppm, dynamic_f_search_set, xc, ~, ~, ~, ~, extra_info] = sampling_ppm_f_search_set_by_pss(capbuf_pbch.', f_search_set, pss_fo_set, sampling_carrier_twist, pss_peak_max_reserve, num_pss_period_try, combined_pss_peak_range, par_th, num_peak_th);
     if sampling_carrier_twist==0
         if period_ppm == inf
             disp('No valid PSS is found at pre-proc phase! Please try again.');

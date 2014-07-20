@@ -35,6 +35,7 @@ while (1)
   if (peak_pow<Z_th1(peak_ind))
     break;
   end
+%   disp(['peak_search ' num2str(peak_pow) ' '  num2str(peak_ind)  ' '  num2str(Z_th1(peak_ind))]);
   % Record this peak for further SSS processing
   rec.Z_th1=Z_th1(peak_ind);
   rec.pow=peak_pow;

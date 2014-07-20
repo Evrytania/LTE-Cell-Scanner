@@ -2245,78 +2245,51 @@ void sampling_ppm_f_search_set_by_pss(
 
   cout << "\ninput level: avg abs(real) " << ( sum( abs(real(s)) )/len ) << " avg abs(imag) " << ( sum( abs(imag(s)) )/len ) << "\n";
 
-  const uint16 num_ppm_try = 3;
+  const uint32 pss_period = 19200/2;
 
-  ivec pss_period(num_pss);
-  pss_period[0] = (19200/2)-1;
-  pss_period[1] = (19200/2);
-  pss_period[2] = (19200/2)+1;
+  const uint32 num_half_radioframe = len_short/pss_period;
+  vec peak_to_avg(num_fo_pss);
+  mat corr_store_tmp(num_fo_pss, pss_period);
+  corr_store_tmp = corr_store.get_cols(0, pss_period-1);
+  for (uint16 j=1; j<num_half_radioframe; j++) {
+    uint32 sp = j*pss_period;
+    uint32 ep = sp + pss_period;
+    corr_store_tmp = corr_store_tmp + corr_store.get_cols(sp, ep-1);
+  }
 
-  ivec num_half_radioframe(num_pss);
-  num_half_radioframe[0] = len_short/pss_period[0];
-  num_half_radioframe[1] = len_short/pss_period[1];
-  num_half_radioframe[2] = len_short/pss_period[2];
+  ivec max_idx_all(num_fo_pss);
 
-  vec max_peak_all(num_ppm_try*num_fo_pss);
-  ivec max_idx_all(num_ppm_try*num_fo_pss);
-  ivec max_idx_all_tmp(num_fo_pss);
-  vec peak_to_avg(num_ppm_try*num_fo_pss);
-  mat corr_store_tmp;
-  mat corr_store_tmp_shift_left;
-  mat corr_store_tmp_shift_right;
-  vec corr_store_tmp_col;
+  max(corr_store_tmp, max_idx_all, 2);
 
-  uint32 tmp_pss_period;
-  int tmp_max_idx, tmp_idx;
+  vec max_peak_all(num_fo_pss);
+  max_peak_all = max(corr_store, 2);
 
-  for (uint16 i=0; i<num_ppm_try; i++) {
-    tmp_pss_period = pss_period[i];
+  uint16 tmp_max_idx;
+  ivec sum_range(2*num_half_radioframe+1);
+  double tmp_peak, tmp_avg_val;
+  vec corr_store_tmp_col(pss_period);
+  bvec logical_tmp(len_short);
+  vec tmp_store(len_short);
+  for (uint16 j=0; j<num_fo_pss; j++) {
+    tmp_max_idx = max_idx_all(j);
+    sum_range = itpp_ext::matlab_range(tmp_max_idx-num_half_radioframe, tmp_max_idx+num_half_radioframe);
+    sum_range = itpp_ext::matlab_mod(sum_range, pss_period);
+    corr_store_tmp_col = corr_store_tmp.get_row(j);
+    tmp_peak = sum( corr_store_tmp_col.get(sum_range) );
 
-    corr_store_tmp.set_size(num_fo_pss, tmp_pss_period, false);
-    corr_store_tmp_shift_left.set_size(num_fo_pss, tmp_pss_period, false);
-    corr_store_tmp_shift_right.set_size(num_fo_pss, tmp_pss_period, false);
-    corr_store_tmp_col.set_length(tmp_pss_period, false);
+    tmp_avg_val = (sum(corr_store_tmp_col) - tmp_peak)/((double)pss_period-(2.0*(double)num_half_radioframe+1.0));
+    peak_to_avg(j) = tmp_peak/tmp_avg_val;
 
-    corr_store_tmp.zeros();
-    uint32 sp, ep;
-    for (uint16 j=0; j<num_half_radioframe[i]; j++) {
-      sp = j*tmp_pss_period;
-      ep = sp + tmp_pss_period;
-      corr_store_tmp = corr_store_tmp + corr_store.get_cols(sp, ep-1);
-    }
-//    corr_store_tmp = corr_store_tmp + circshift_mat_to_left(corr_store_tmp) + circshift_mat_to_right(corr_store_tmp); // problem! be careful!
-    corr_store_tmp_shift_left = corr_store_tmp;
-    circshift_mat_to_left(corr_store_tmp_shift_left, 1);
-    corr_store_tmp_shift_right = corr_store_tmp;
-    circshift_mat_to_right(corr_store_tmp_shift_right, 1);
-    corr_store_tmp = corr_store_tmp + corr_store_tmp_shift_left + corr_store_tmp_shift_right;
-
-    sp = i*num_fo_pss;
-    ep = sp + num_fo_pss;
-    max_peak_all.set_subvector(sp, max(corr_store_tmp, max_idx_all_tmp, 2) );
-    max_idx_all.set_subvector(sp, max_idx_all_tmp);
-    double tmp_peak, tmp_avg_val;
-    ivec peak_area_range(2*80+1);
-    vec tmp_avg_vec(tmp_pss_period);
-    for (uint16 j=sp; j<ep; j++) {
-      tmp_peak = max_peak_all(j);
-      tmp_max_idx = max_idx_all(j);
-      peak_area_range = itpp_ext::matlab_range(tmp_max_idx-80, tmp_max_idx+80);
-      peak_area_range = itpp_ext::matlab_mod(peak_area_range, tmp_pss_period);
-      tmp_avg_vec = corr_store_tmp.get_row(j-sp);
-      for (uint16 k=0; k<(2*80+1); k++) {
-        tmp_avg_vec[peak_area_range[k]] = 0.0;
-      }
-      tmp_avg_val = sum(tmp_avg_vec)/((double)tmp_pss_period-(2.0*80.0+1.0));
-      peak_to_avg(j) = tmp_peak/tmp_avg_val;
-    }
+    tmp_store = corr_store.get_row(j);
+    logical_tmp = tmp_store > (max_peak_all(j)*2/3);
+    max_peak_all(j) = sum( tmp_store.get(logical_tmp) );
   }
 
   ivec sort_idx = sort_index(max_peak_all);
   sort_idx = reverse(sort_idx); // from ascending to descending
   cout << "Hit        PAR " << 10.0*log10( peak_to_avg.get( sort_idx(0, max_reserve-1) ) ) << "dB\n";
 
-  ivec above_par_idx = to_ivec( peak_to_avg.get( sort_idx(0, max_reserve-1) ) > pow(10.0, 8.5/10.0) );
+  ivec above_par_idx = to_ivec( peak_to_avg.get( sort_idx(0, max_reserve-1) ) > pow(10.0, 16/10.0) );
   uint16 len_sort_idx = sum(above_par_idx);
 
   if (len_sort_idx==0) {
@@ -2328,13 +2301,14 @@ void sampling_ppm_f_search_set_by_pss(
   ivec tmp_sort_idx = sort_idx(0, max_reserve-1);
   sort_idx.set_length(len_sort_idx, false);
 
-  len_sort_idx = 0;
-  for (uint16 i=0; i<max_reserve; i++) {
-    if (above_par_idx[i] == 1) {
-      sort_idx[len_sort_idx] = tmp_sort_idx[i];
-      len_sort_idx++;
-    }
-  }
+  sort_idx = tmp_sort_idx.get(to_bvec(above_par_idx));
+//  len_sort_idx = 0;
+//  for (uint16 i=0; i<max_reserve; i++) {
+//    if (above_par_idx[i] == 1) {
+//      sort_idx[len_sort_idx] = tmp_sort_idx[i];
+//      len_sort_idx++;
+//    }
+//  }
 
   ivec max_idx = max_idx_all.get(sort_idx);
 
@@ -2342,33 +2316,32 @@ void sampling_ppm_f_search_set_by_pss(
   f_set.set_length(len_sort_idx, false);
   fo_idx_set.set_length(len_sort_idx, false);
 
-  uint16 shift_idx, fo_pss_idx, fo_idx, num_peak, first_idx;
+  uint16 fo_pss_idx, fo_idx, num_peak, first_idx;
   int16 last_idx;
   double f_tmp, tmp_val, peak_left, peak_right, peak_base, sum_peak, peak_location, peak_val_th, real_dist, ideal_dist, ppm_tmp;
   vec corr_seq(len_short);
   uint16 real_count = 0;
   bool exist_flag;
   for (uint16 i=0; i<len_sort_idx; i++) {
-    shift_idx = sort_idx[i]/num_fo_pss;
-    fo_pss_idx = sort_idx[i] - shift_idx*num_fo_pss;
+    fo_pss_idx = sort_idx[i];
 
     fo_idx = mod(fo_pss_idx, num_fo_orig);
     f_tmp = fo_search_set[fo_idx];
 
     corr_seq = corr_store.get_row(fo_pss_idx);
     tmp_max_idx = max_idx[i];
-    tmp_pss_period = pss_period[shift_idx];
-    tmp_max_idx = tmp_max_idx + (tmp_max_idx-3<0?tmp_pss_period:0);
+    tmp_max_idx = tmp_max_idx + (tmp_max_idx-3-num_half_radioframe<0?pss_period:0);
 
-    num_peak = num_half_radioframe[shift_idx] + 1;
+    num_peak = num_half_radioframe + 1;
     vec peak_val(num_peak);
     vec peak_idx(num_peak);
     uint16 peak_count = 0;
-    for (uint32 j=tmp_max_idx; j<len_short; j=j+tmp_pss_period) {
-      if ( (j+3) <len_short) {
-        tmp_val = max(corr_seq(j-3, j+3), tmp_idx);
-        peak_location = j-3+tmp_idx;
-        if (tmp_idx != 0 && tmp_idx != 6) {
+    int tmp_idx;
+    for (uint32 j=tmp_max_idx; j<len_short; j=j+pss_period) {
+      if ( (j+3+num_half_radioframe) <len_short) {
+        tmp_val = max(corr_seq(j-3-num_half_radioframe, j+3+num_half_radioframe), tmp_idx);
+        peak_location = j-3-num_half_radioframe+tmp_idx;
+        if (tmp_idx != 0 && tmp_idx != 2*(3+(int)num_half_radioframe)) {
           peak_val[peak_count] = tmp_val;
 
           peak_left =  corr_seq(peak_location-1);
@@ -2535,6 +2508,7 @@ void peak_search(
       // interesting peaks. Break!
       break;
     }
+//    cout << "peak_search " << peak_pow << " " << peak_ind << " " << Z_th1(peak_ind) << "\n";
 
     // A peak was found at location peak_ind and has frequency index
     // xc_incoherent_collapsed_frq(peak_n_id_2,peak_ind). This peak

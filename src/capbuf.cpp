@@ -392,6 +392,7 @@ int capture_data(
       uint32 len_capbuf = 0;
       while(true) { // read until run out of data
         int read_count = fread(capbuf_raw, sizeof(unsigned char), 2*CAPLENGTH, fp);
+
         len_capbuf = len_capbuf + CAPLENGTH;
         capbuf.set_size(len_capbuf, true);
         for (uint32 t=0;t<CAPLENGTH;t++) {

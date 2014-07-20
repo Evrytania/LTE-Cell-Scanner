@@ -46,59 +46,50 @@ if sampling_carrier_twist==1
     return;
 end
 
-if num_pss_period_try == 1
-    pss_period = 19200/2;
-    shift_len = ceil( len_short./pss_period );
-elseif num_pss_period_try == 3
-    pss_period = [(19200/2)-1, (19200/2), (19200/2)+1];
-    shift_len = 1;
-else
-    disp('sampling_ppm_f_search_set_by_pss: num_pss_period_try must be 1 or 3 currently!');
-    return;
-end
+pss_period = 19200/2;
+
 num_half_radioframe = floor( len_short./pss_period );
-max_peak_all = zeros(1, num_pss_period_try*num_fo_pss);
-max_idx_all = zeros(1, num_pss_period_try*num_fo_pss);
-peak_to_avg = zeros(1, num_pss_period_try*num_fo_pss);
-for i=1:num_pss_period_try
-    corr_store_tmp = corr_store(1:pss_period(i), : );
-    for j=2:num_half_radioframe(i)
-        sp = (j-1)*pss_period(i) + 1;
-        ep = j*pss_period(i);
-        corr_store_tmp = corr_store_tmp + corr_store(sp:ep, : );
-    end
-    
-    % % ---------shift add------------------------------------
-    corr_store_tmp_tmp = corr_store_tmp;
-    corr_store_tmp = zeros(pss_period(i), num_fo_pss);
-    for k = -shift_len : shift_len
-        corr_store_tmp = corr_store_tmp + circshift(corr_store_tmp_tmp, [k,0]);
-    end
-    % % ----------------end of shift add------------------------
-    
-    sp = (i-1)*num_fo_pss + 1;
-    ep = i*num_fo_pss;
-    [max_peak_all(sp:ep), max_idx_all(sp:ep)] = max(corr_store_tmp, [], 1);
-    for j=sp:ep
-        tmp_peak = max_peak_all(j);
-        tmp_max_idx = max_idx_all(j);
-        peak_area_range = (tmp_max_idx-combined_pss_peak_range_half) : (tmp_max_idx+combined_pss_peak_range_half);
-        peak_area_range = mod(peak_area_range-1, pss_period(i)) + 1;
-        tmp_avg = corr_store_tmp(:, j-sp+1);
-        tmp_avg(peak_area_range) = [];
-        tmp_avg = mean(tmp_avg);
-        peak_to_avg(j) = 10*log10(tmp_peak/tmp_avg);
-    end
+peak_to_avg = zeros(1, num_fo_pss);
+
+corr_store_tmp = corr_store(1:pss_period, : );
+for j=2:num_half_radioframe
+    sp = (j-1)*pss_period + 1;
+    ep = j*pss_period;
+    corr_store_tmp = corr_store_tmp + corr_store(sp:ep, : );
 end
 
+[~, max_idx_all] = max(corr_store_tmp, [], 1);
+for j=1:num_fo_pss
+    tmp_max_idx = max_idx_all(j);
+    sum_range = (tmp_max_idx-num_half_radioframe) : (tmp_max_idx+num_half_radioframe);
+    sum_range = mod(sum_range-1, pss_period) + 1;
+    tmp_peak = sum(corr_store_tmp(sum_range, j));
+    
+%     peak_area_range = (tmp_max_idx-combined_pss_peak_range_half) : (tmp_max_idx+combined_pss_peak_range_half);
+%     peak_area_range = mod(peak_area_range-1, pss_period) + 1;
+%     tmp_avg = corr_store_tmp(:, j);
+%     tmp_avg(peak_area_range) = [];
+%     tmp_avg = mean(tmp_avg);
+    
+    tmp_avg = (sum(corr_store_tmp(:, j))  - tmp_peak)/(pss_period - 2*num_half_radioframe -1 );
+    peak_to_avg(j) = 10*log10(tmp_peak/tmp_avg);
+end
+
+max_peak_all = max(corr_store, [], 1);
+% for i = 1 : num_fo_pss
+%     logical_tmp = corr_store(:,i) > (max_peak_all(i)*2/3);
+%     max_peak_all(i) = sum( corr_store(logical_tmp,i) );
+% end
 [~, sort_idx] = sort(max_peak_all, 'descend');
+
+% [~, sort_idx] = sort(peak_to_avg, 'descend');
 
 % max_reserve = 1;
 above_par_idx = (peak_to_avg(sort_idx(1:max_reserve)) > par_th);
 disp(['Hit        PAR ' num2str(peak_to_avg(sort_idx(1:max_reserve))) 'dB']);
 extra_info.par = peak_to_avg(sort_idx(1:max_reserve));
 extra_info.sort_idx = sort_idx(1:max_reserve);
-a_tmp = kron( ones(1, num_pss_period_try), [fo_search_set fo_search_set fo_search_set] );
+a_tmp = [fo_search_set fo_search_set fo_search_set];
 extra_info.fo_raw = a_tmp(sort_idx(1:max_reserve));
 
 if sum(above_par_idx)==0
@@ -125,8 +116,7 @@ fo_idx_set = inf(1, length(sort_idx));
 real_count = 0;
 extra_info.num_forPPM = zeros(1, length(sort_idx));
 for i=1:length(sort_idx)
-    shift_idx = floor( ( sort_idx(i)-1 )/num_fo_pss ) + 1; % 1 -- -1; 2 -- 0; 3 -- 1
-    fo_pss_idx = sort_idx(i) - (shift_idx-1)*num_fo_pss;
+    fo_pss_idx = sort_idx(i);
     
     % calculate pss idx
     pss_idx = floor( (fo_pss_idx-1)/length(fo_search_set) ) + 1;
@@ -138,19 +128,18 @@ for i=1:length(sort_idx)
     % calculate PPM
     corr_seq = corr_store(:, fo_pss_idx);
     tmp_max_idx = max_idx(i);
-    tmp_pss_period = pss_period(shift_idx);
-    if tmp_max_idx-3 < 1
-        tmp_max_idx = tmp_max_idx + tmp_pss_period;
+    if tmp_max_idx-3-num_half_radioframe < 1
+        tmp_max_idx = tmp_max_idx + pss_period;
     end
     
-    num_peak = num_half_radioframe(shift_idx) + 1;
+    num_peak = num_half_radioframe + 1;
     peak_val = zeros(1, num_peak);
     peak_idx = zeros(1, num_peak);
     peak_count = 1;
-    for j=tmp_max_idx : tmp_pss_period : len_short
-        if j+3 <= len_short
-            [tmp_val, tmp_idx] = max(corr_seq(j-3:j+3));
-            if tmp_idx ~=1 && tmp_idx ~=7
+    for j=tmp_max_idx : pss_period : len_short
+        if j+3+num_half_radioframe <= len_short
+            [tmp_val, tmp_idx] = max(corr_seq(j-3-num_half_radioframe:j+3+num_half_radioframe));
+            if tmp_idx ~=1 && tmp_idx ~=2*(3+num_half_radioframe)+1
                 peak_val(peak_count) = tmp_val;
                 
 %                 tmp_seq = corr_seq(j-3:j+3);
@@ -159,7 +148,7 @@ for i=1:length(sort_idx)
 %                 sum_peak = sum(tmp_seq(tmp_idx-1:tmp_idx+1));
 %                 tmp_idx = (tmp_idx-1)*(tmp_seq(tmp_idx-1)/sum_peak) + tmp_idx*(tmp_seq(tmp_idx)/sum_peak) + (tmp_idx+1)*(tmp_seq(tmp_idx+1)/sum_peak);
 % 
-                tmp_seq = corr_seq(j-3:j+3);
+                tmp_seq = corr_seq(j-3-num_half_radioframe:j+3+num_half_radioframe);
                 tmp_seq = tmp_seq(tmp_idx-1:tmp_idx+1);
                 tmp_seq = tmp_seq - min(tmp_seq);
                 sum_peak = sum(tmp_seq);
@@ -182,9 +171,9 @@ for i=1:length(sort_idx)
 %                 end
             else
                 peak_val(peak_count) = 0;
-                disp(['Seems not a peak ' num2str(corr_seq(j-3:j+3).') ' at i=' num2str(i) ' j=' num2str(j)]);
+                disp(['Seems not a peak ' num2str(corr_seq(j-3-num_half_radioframe:j+3+num_half_radioframe).') ' at i=' num2str(i) ' j=' num2str(j)]);
             end
-            peak_idx(peak_count) = j-3+tmp_idx-1;
+            peak_idx(peak_count) = j-3-num_half_radioframe+tmp_idx-1;
             peak_count = peak_count + 1;
         else
             break;
