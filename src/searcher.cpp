@@ -2268,8 +2268,8 @@ void sampling_ppm_f_search_set_by_pss(
   ivec sum_range(2*num_half_radioframe+1);
   double tmp_peak, tmp_avg_val;
   vec corr_store_tmp_col(pss_period);
-  bvec logical_tmp(len_short);
-  vec tmp_store(len_short);
+//  bvec logical_tmp(len_short);
+//  vec tmp_store(len_short);
   for (uint16 j=0; j<num_fo_pss; j++) {
     tmp_max_idx = max_idx_all(j);
     sum_range = itpp_ext::matlab_range(tmp_max_idx-num_half_radioframe, tmp_max_idx+num_half_radioframe);
@@ -2280,9 +2280,9 @@ void sampling_ppm_f_search_set_by_pss(
     tmp_avg_val = (sum(corr_store_tmp_col) - tmp_peak)/((double)pss_period-(2.0*(double)num_half_radioframe+1.0));
     peak_to_avg(j) = tmp_peak/tmp_avg_val;
 
-    tmp_store = corr_store.get_row(j);
-    logical_tmp = tmp_store > (max_peak_all(j)*2/3);
-    max_peak_all(j) = sum( tmp_store.get(logical_tmp) );
+//    tmp_store = corr_store.get_row(j);
+//    logical_tmp = tmp_store > (max_peak_all(j)*2/3);
+//    max_peak_all(j) = sum( tmp_store.get(logical_tmp) );
   }
 
   ivec sort_idx = sort_index(max_peak_all);
@@ -2357,7 +2357,7 @@ void sampling_ppm_f_search_set_by_pss(
         }
         else {
           peak_val[peak_count] = 0;
-          DBG( cout << "Seems not a peak " << corr_seq(j-3, j+3) << " at i=" << i << " j=" << j << "\n"; )
+          DBG( cout << "Seems not a peak " << corr_seq(j-3-num_half_radioframe, j+3+num_half_radioframe) << " at i=" << i << " j=" << j << "\n"; )
         }
         peak_idx[peak_count] = peak_location;
         peak_count++;
