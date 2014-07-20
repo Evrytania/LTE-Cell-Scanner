@@ -31,9 +31,9 @@ filename = ['CellSearch_test' num2str(test_sp) 'to' num2str(test_ep) '_twist' nu
 
 cell_info = cell(1, length(test_source_info));
 for i = test_sp : test_ep
-    if isempty( strfind(test_source_info(i).filename, 'dimitri') )
-        continue;
-    end
+%     if isempty( strfind(test_source_info(i).filename, 'dimitri') )
+%         continue;
+%     end
     disp(test_source_info(i).filename);
     coef_pbch = pbch_filter_coef_gen(test_source_info(i).fs);
     

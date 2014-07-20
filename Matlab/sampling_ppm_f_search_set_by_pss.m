@@ -2,13 +2,13 @@
 % Find out LTE PSS in the signal stream and correct sampling&carrier error.
 % A script of project: https://github.com/JiaoXianjun/rtl-sdr-LTE
 
-function [ppm, f_set, xc, fo_idx_set, pss_idx_set, fo_pss_idx_set, fo_with_all_pss_idx, extra_info] = sampling_ppm_f_search_set_by_pss(s, fo_search_set, pss_fo_set, sampling_carrier_twist, max_reserve, num_pss_period_try, combined_pss_peak_range, par_th, num_peak_th)
+function [ppm, f_set, xc, fo_idx_set, pss_idx_set, fo_pss_idx_set, fo_with_all_pss_idx, extra_info] = sampling_ppm_f_search_set_by_pss(s, fo_search_set, td_pss, pss_fo_set, sampling_carrier_twist, max_reserve, num_pss_period_try, combined_pss_peak_range, par_th, num_peak_th)
 % sampling period PPM! not sampling frequency PPM!
 
 % fo_search_set = -100e3 : 5e3 : 100e3; % -100kHz ~ 100 kHz with 5kHz step size
 % pss_fo_set = pss_fo_set_gen(td_pss, fo_search_set);
 
-combined_pss_peak_range_half = floor(combined_pss_peak_range/2);
+% combined_pss_peak_range_half = floor(combined_pss_peak_range/2);
 extra_info = [];
 
 len_pss = size(pss_fo_set, 1);
@@ -17,13 +17,21 @@ num_fo_pss = size(pss_fo_set, 2);
 len = length(s);
 len_short = len - (len_pss-1);
 
-corr_store = zeros(len_short, num_fo_pss);
+% corr_store = zeros(len_short, num_fo_pss);
+% 
+% tic;
+% for i=1:num_fo_pss
+%     tmp_corr = abs( filter(pss_fo_set(end:-1:1, i), 1, s) ).^2;
+%     tmp_corr = tmp_corr(len_pss:end);
+%     corr_store(:,i) = tmp_corr;
+% end
+% cost_time1 = toc;
+% disp(['PSS xcorr cost ' num2str(cost_time1)]);
 
-for i=1:num_fo_pss
-    tmp_corr = abs( filter(pss_fo_set(end:-1:1, i), 1, s) ).^2;
-    tmp_corr = tmp_corr(len_pss:end);
-    corr_store(:,i) = tmp_corr;
-end
+tic;
+[corr_store, fo_search_set] = fft_corr(s, td_pss, fo_search_set);
+cost_time2 = toc;
+disp(['PSS xcorr cost ' num2str(cost_time2)]);
 
 if sampling_carrier_twist==1
     ppm = inf;
