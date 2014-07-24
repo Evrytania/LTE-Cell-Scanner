@@ -24,7 +24,7 @@ pss_peak_max_reserve = 2;
 num_pss_period_try = 1;
 % combined_pss_peak_range = 160;
 combined_pss_peak_range = -1; % set it to -1 to use complementary range of peak.
-par_th = 16;
+par_th = 8.5;
 num_peak_th = 1/2; % originally is 2/3;
 
 filename = ['CellSearch_test' num2str(test_sp) 'to' num2str(test_ep) '_twist' num2str(sampling_carrier_twist) '_fo' num2str(min(f_search_set)/1e3) 'to' num2str(max(f_search_set)/1e3) '_resv' num2str(pss_peak_max_reserve) '_numPtry' num2str(num_pss_period_try) '_Prange' num2str(combined_pss_peak_range) '_parTh' num2str(par_th) '_numPth' num2str(num_peak_th) '.mat'];

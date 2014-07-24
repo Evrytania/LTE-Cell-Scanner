@@ -108,7 +108,7 @@ void print_usage() {
   cout << "'c' is the correction factor to apply and indicates that if the desired" << endl;
   cout << "center frequency is fc, the RTL-SDR dongle should be instructed to tune" << endl;
   cout << "to freqency fc*c so that its true frequency shall be fc. Default: 1.0" << endl << endl;
-  cout << "'ppm' is the remaining frequency error of the crystal. Default: 120" << endl;
+  cout << "'ppm' is the remaining frequency error of the crystal. Default: - (search -140kHz to 135kHz)" << endl;
   cout << "" << endl;
   cout << "If the crystal has not been used for a long time, use the default values for" << endl;
   cout << "'ppm' and 'c' until a cell is successfully located. The program will return" << endl;
@@ -155,7 +155,7 @@ void parse_commandline(
   freq_end=-1;
   num_try=1; // default number
   sampling_carrier_twist=false;
-  ppm=120;
+  ppm=0;
   correction=1;
   save_cap=false;
   use_recorded_data=false;
@@ -856,14 +856,24 @@ int main(
   cmat pss_fo_set;// pre-generate frequencies offseted pss time domain sequence
   vec f_search_set;
   if (sampling_carrier_twist) { // original mode
-    const uint16 n_extra=floor_i((fc_search_set(0)*ppm/1e6+2.5e3)/5e3);
+    uint16 n_extra=0;
+    if (ppm!=0)
+      n_extra=floor_i((fc_search_set(0)*ppm/1e6+2.5e3)/5e3);
+    else
+      n_extra=28;
+
     f_search_set=to_vec(itpp_ext::matlab_range( -n_extra*5000,5000, (n_extra-1)*5000));
     // for graphic card which has limited mem, you should turn num_loop on if OpenCL reports -4: CL_MEM_OBJECT_ALLOCATION_FAILURE
 //    if (num_loop == 0) // it is not so useful
 //      num_loop = length(f_search_set)/2;
   } else {
     if (length(fc_search_set)==1) {//when only one frequency is specified, whole PPM range should be covered
-      const uint16 n_extra=floor_i((fc_search_set(0)*ppm/1e6+2.5e3)/5e3);
+      uint16 n_extra=0;
+      if (ppm!=0)
+        n_extra=floor_i((fc_search_set(0)*ppm/1e6+2.5e3)/5e3);
+      else
+        n_extra=28; //-140kHz to 135kHz
+
       f_search_set=to_vec(itpp_ext::matlab_range( -n_extra*5000,5000, (n_extra-1)*5000));
     } else {
       // since we have frequency step is 100e3, why not have sub search set limited by this regardless PPM?
@@ -985,7 +995,13 @@ int main(
     // 6RB filter to improve SNR
 //    tt.tic();
     #ifdef USE_OPENCL
+//      tt.tic();
       lte_ocl.filter_my(capbuf); // be careful! capbuf.zeros() will slow down the xcorr part pretty much!
+//      cout << "1 cost " << tt.get_time() << "s\n";
+//
+//      tt.tic();
+//      filter_my_fft(coef, capbuf);
+//      cout << "2 cost " << tt.get_time() << "s\n";
     #else
       filter_my(coef, capbuf);
     #endif

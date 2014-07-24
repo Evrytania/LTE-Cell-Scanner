@@ -51,6 +51,7 @@
 #include <itpp/itbase.h>
 #include <itpp/signal/transforms.h>
 #include <itpp/stat/misc_stat.h>
+#include <itpp/signal/freq_filt.h>
 #include <math.h>
 #include <list>
 #include <iomanip>
@@ -1884,6 +1885,39 @@ void normalize(
 }
 
 // FIR 6RB filter
+void filter_my_fft(
+  //Inputs
+  const vec & coef,
+  //Inputs&Outputs
+  cvec & capbuf
+) {
+  uint32 len = length(capbuf);
+  uint16 len_fir = length(coef);
+  uint16 len_half = (len_fir-1)/2;
+
+  vec tmpbufin_re(len+len_fir-1);
+  vec tmpbufin_im(len+len_fir-1);
+
+  tmpbufin_re.set_subvector(0, real(capbuf));
+  tmpbufin_im.set_subvector(0, imag(capbuf));
+  tmpbufin_re.set_subvector(len, len+len_fir-1, 0);
+  tmpbufin_im.set_subvector(len, len+len_fir-1, 0);
+
+  Freq_Filt<double> FF(coef, len+len_fir-1);
+
+//  Real_Timer tt;
+//  tt.tic();
+  vec tmpbufout_re = FF.filter(tmpbufin_re);
+  vec tmpbufout_im = FF.filter(tmpbufin_im);
+//  cout << "2 cost " << tt.get_time() << "s\n";
+//  cout << tmpbufout_re(len_half, len_half+7) << "\n";
+
+  for(uint32 i=0; i<len; i++) {
+    capbuf(i) = complex<double>(tmpbufout_re(i+len_half), tmpbufout_im(i+len_half));
+  }
+}
+
+// FIR 6RB filter
 void filter_my(
   //Inputs
   const vec & coef,
@@ -2248,7 +2282,7 @@ void sampling_ppm_f_search_set_by_pss(
   const uint32 pss_period = 19200/2;
 
   const uint32 num_half_radioframe = len_short/pss_period;
-  vec peak_to_avg(num_fo_pss);
+  vec peak_to_avg_combined_max(num_fo_pss);
   mat corr_store_tmp(num_fo_pss, pss_period);
   corr_store_tmp = corr_store.get_cols(0, pss_period-1);
   for (uint16 j=1; j<num_half_radioframe; j++) {
@@ -2278,7 +2312,7 @@ void sampling_ppm_f_search_set_by_pss(
     tmp_peak = sum( corr_store_tmp_col.get(sum_range) );
 
     tmp_avg_val = (sum(corr_store_tmp_col) - tmp_peak)/((double)pss_period-(2.0*(double)num_half_radioframe+1.0));
-    peak_to_avg(j) = tmp_peak/tmp_avg_val;
+    peak_to_avg_combined_max(j) = corr_store_tmp(j, tmp_max_idx)/tmp_avg_val;
 
 //    tmp_store = corr_store.get_row(j);
 //    logical_tmp = tmp_store > (max_peak_all(j)*2/3);
@@ -2287,9 +2321,9 @@ void sampling_ppm_f_search_set_by_pss(
 
   ivec sort_idx = sort_index(max_peak_all);
   sort_idx = reverse(sort_idx); // from ascending to descending
-  cout << "Hit        PAR " << 10.0*log10( peak_to_avg.get( sort_idx(0, max_reserve-1) ) ) << "dB\n";
+  cout << "Hit        PAR " << 10.0*log10( peak_to_avg_combined_max.get( sort_idx(0, max_reserve-1) ) ) << "dB\n";
 
-  ivec above_par_idx = to_ivec( peak_to_avg.get( sort_idx(0, max_reserve-1) ) > pow(10.0, 16/10.0) );
+  ivec above_par_idx = to_ivec( peak_to_avg_combined_max.get( sort_idx(0, max_reserve-1) ) > pow(10.0, 8.5/10.0) );
   uint16 len_sort_idx = sum(above_par_idx);
 
   if (len_sort_idx==0) {

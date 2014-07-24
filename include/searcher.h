@@ -128,6 +128,13 @@ class lte_opencl_t {
 };
 #endif
 
+void filter_my_fft(
+  //Inputs
+  const itpp::vec & coef,
+  //Inputs&Outputs
+  itpp::cvec & capbuf
+);
+
 // FIR 6RB filter
 void filter_my(
   //Inputs

@@ -5,7 +5,8 @@ format_str = {'r', 'b.', 'gs', 'k'};
 % load simple_resv1_2_4_pss_period_try1_max_peak_all_improved_record_more/CellSearch_test1to33_twist0_fo-140to140_resv2_numPtry1_Prange160_parTh15_numPth0.5.mat;
 % load simple_resv1_2_4_pss_period_try1_max_peak_all_improved_record_more_ex_gain2.4/CellSearch_test1to33_twist0_fo-140to140_resv2_numPtry1_Prange160_parTh15_numPth0.5.mat;
 % load simple_resv1_2_4_pss_period_try1_max_peak_all_improved_record_more_ex_gain2/CellSearch_test1to33_twist0_fo-140to140_resv2_numPtry1_Prange160_parTh15_numPth0.5.mat;
-load simple_resv1_2_4_pss_period_try1_max_peak_all_improved_record_more_ex_gain2_peak_range-1/CellSearch_test1to33_twist0_fo-140to140_resv2_numPtry1_Prange-1_parTh8_numPth0.5.mat;
+% load simple_resv1_2_4_pss_period_try1_max_peak_all_improved_record_more_ex_gain2_peak_range-1/CellSearch_test1to33_twist0_fo-140to140_resv2_numPtry1_Prange-1_parTh8_numPth0.5.mat;
+load par_explore/CellSearch_test1to33_twist0_fo-140to140_resv2_numPtry1_Prange-1_parTh8_numPth0.5.mat;
 
 idx_raw = [];
 z_th1_store_raw = [];
