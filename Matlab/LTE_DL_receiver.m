@@ -13,26 +13,61 @@
 % https://github.com/Evrytania/Matlab-Library
 % https://github.com/JiaoXianjun/multi-rtl-sdr-calibration
 
-clear all;
+% clear all;
+function LTE_DL_receiver(varargin)
 close all;
 
-% ------------------------------------------------------------------------------------
-% % bin file captured by hackrf_transfer  
-% filename = '../regression_test_signal_file/f2565_s19.2_bw20_1s_hackrf_tsinghua.bin';  fc = 2565e6;
-% filename = '../regression_test_signal_file/f2585_s19.2_bw20_1s_hackrf_tsinghua.bin';  fc = 2585e6;
-filename = '../regression_test_signal_file/f2360_s19.2_bw20_1s_hackrf.bin'; fc = 2360e6;
-% filename = '../regression_test_signal_file/f2585_s19.2_bw20_1s_hackrf.bin'; fc = 2585e6;
-% filename = '../regression_test_signal_file/f2585_s19.2_bw20_1s_hackrf1.bin'; fc = 2585e6;
-% filename = '../regression_test_signal_file/f1860_s19.2_bw20_1s_hackrf_home1.bin'; fc = 1860e6;
-% filename = '../regression_test_signal_file/f1860_s19.2_bw20_1s_hackrf_home.bin'; fc = 1860e6;
-% filename = '../regression_test_signal_file/f1890_s19.2_bw20_1s_hackrf_home.bin'; fc = 1890e6;
-% filename = '../regression_test_signal_file/f1890_s19.2_bw20_1s_hackrf_home1.bin'; fc = 1890e6;
-
 sampling_carrier_twist = 0; % ATTENTION! If this is 1, make sure fc is aligned with bin file!!!
-
 num_radioframe = 8; % each radio frame length 10ms. MIB period is 4 radio frame
-
 raw_sampling_rate = 19.2e6; % constrained by hackrf board
+
+if nargin == 0
+    % ------------------------------------------------------------------------------------
+    % % bin file captured by hackrf_transfer  
+    % filename = '../regression_test_signal_file/f2565_s19.2_bw20_1s_hackrf_tsinghua.bin';  fc = 2565e6;
+    % filename = '../regression_test_signal_file/f2585_s19.2_bw20_1s_hackrf_tsinghua.bin';  fc = 2585e6;
+    filename = '../regression_test_signal_file/f2360_s19.2_bw20_1s_hackrf.bin'; fc = 2360e6;
+    % filename = '../regression_test_signal_file/f2585_s19.2_bw20_1s_hackrf.bin'; fc = 2585e6;
+    % filename = '../regression_test_signal_file/f2585_s19.2_bw20_1s_hackrf1.bin'; fc = 2585e6;
+    % filename = '../regression_test_signal_file/f1860_s19.2_bw20_1s_hackrf_home1.bin'; fc = 1860e6;
+    % filename = '../regression_test_signal_file/f1860_s19.2_bw20_1s_hackrf_home.bin'; fc = 1860e6;
+    % filename = '../regression_test_signal_file/f1890_s19.2_bw20_1s_hackrf_home.bin'; fc = 1890e6;
+    % filename = '../regression_test_signal_file/f1890_s19.2_bw20_1s_hackrf_home1.bin'; fc = 1890e6;
+elseif nargin == 3 % freq lna_gain vga_gain
+    freq_real = varargin{1}*1e6;
+    lna_gain = varargin{2};
+    vga_gain = varargin{3};
+    [~, lna_gain_new, vga_gain_new] = hackrf_gain_regulation(0, lna_gain, vga_gain);
+    
+    filename_raw = 'hackrf_live_tmp.bin';
+    delete(filename_raw);
+    
+    cmd_str = ['hackrf_transfer -r ' filename_raw ' -f ' num2str(freq_real) ' -s ' num2str(raw_sampling_rate) ' -n ' num2str((num_radioframe*10+1)*(1e-3)*raw_sampling_rate) ' -l ' num2str(lna_gain_new) ' -g ' num2str(vga_gain_new) ];
+    system(cmd_str);
+    filename = ['f' num2str(varargin{1}) '_s19.2_bw20_0.08s_hackrf_runtime.bin'];
+    fid_raw = fopen(filename_raw, 'r');
+    if fid_raw == -1
+        disp('Open hackrf_live_tmp.bin failed!');
+        return;
+    end
+    a = fread(fid_raw, inf, 'int8');
+    fclose(fid_raw);
+    
+    fid = fopen(filename, 'w');
+    if fid_raw == -1
+        disp(['Create ' filename ' failed!']);
+        return;
+    end
+    fwrite(fid, a( (((1e-3)*raw_sampling_rate*2) + 1):end), 'int8');
+    fclose(fid);
+    clear a;
+    
+    fc = freq_real;
+else
+    disp('If there are parameters, the number of parameters must be 3: freq(MHz) lna_gain vga_gain');
+    return;
+end
+
 sampling_rate = 30.72e6;
 sampling_rate_pbch = sampling_rate/16; % LTE spec. 30.72MHz/16.
 
@@ -47,8 +82,8 @@ THRESH2_N_SIGMA = 3;
 
 f_search_set = 20e3:5e3:30e3; % change it wider if you don't know pre-information
 
-if isempty(dir([filename(1:end-4) '.mat']))
-    r_raw = get_signal_from_bin(filename, inf);
+if isempty(dir([filename(1:end-4) '.mat'])) || nargin == 3
+    r_raw = get_signal_from_bin(filename, inf, 'hackrf');
     r_raw = r_raw - mean(r_raw); % remove DC
 
     r_pbch = filter_wo_tail(r_raw, coef_pbch.*5, sampling_rate_pbch/raw_sampling_rate);
