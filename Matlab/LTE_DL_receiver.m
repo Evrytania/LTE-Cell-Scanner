@@ -21,6 +21,12 @@ sampling_carrier_twist = 0; % ATTENTION! If this is 1, make sure fc is aligned w
 num_radioframe = 8; % each radio frame length 10ms. MIB period is 4 radio frame
 raw_sampling_rate = 19.2e6; % constrained by hackrf board
 
+pss_peak_max_reserve = 2;
+num_pss_period_try = 1;
+combined_pss_peak_range = -1;
+par_th = 8.5;
+num_peak_th = 1/2;
+
 if nargin == 0
     % ------------------------------------------------------------------------------------
     % % bin file captured by hackrf_transfer  
@@ -42,7 +48,7 @@ elseif nargin == 3 % freq lna_gain vga_gain
     filename_raw = 'hackrf_live_tmp.bin';
     delete(filename_raw);
     
-    cmd_str = ['hackrf_transfer -r ' filename_raw ' -f ' num2str(freq_real) ' -s ' num2str(raw_sampling_rate) ' -n ' num2str((num_radioframe*10+1)*(1e-3)*raw_sampling_rate) ' -l ' num2str(lna_gain_new) ' -g ' num2str(vga_gain_new) ];
+    cmd_str = ['hackrf_transfer -r ' filename_raw ' -f ' num2str(freq_real) ' -s ' num2str(raw_sampling_rate) ' -n ' num2str((num_radioframe*10+10)*(1e-3)*raw_sampling_rate) ' -l ' num2str(lna_gain_new) ' -g ' num2str(vga_gain_new) ];
     system(cmd_str);
     filename = ['f' num2str(varargin{1}) '_s19.2_bw20_0.08s_hackrf_runtime.bin'];
     fid_raw = fopen(filename_raw, 'r');
@@ -58,7 +64,7 @@ elseif nargin == 3 % freq lna_gain vga_gain
         disp(['Create ' filename ' failed!']);
         return;
     end
-    fwrite(fid, a( (((1e-3)*raw_sampling_rate*2) + 1):end), 'int8');
+    fwrite(fid, a( (((10e-3)*raw_sampling_rate*2) + 1):end), 'int8');
     fclose(fid);
     clear a;
     
@@ -74,13 +80,14 @@ sampling_rate_pbch = sampling_rate/16; % LTE spec. 30.72MHz/16.
 coef_pbch = fir1(254, (0.18e6*6+150e3)/raw_sampling_rate); %freqz(coef_pbch, 1, 1024);
 coef_8x_up = fir1(254, 20e6/(raw_sampling_rate*8)); %freqz(coef_8x_up, 1, 1024);
 
-DS_COMB_ARM = 2;
-FS_LTE = 30720000;
-thresh1_n_nines=12;
-rx_cutoff=(6*12*15e3/2+4*15e3)/(FS_LTE/16/2);
-THRESH2_N_SIGMA = 3;
+% DS_COMB_ARM = 2;
+% FS_LTE = 30720000;
+% thresh1_n_nines=12;
+% rx_cutoff=(6*12*15e3/2+4*15e3)/(FS_LTE/16/2);
+% THRESH2_N_SIGMA = 3;
 
-f_search_set = 20e3:5e3:30e3; % change it wider if you don't know pre-information
+% f_search_set = 20e3:5e3:30e3; % change it wider if you don't know pre-information
+f_search_set = -140e3:5e3:135e3;
 
 if isempty(dir([filename(1:end-4) '.mat'])) || nargin == 3
     r_raw = get_signal_from_bin(filename, inf, 'hackrf');
@@ -91,7 +98,7 @@ if isempty(dir([filename(1:end-4) '.mat'])) || nargin == 3
     r_20M = r_20M(1:5:end);
     
     plot(real(r_raw)); drawnow;
-    [cell_info, r_pbch, r_20M] = CellSearch(r_pbch, r_20M, f_search_set, fc, 0, 1, 3, 160);
+    [cell_info, r_pbch, r_20M] = CellSearch(r_pbch, r_20M, f_search_set, fc, sampling_carrier_twist, pss_peak_max_reserve, num_pss_period_try, combined_pss_peak_range, par_th, num_peak_th);
     
     r_pbch = r_pbch.';
     r_20M = r_20M.';
@@ -112,6 +119,8 @@ uldl_str = [ ...
         '|D|S|U|U|U|D|S|U|U|D|'
         ];
 tic;
+pcfich_corr = -1;
+pcfich_info = -1;
 for cell_idx = 1 : length(cell_info)
 % for cell_idx = 1 : 1
     cell_tmp = cell_info(cell_idx);
