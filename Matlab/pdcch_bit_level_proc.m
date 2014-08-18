@@ -66,6 +66,8 @@ for l = 1 : length(L_set)
                 si_rnti_count = si_rnti_count + 1;
             elseif a == hex2dec('FFFE')
                 rnti_str = ' P-RNTI ';
+            elseif a == hex2dec('FFFD')
+                rnti_str = ' M-RNTI ';
             elseif a >= 1 && a <= hex2dec('3C')
 %                 rnti_str = ' X-RNTI ';
                 rnti_str = [' 0x' dec2hex(a, 4) ' '];
