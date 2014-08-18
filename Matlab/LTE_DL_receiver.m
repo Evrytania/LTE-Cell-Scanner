@@ -178,7 +178,11 @@ for cell_idx = 1 : length(cell_info)
             title_str = ['FDD SFN-' num2str(sfn) ' ULDL-0' cell_info_post_str];
         end
         
-        figure(2); pcolor(abs(tfg_comp_radioframe)'); shading flat; colorbar; title(title_str); xlabel('OFDM symbol idx'); ylabel('subcarrier idx'); drawnow;
+        figure(2);
+        a = abs(tfg_comp_radioframe)';
+        subplot(2,1,1); pcolor(a); shading flat; colorbar; title(title_str); xlabel('OFDM symbol idx'); ylabel('subcarrier idx'); drawnow;
+        subplot(2,1,2); plot(a); drawnow;
+        clear a;
         
         % % decode pdcch
         for subframe_idx = 1 : 10
@@ -210,13 +214,14 @@ for cell_idx = 1 : length(cell_info)
         end
         
     end
-end
+    
+    disp(num2str(pcfich_corr));
+    sf_set = find(pcfich_info>0);
+    val_set = pcfich_info(pcfich_info>0);
+    disp(['subframe  ' num2str(sf_set)]);
+    disp(['num pdcch ' num2str(val_set)]);
 
-disp(num2str(pcfich_corr));
-sf_set = find(pcfich_info>0);
-val_set = pcfich_info(pcfich_info>0);
-disp(['subframe  ' num2str(sf_set)]);
-disp(['num pdcch ' num2str(val_set)]);
+end
 
 toc
 
