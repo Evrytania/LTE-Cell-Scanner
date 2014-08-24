@@ -87,7 +87,7 @@ coef_8x_up = fir1(254, 20e6/(raw_sampling_rate*8)); %freqz(coef_8x_up, 1, 1024);
 % THRESH2_N_SIGMA = 3;
 
 % f_search_set = 20e3:5e3:30e3; % change it wider if you don't know pre-information
-f_search_set = -140e3:5e3:135e3;
+f_search_set = -100e3:5e3:95e3;
 
 if isempty(dir([filename(1:end-4) '.mat'])) || nargin == 3
     r_raw = get_signal_from_bin(filename, inf, 'hackrf');
