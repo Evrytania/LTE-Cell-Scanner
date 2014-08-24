@@ -48,7 +48,7 @@ elseif nargin == 3 % freq lna_gain vga_gain
     filename_raw = 'hackrf_live_tmp.bin';
     delete(filename_raw);
     
-    cmd_str = ['hackrf_transfer -r ' filename_raw ' -f ' num2str(freq_real) ' -s ' num2str(raw_sampling_rate) ' -n ' num2str((num_radioframe*10+10)*(1e-3)*raw_sampling_rate) ' -l ' num2str(lna_gain_new) ' -g ' num2str(vga_gain_new) ];
+    cmd_str = ['hackrf_transfer -r ' filename_raw ' -f ' num2str(freq_real) ' -s ' num2str(raw_sampling_rate) ' -b 20000000 -n ' num2str((num_radioframe*10+10)*(1e-3)*raw_sampling_rate) ' -l ' num2str(lna_gain_new) ' -g ' num2str(vga_gain_new) ];
     system(cmd_str);
     filename = ['f' num2str(varargin{1}) '_s19.2_bw20_0.08s_hackrf_runtime.bin'];
     fid_raw = fopen(filename_raw, 'r');
@@ -68,7 +68,14 @@ elseif nargin == 3 % freq lna_gain vga_gain
     fclose(fid);
     clear a;
     
+    disp(' ');
+    disp(filename);
+    disp(' ');
+    
     fc = freq_real;
+elseif nargin == 1
+    filename = varargin{1};
+    fc = get_frequency_carrier_from_filename(filename);
 else
     disp('If there are parameters, the number of parameters must be 3: freq(MHz) lna_gain vga_gain');
     return;
@@ -87,7 +94,7 @@ coef_8x_up = fir1(254, 20e6/(raw_sampling_rate*8)); %freqz(coef_8x_up, 1, 1024);
 % THRESH2_N_SIGMA = 3;
 
 % f_search_set = 20e3:5e3:30e3; % change it wider if you don't know pre-information
-f_search_set = -100e3:5e3:95e3;
+f_search_set = -140e3:5e3:135e3;
 
 if isempty(dir([filename(1:end-4) '.mat'])) || nargin == 3
     r_raw = get_signal_from_bin(filename, inf, 'hackrf');
@@ -97,7 +104,8 @@ if isempty(dir([filename(1:end-4) '.mat'])) || nargin == 3
     r_20M = filter_wo_tail(r_raw, coef_8x_up.*8, 8);
     r_20M = r_20M(1:5:end);
     
-    plot(real(r_raw)); drawnow;
+    subplot(2,1,1); plot((0:(length(r_raw)-1))./raw_sampling_rate, real(r_raw)); drawnow;
+    subplot(2,1,2); plot((0:(length(r_raw)-1)).*(raw_sampling_rate./length(r_raw)), abs(fft(r_raw)).^2); drawnow;
     [cell_info, r_pbch, r_20M] = CellSearch(r_pbch, r_20M, f_search_set, fc, sampling_carrier_twist, pss_peak_max_reserve, num_pss_period_try, combined_pss_peak_range, par_th, num_peak_th);
     
     r_pbch = r_pbch.';
