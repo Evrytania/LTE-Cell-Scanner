@@ -473,10 +473,10 @@ void parse_commandline(
     cerr << "Error: frequency must be greater than 1MHz" << endl;
     ABORT(-1);
   }
-  if (fc/100e3!=itpp::round(fc/100e3)) {
-    fc=itpp::round(fc/100e3)*100e3;
-    cout << "Warning: frequency has been rounded to the nearest multiple of 100kHz" << endl;
-  }
+//  if (fc/100e3!=itpp::round(fc/100e3)) {
+//    fc=itpp::round(fc/100e3)*100e3;
+//    cout << "Warning: frequency has been rounded to the nearest multiple of 100kHz" << endl;
+//  }
   // PPM values should be positive an most likely less than 200 ppm.
   if (ppm<0) {
     cerr << "Error: ppm value must be positive" << endl;

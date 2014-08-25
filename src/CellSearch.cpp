@@ -374,10 +374,10 @@ void parse_commandline(
     cerr << "Error: number of tries at each frequency/file should be not less than 1" << endl;
     ABORT(-1);
   }
-  if (freq_start/100e3!=itpp::round(freq_start/100e3)) {
-    freq_start=itpp::round(freq_start/100e3)*100e3;
-    cout << "Warning: start frequency has been rounded to the nearest multiple of 100kHz" << endl;
-  }
+//  if (freq_start/100e3!=itpp::round(freq_start/100e3)) {
+//    freq_start=itpp::round(freq_start/100e3)*100e3;
+//    cout << "Warning: start frequency has been rounded to the nearest multiple of 100kHz" << endl;
+//  }
   if (freq_end==-1) {
     freq_end=freq_start;
   }
@@ -385,10 +385,10 @@ void parse_commandline(
     cerr << "Error: end frequency must be >= start frequency" << endl;
     ABORT(-1);
   }
-  if (freq_end/100e3!=itpp::round(freq_end/100e3)) {
-    freq_end=itpp::round(freq_end/100e3)*100e3;
-    cout << "Warning: end frequency has been rounded to the nearest multiple of 100kHz" << endl;
-  }
+//  if (freq_end/100e3!=itpp::round(freq_end/100e3)) {
+//    freq_end=itpp::round(freq_end/100e3)*100e3;
+//    cout << "Warning: end frequency has been rounded to the nearest multiple of 100kHz" << endl;
+//  }
   // PPM values should be positive an most likely less than 200 ppm.
   if (ppm<0) {
     cerr << "Error: ppm value must be positive" << endl;
