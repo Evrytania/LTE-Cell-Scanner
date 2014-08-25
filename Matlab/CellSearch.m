@@ -48,6 +48,7 @@ for try_idx = 1 : num_try
     
     sp_20M = (sp-1)*pbch_sampling_ratio + 1;
     ep_20M = ep*pbch_sampling_ratio;
+    capbuf_pbch = capbuf_pbch - mean(capbuf_pbch);
     r_pbch_sub = capbuf_pbch;
     
     if ~isempty(r_20M)

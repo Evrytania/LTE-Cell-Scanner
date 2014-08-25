@@ -104,8 +104,10 @@ if isempty(dir([filename(1:end-4) '.mat'])) || nargin == 3
     r_20M = filter_wo_tail(r_raw, coef_8x_up.*8, 8);
     r_20M = r_20M(1:5:end);
     
+    figure(1);
     subplot(2,1,1); plot((0:(length(r_raw)-1))./raw_sampling_rate, real(r_raw)); drawnow;
-    subplot(2,1,2); plot((0:(length(r_raw)-1)).*(raw_sampling_rate./length(r_raw)), abs(fft(r_raw)).^2); drawnow;
+    subplot(2,1,2); plot((0:(length(r_raw)-1)).*(raw_sampling_rate./length(r_raw)), 10.*log10( abs(fft(r_raw)).^2 ) ); drawnow;
+    
     [cell_info, r_pbch, r_20M] = CellSearch(r_pbch, r_20M, f_search_set, fc, sampling_carrier_twist, pss_peak_max_reserve, num_pss_period_try, combined_pss_peak_range, par_th, num_peak_th);
     
     r_pbch = r_pbch.';
@@ -186,7 +188,7 @@ for cell_idx = 1 : length(cell_info)
             title_str = ['FDD SFN-' num2str(sfn) ' ULDL-0' cell_info_post_str];
         end
         
-        figure(2);
+        figure(10);
         a = abs(tfg_comp_radioframe)';
         subplot(2,1,1); pcolor(a); shading flat; colorbar; title(title_str); xlabel('OFDM symbol idx'); ylabel('subcarrier idx'); drawnow;
         subplot(2,1,2); plot(a); drawnow;

@@ -109,6 +109,13 @@ max_peak_all = max(corr_store, [], 1);
 above_par_idx = (peak_to_avg_combined_max(sort_idx(1:max_reserve)) > par_th);
 disp(['Hit        PAR ' num2str(peak_to_avg_combined_max(sort_idx(1:max_reserve))) 'dB']);
 
+% figure(2);
+% for i = 1 : max_reserve
+%     subplot(max_reserve,2,i); plot(corr_store(:,sort_idx(i))); drawnow;
+% end
+% for i = 1 : max_reserve
+%     subplot(max_reserve,2,i+max_reserve); plot(corr_store_tmp(:,sort_idx(i))); drawnow;
+% end
 % disp(['Hit        PAR ' num2str(peak_to_avg_max_max(sort_idx(1:max_reserve))) 'dB']);
 
 % extra_info.par = peak_to_avg(sort_idx(1:max_reserve));
@@ -166,6 +173,7 @@ for i=1:length(sort_idx)
     for j=tmp_max_idx : pss_period : len_short
         if j+3+num_half_radioframe <= len_short
             [tmp_val, tmp_idx] = max(corr_seq(j-3-num_half_radioframe:j+3+num_half_radioframe));
+%             figure; plot(corr_seq(j-3-num_half_radioframe:j+3+num_half_radioframe));
             if tmp_idx ~=1 && tmp_idx ~=2*(3+num_half_radioframe)+1
                 peak_val(peak_count) = tmp_val;
                 
@@ -196,11 +204,12 @@ for i=1:length(sort_idx)
 %                     sum_peak = sum(tmp_seq);
 %                     tmp_idx = (tmp_idx-1)*(tmp_seq(1)/sum_peak) + tmp_idx*(tmp_seq(2)/sum_peak) + (tmp_idx+1)*(tmp_seq(3)/sum_peak);
 %                 end
+                peak_idx(peak_count) = j-3-num_half_radioframe+tmp_idx-1;
             else
                 peak_val(peak_count) = 0;
+                peak_idx(peak_count) = -inf;
                 disp(['Seems not a peak ' num2str(corr_seq(j-3-num_half_radioframe:j+3+num_half_radioframe).') ' at i=' num2str(i) ' j=' num2str(j)]);
             end
-            peak_idx(peak_count) = j-3-num_half_radioframe+tmp_idx-1;
             peak_count = peak_count + 1;
         else
             break;
@@ -208,6 +217,10 @@ for i=1:length(sort_idx)
     end
     peak_val = peak_val(1: peak_count-1);
     peak_idx = peak_idx(1: peak_count-1);
+    
+    figure(3);
+    subplot(length(sort_idx), 2, (i-1)*2+1); plot(corr_store(:, fo_pss_idx)); drawnow;
+    subplot(length(sort_idx), 2, (i-1)*2+2); plot(peak_idx, 'b*-'); hold on; plot(diff(peak_idx), 'r*-'); drawnow;
     
     peak_val_th = max(peak_val)/2;
     first_idx = find(peak_val>peak_val_th, 1, 'first');

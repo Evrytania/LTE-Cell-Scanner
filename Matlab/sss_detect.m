@@ -53,6 +53,37 @@ h_raw=NaN(n_pss,62);
 h_sm=NaN(n_pss,62);
 sss_nrm_raw=NaN(n_pss,62);
 sss_ext_raw=NaN(n_pss,62);
+
+% % fo correction and ce by my method
+% [~, td_pss] = pss_gen;
+% tmp_store = zeros(n_pss, 128);
+% pss_local = td_pss(:, n_id_2_est+1);
+% pss_local = pss_local(10:end);
+% pss_local_fft = fft(pss_local);
+% for k=1:n_pss
+%   pss_loc=round(pss_loc_set(k));
+%   pss_dft_location=pss_loc + 9;
+%   dft_in=fshift(capbuf(pss_dft_location:pss_dft_location+127),-peak_freq,fs_lte/16);
+%   late = pss_loc - pss_loc_set(k);
+%   fd_data = fft(dft_in);
+%   fd_data = [fd_data(65:end) fd_data(1:64)];
+%   fd_data = fd_data.*exp(1i.*2.*pi.*late./128);
+%   fd_data = [fd_data(65:end) fd_data(1:64)];
+%   fd_data(2:32) = fd_data(2:32)./(pss_local_fft(2:32).');
+%   fd_data(98:end) = fd_data(98:end)./(pss_local_fft(98:end).');
+% %   dft_in = ifft(fd_data);
+%   tmp_store(k, :) = fd_data;
+%   tmp_store(k, 1) = 0;
+%   tmp_store(k, 33:97) = 0;
+% %   
+% %   figure;
+% %   scatterplot(exp(1i.* angle(dft_in.*(pss_local'))) );
+% end
+% figure;
+% subplot(2,1,1); plot(abs(tmp_store).');
+% subplot(2,1,2); plot(angle(tmp_store).');
+% return;
+
 for k=1:n_pss
   pss_loc=round(pss_loc_set(k));
 
@@ -102,6 +133,20 @@ for k=1:n_pss
   dft_in=[dft_in(3:end) dft_in(1:2)];
   dft_out=dft(dft_in);
   sss_nrm_raw(k,1:62)=[dft_out(end-30:end) dft_out(2:32)];
+end
+
+if nargin == 7
+    figure(4);
+    subplot(2,2,1); pcolor(abs(h_raw)); shading flat; drawnow;
+    subplot(2,2,2); pcolor(angle(h_raw)); shading flat; drawnow;
+    subplot(2,2,3); pcolor(abs(h_sm)); shading flat; drawnow;
+    subplot(2,2,4); pcolor(angle(h_sm)); shading flat; drawnow;
+
+    figure(5);
+    subplot(2,2,1); plot(abs(h_raw(1:3,:).'));drawnow;
+    subplot(2,2,2); plot(angle(h_raw(1:3,:).')); drawnow;
+    subplot(2,2,3); plot(abs(h_sm(1:3,:).')); drawnow;
+    subplot(2,2,4); plot(angle(h_sm(1:3,:).')); drawnow;
 end
 
 % % interpolation along time to get accurate response at sss.
@@ -239,7 +284,7 @@ L=[log_lik_nrm log_lik_ext];
 L_mean=mean(L(:));
 L_var=var(L(:));
 if nargin == 7
-    figure(2);
+    figure(6);
     plot(0:167,[log_lik_nrm log_lik_ext],[0 167],repmat(L_mean,1,2),[0 167],repmat(L_mean+sqrt(L_var)*thresh2_n_sigma,1,2));
     zgo;
     drawnow;
