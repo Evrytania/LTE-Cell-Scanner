@@ -16,12 +16,15 @@ disp(['freq set (MHz) ' num2str(freq_set./1e6)]);
 
 filename_raw = 'hackrf_live_tmp.bin';
 
-len_time = 160e-3;
-len_time_pre = 10e-3;
+len_time = 500e-3;
+len_time_pre = 5e-3;
 len_time_total = len_time + len_time_pre;
 
 sampling_rate = 15e6;
-half_num_sample = (((20e-3)*sampling_rate)*2/3)/2;
+half_num_sample = (len_time*bw)/2;
+
+rbw = 40e3;
+spec = zeros(1, length(freq_set)*half_num_sample*2);
 
 clf;
 for i = 1 : length(freq_set)
@@ -38,21 +41,23 @@ for i = 1 : length(freq_set)
     a = fread(fid_raw, inf, 'int8');
     fclose(fid_raw);
     
-    b = a((2*(len_time_pre*sampling_rate)+1) : end);
+    b = a((2*(len_time_pre*sampling_rate)+1) : end).';
     c = b(1:2:end) + 1i.*b(1:2:end);
     c = c - mean(c);
-    d = vec2mat(c, (20e-3)*sampling_rate);
     
-    sub_spec = zeros(1, (20e-3)*bw);
-    for j = 1 : 8
-        tmp_spec = 10.*log10(abs(fft(d(j,:))).^2);
-        tmp_spec(1) = inf;
-        tmp_spec = [tmp_spec((end-half_num_sample+1) : end) tmp_spec(1:half_num_sample)];
-        sub_spec = sub_spec + tmp_spec;
-    end
-    sub_spec = sub_spec./8;
-%     spec = pwelch(c);
+    figure(1);
+    sp = (i-1)*len_time*sampling_rate + 1;
+    ep = sp + len_time*sampling_rate - 1;
+    plot(sp:ep, real(c)); hold on; drawnow;
     
-    plot(linspace((freq-(bw/2))./1e6, (freq+(bw/2))./1e6, length(sub_spec)), sub_spec); hold on; drawnow;
+    d = [ c( (end-half_num_sample+1) : end), c(1 : half_num_sample) ];
+    sp = (i-1)*half_num_sample*2 + 1;
+    ep = sp + half_num_sample*2 - 1;
+    spec(sp:ep) = abs(fft(d)).^2;
 end
+
+spec = filter_wo_tail(spec.', ones(1, floor(rbw*len_time)+1), 1);
+
+figure(2);
+plot( ( freq_start + (0:(length(freq_set)*half_num_sample*2-1))./len_time )./1e6, 10.*log10(spec)); hold on;
 
