@@ -109,15 +109,6 @@ max_peak_all = max(corr_store, [], 1);
 above_par_idx = (peak_to_avg_combined_max(sort_idx(1:max_reserve)) > par_th);
 disp(['Hit        PAR ' num2str(peak_to_avg_combined_max(sort_idx(1:max_reserve))) 'dB']);
 
-% figure(2);
-% for i = 1 : max_reserve
-%     subplot(max_reserve,2,i); plot(corr_store(:,sort_idx(i))); drawnow;
-% end
-% for i = 1 : max_reserve
-%     subplot(max_reserve,2,i+max_reserve); plot(corr_store_tmp(:,sort_idx(i))); drawnow;
-% end
-% disp(['Hit        PAR ' num2str(peak_to_avg_max_max(sort_idx(1:max_reserve))) 'dB']);
-
 % extra_info.par = peak_to_avg(sort_idx(1:max_reserve));
 extra_info.par_combined_max = peak_to_avg_combined_max(sort_idx(1:max_reserve));
 % extra_info.par_max_max = peak_to_avg_max_max(sort_idx(1:max_reserve));
@@ -218,7 +209,7 @@ for i=1:length(sort_idx)
     peak_val = peak_val(1: peak_count-1);
     peak_idx = peak_idx(1: peak_count-1);
     
-    figure(3);
+    figure(2);
     subplot(length(sort_idx), 2, (i-1)*2+1); plot(corr_store(:, fo_pss_idx)); drawnow;
     subplot(length(sort_idx), 2, (i-1)*2+2); plot(peak_idx, 'b*-'); hold on; plot(diff(peak_idx), 'r*-'); drawnow;
     

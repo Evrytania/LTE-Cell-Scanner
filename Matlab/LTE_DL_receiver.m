@@ -68,10 +68,6 @@ elseif nargin == 3 % freq lna_gain vga_gain
     fclose(fid);
     clear a;
     
-    disp(' ');
-    disp(filename);
-    disp(' ');
-    
     fc = freq_real;
 elseif nargin == 1
     filename = varargin{1};
@@ -80,6 +76,10 @@ else
     disp('If there are parameters, the number of parameters must be 3: freq(MHz) lna_gain vga_gain');
     return;
 end
+
+disp(' ');
+disp(filename);
+disp(' ');   
 
 sampling_rate = 30.72e6;
 sampling_rate_pbch = sampling_rate/16; % LTE spec. 30.72MHz/16.

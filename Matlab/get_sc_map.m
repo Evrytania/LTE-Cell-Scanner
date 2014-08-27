@@ -29,9 +29,9 @@ else
     return;
 end
 
-if pcfich_info == 0
-    pcfich_info = 2;
-end
+% if pcfich_info == 0
+%     pcfich_info = 2;
+% end
 
 if n_rb_dl > 10
     if peak.phich_dur_val == 1 % extended
