@@ -228,7 +228,13 @@ for i=1:length(sort_idx)
     real_dist = peak_idx(last_idx) - peak_idx(first_idx);
     ideal_dist = round( real_dist/9600 )*9600;
     
-    ppm_tmp = 1e6*(real_dist-ideal_dist)/ideal_dist;
+    ppm_tmp_raw = (real_dist-ideal_dist)/ideal_dist;
+    ppm_tmp = 1e6*ppm_tmp_raw;
+    
+    if i == 1
+        extra_info.pss_loc = peak_idx;
+        extra_info.k_factor = 1+ppm_tmp_raw;
+    end
     
     exist_flag = false;
     for j=1:real_count

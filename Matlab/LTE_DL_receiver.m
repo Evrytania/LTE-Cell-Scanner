@@ -105,8 +105,8 @@ if isempty(dir([filename(1:end-4) '.mat'])) || nargin == 3
     r_20M = r_20M(1:5:end);
     
     figure(1);
-    subplot(2,1,1); plot((0:(length(r_raw)-1))./raw_sampling_rate, real(r_raw)); drawnow;
-    subplot(2,1,2); plot((0:(length(r_raw)-1)).*(raw_sampling_rate./length(r_raw)), 10.*log10( abs(fft(r_raw)).^2 ) ); drawnow;
+%     show_signal_time_frequency(r_20M, sampling_rate, 180e3);
+    show_signal_time_frequency(r_raw, raw_sampling_rate, 50e3);
     
     [cell_info, r_pbch, r_20M] = CellSearch(r_pbch, r_20M, f_search_set, fc, sampling_carrier_twist, pss_peak_max_reserve, num_pss_period_try, combined_pss_peak_range, par_th, num_peak_th);
     

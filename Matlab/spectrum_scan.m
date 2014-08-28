@@ -16,14 +16,14 @@ disp(['freq set (MHz) ' num2str(freq_set./1e6)]);
 
 filename_raw = 'hackrf_live_tmp.bin';
 
-len_time = 500e-3;
-len_time_pre = 5e-3;
+len_time = 100e-3;
+len_time_pre = 10e-3;
 len_time_total = len_time + len_time_pre;
 
 sampling_rate = 15e6;
 half_num_sample = (len_time*bw)/2;
 
-rbw = 40e3;
+rbw = 30e3;
 spec = zeros(1, length(freq_set)*half_num_sample*2);
 
 clf;
