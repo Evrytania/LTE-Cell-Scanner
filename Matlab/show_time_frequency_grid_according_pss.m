@@ -14,7 +14,7 @@ for i = 1 : 4
     cp_type_flag = cp_type_flag_set(i);
     slot_start = get_slot_start(tdd_flag, cp_type_flag, peak_loc, k_factor);
     [tf_grid, sp_set] = get_time_frequency_grid(cp_type_flag, slot_start, k_factor, s);
-    subplot(2,2,i); pcolor(tf_grid); shading flat; 
+    figure; pcolor(tf_grid); shading flat; 
 end
 
 function slot_start = get_slot_start(tdd_flag, cp_type_flag, peak_loc, k_factor)
@@ -87,4 +87,4 @@ while symbol_start_tmp+len_symbol-1 <= total_len
 end
 
 tf_grid = tf_grid(:, 1:symbol_count);
-sp_set = (1:symbol_count);
+sp_set = sp_set(1:symbol_count);
