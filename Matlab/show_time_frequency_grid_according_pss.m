@@ -9,12 +9,12 @@ peak_loc = pss_loc(peak_loc);
 tdd_flag_set = [0 1 0 1];
 cp_type_flag_set = [0 0 1 1];
 
-for i = 1 : 4
+for i = 1 : 2
     tdd_flag = tdd_flag_set(i);
     cp_type_flag = cp_type_flag_set(i);
     slot_start = get_slot_start(tdd_flag, cp_type_flag, peak_loc, k_factor);
-    [tf_grid, sp_set] = get_time_frequency_grid(cp_type_flag, slot_start, k_factor, s);
-    figure; pcolor(tf_grid); shading flat; 
+    [tf_grid, ~] = get_time_frequency_grid(cp_type_flag, slot_start, k_factor, s);
+    subplot(2,1,i); pcolor(tf_grid); shading flat; drawnow;
 end
 
 function slot_start = get_slot_start(tdd_flag, cp_type_flag, peak_loc, k_factor)

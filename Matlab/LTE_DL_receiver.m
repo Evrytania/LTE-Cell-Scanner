@@ -49,7 +49,7 @@ elseif nargin == 3 % freq lna_gain vga_gain
     filename_raw = 'hackrf_live_tmp.bin';
     delete(filename_raw);
     
-    cmd_str = ['hackrf_transfer -r ' filename_raw ' -f ' num2str(freq_real) ' -s ' num2str(raw_sampling_rate) ' -b 20000000 -n ' num2str((num_radioframe*10+10)*(1e-3)*raw_sampling_rate) ' -l ' num2str(lna_gain_new) ' -g ' num2str(vga_gain_new) ];
+    cmd_str = ['hackrf_transfer -r ' filename_raw ' -f ' num2str(freq_real) ' -s ' num2str(raw_sampling_rate) ' -b 20000000 -n ' num2str((num_radioframe*10+10)*(1e-3)*raw_sampling_rate) ' -l ' num2str(lna_gain_new) ' -a 1 -g ' num2str(vga_gain_new) ];
     system(cmd_str);
     filename = ['f' num2str(varargin{1}) '_s19.2_bw20_0.08s_hackrf_runtime.bin'];
     fid_raw = fopen(filename_raw, 'r');
@@ -101,13 +101,17 @@ if isempty(dir([filename(1:end-4) '.mat'])) || nargin == 3
     r_raw = get_signal_from_bin(filename, inf, 'hackrf');
     r_raw = r_raw - mean(r_raw); % remove DC
 
+    figure(1);
+%     show_signal_time_frequency(r_20M, sampling_rate, 180e3);
+    show_signal_time_frequency(r_raw, raw_sampling_rate, 50e3);
+    
+    figure(2);
+    show_time_frequency_grid_raw(r_raw(1 : (15e-3*raw_sampling_rate)), raw_sampling_rate);
+    
     r_pbch = filter_wo_tail(r_raw, coef_pbch.*5, sampling_rate_pbch/raw_sampling_rate);
     r_20M = filter_wo_tail(r_raw, coef_8x_up.*8, 8);
     r_20M = r_20M(1:5:end);
     
-    figure(1);
-%     show_signal_time_frequency(r_20M, sampling_rate, 180e3);
-    show_signal_time_frequency(r_raw, raw_sampling_rate, 50e3);
     
     [cell_info, r_pbch, r_20M] = CellSearch(r_pbch, r_20M, f_search_set, fc, sampling_carrier_twist, pss_peak_max_reserve, num_pss_period_try, combined_pss_peak_range, par_th, num_peak_th);
     

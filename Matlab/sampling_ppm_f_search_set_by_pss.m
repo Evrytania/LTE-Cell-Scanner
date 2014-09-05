@@ -209,8 +209,9 @@ for i=1:length(sort_idx)
     peak_val = peak_val(1: peak_count-1);
     peak_idx = peak_idx(1: peak_count-1);
     
-    figure(2);
-    subplot(length(sort_idx), 2, (i-1)*2+1); plot(corr_store(:, fo_pss_idx)); drawnow;
+    figure(3);
+%     subplot(length(sort_idx), 2, (i-1)*2+1); plot(corr_store(:, fo_pss_idx)); drawnow;
+    subplot(length(sort_idx), 2, (i-1)*2+1); plot(corr_store_tmp(:, fo_pss_idx)); drawnow;
     subplot(length(sort_idx), 2, (i-1)*2+2); plot(peak_idx, 'b*-'); hold on; plot(diff(peak_idx), 'r*-'); drawnow;
     
     peak_val_th = max(peak_val)/2;
