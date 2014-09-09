@@ -30,10 +30,13 @@ num_peak_th = 1/2;
 if nargin == 0
     % ------------------------------------------------------------------------------------
     % % bin file captured by hackrf_transfer  
+%     filename = '../regression_test_signal_file/f2585_s19.2_bw20_0.08s_hackrf_home.bin'; fc = 2585e6;
+    filename = '../regression_test_signal_file/f2585_s19.2_bw20_0.08s_hackrf_home_should.bin'; fc = 2585e6;
+%     filename = '../regression_test_signal_file/f1852.5_s19.2_bw20_0.08s_hackrf_home.bin'; fc = 1852.5e6;
     % filename = '../regression_test_signal_file/f2565_s19.2_bw20_1s_hackrf_tsinghua.bin';  fc = 2565e6;
     % filename = '../regression_test_signal_file/f2585_s19.2_bw20_1s_hackrf_tsinghua.bin';  fc = 2585e6;
-%     filename = '../regression_test_signal_file/f2360_s19.2_bw20_1s_hackrf.bin'; fc = 2360e6;
-    filename = '../regression_test_signal_file/f2360_s19.2_bw20_0.08s_hackrf.bin'; fc = 2360e6;
+    % filename = '../regression_test_signal_file/f2360_s19.2_bw20_1s_hackrf.bin'; fc = 2360e6;
+%     filename = '../regression_test_signal_file/f2360_s19.2_bw20_0.08s_hackrf.bin'; fc = 2360e6;
     % filename = '../regression_test_signal_file/f2585_s19.2_bw20_1s_hackrf.bin'; fc = 2585e6;
     % filename = '../regression_test_signal_file/f2585_s19.2_bw20_1s_hackrf1.bin'; fc = 2585e6;
     % filename = '../regression_test_signal_file/f1860_s19.2_bw20_1s_hackrf_home1.bin'; fc = 1860e6;

@@ -57,7 +57,6 @@ end
 pss_period = 19200/2;
 
 num_half_radioframe = floor( len_short./pss_period );
-% peak_to_avg = zeros(1, num_fo_pss);
 peak_to_avg_combined_max = zeros(1, num_fo_pss);
 
 corr_store_tmp = corr_store(1:pss_period, : );
@@ -89,33 +88,32 @@ for j=1:num_fo_pss
 %     tmp_avg = mean(tmp_avg);
     
     tmp_avg = (sum(corr_store_tmp(:, j))  - tmp_peak)/(pss_period - 2*num_half_radioframe -1 );
-%     peak_to_avg(j) = 10*log10(tmp_peak/tmp_avg);
     peak_to_avg_combined_max(j) = 10*log10(corr_store_tmp(tmp_max_idx, j)/tmp_avg);
 end
 
 max_peak_all = max(corr_store, [], 1);
-% for i = 1 : num_fo_pss
-%     logical_tmp = corr_store(:,i) > (max_peak_all(i)*2/3);
-%     max_peak_all(i) = sum( corr_store(logical_tmp,i) );
-% end
-[~, sort_idx] = sort(max_peak_all, 'descend');
+peak_metric = max_peak_all;
+% peak_metric = peak_to_avg_combined_max;
 
-% [~, sort_idx] = sort(peak_to_avg, 'descend');
+% [~, sort_idx] = sort(peak_metric, 'descend');
+% sort_idx = sort_idx(1:max_reserve);
+num_fo = length(fo_search_set);
+[~, sort_idx1] = sort(peak_metric(1 : num_fo), 'descend');
+sort_idx1 = sort_idx1(1:max_reserve);
+[~, sort_idx2] = sort(peak_metric((num_fo+1) : (2*num_fo)), 'descend');
+sort_idx2 = sort_idx2(1:max_reserve) + num_fo;
+[~, sort_idx3] = sort(peak_metric((2*num_fo + 1) : (3*num_fo)), 'descend');
+sort_idx3 = sort_idx3(1:max_reserve) + 2*num_fo;
+sort_idx = [sort_idx1  sort_idx2  sort_idx3];
 
-% max_reserve = 1;
-% above_par_idx = (peak_to_avg(sort_idx(1:max_reserve)) > par_th);
-% disp(['Hit        PAR ' num2str(peak_to_avg(sort_idx(1:max_reserve))) 'dB']);
+above_par_idx = (peak_to_avg_combined_max(sort_idx) > par_th);
+disp(['Hit        PAR ' num2str(peak_to_avg_combined_max(sort_idx)) 'dB']);
 
-above_par_idx = (peak_to_avg_combined_max(sort_idx(1:max_reserve)) > par_th);
-disp(['Hit        PAR ' num2str(peak_to_avg_combined_max(sort_idx(1:max_reserve))) 'dB']);
+extra_info.par_combined_max = peak_to_avg_combined_max(sort_idx);
 
-% extra_info.par = peak_to_avg(sort_idx(1:max_reserve));
-extra_info.par_combined_max = peak_to_avg_combined_max(sort_idx(1:max_reserve));
-% extra_info.par_max_max = peak_to_avg_max_max(sort_idx(1:max_reserve));
-
-extra_info.sort_idx = sort_idx(1:max_reserve);
+extra_info.sort_idx = sort_idx;
 a_tmp = [fo_search_set fo_search_set fo_search_set];
-extra_info.fo_raw = a_tmp(sort_idx(1:max_reserve));
+extra_info.fo_raw = a_tmp(sort_idx);
 
 if sum(above_par_idx)==0
     xc = 0;
@@ -238,13 +236,13 @@ for i=1:length(sort_idx)
     end
     
     exist_flag = false;
-    for j=1:real_count
-        if abs(f_tmp - f_set(j))<7500 && abs(ppm_tmp - ppm(j))<6
-            exist_flag = true;
-            disp(['duplicated fo and ppm ' num2str(f_tmp/1e3) 'kHz ' num2str(ppm_tmp) 'PPM at i=' num2str(i) ' j=' num2str(j)]);
-            break;
-        end
-    end
+%     for j=1:real_count
+%         if abs(f_tmp - f_set(j))<7500 && abs(ppm_tmp - ppm(j))<6
+%             exist_flag = true;
+%             disp(['duplicated fo and ppm ' num2str(f_tmp/1e3) 'kHz ' num2str(ppm_tmp) 'PPM at i=' num2str(i) ' j=' num2str(j)]);
+%             break;
+%         end
+%     end
     
     if ~exist_flag
         real_count = real_count + 1;
