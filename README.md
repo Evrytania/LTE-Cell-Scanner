@@ -4,8 +4,6 @@ Tech blog: http://sdr-x.github.io
 
 -------------------------------News:----------------------------------
 
-**14 Aug. 2014: Losing job. Finding new opportunity! (Find my profile at <a href="https://www.researchgate.net/profile/Xianjun_Jiao?ev=hdr_xprf">researchgate</a> and <a href="http://www.linkedin.com/pub/xianjun-jiao/41/696/7a5">linkedin</a>)**
-
 2014-07: Now Matlab can parse SIB automatically by calling asn1c. See doc in asn1_test and http://sdr-x.github.io/LTE-SIB-decoding-by-asn1c/ . (Don't forget compling the progname in your own computer!)
 
 2014-06: SIB message (output by LTE_DL_receiver.m) is decoded successfully! See Matlab/*SIB.txt.
