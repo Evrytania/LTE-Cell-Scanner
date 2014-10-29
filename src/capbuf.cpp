@@ -154,7 +154,7 @@ int write_header_to_bin(
 
   int ret = 0;
   double valid_magic[8] = {73492.215, -0.7923597, -189978508, 93.126712, -53243.129, 0.0008123898, -6.0098321, 237.09983};
-  uint64 tmp[8] = {fc_requested, fc_programmed, fs_requested, fs_programmed, 0,0,0,0};
+  uint64 tmp[8] = {(uint64)fc_requested, (uint64)fc_programmed, (uint64)fs_requested, (uint64)fs_programmed, 0,0,0,0};
   size_t num_write;
   for (uint16 i=0; i<8; i++) {
     num_write = fwrite(valid_magic+i, sizeof(double), 1, fp);

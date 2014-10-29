@@ -2093,7 +2093,7 @@ void pss_moving_corr(
     tmpi = (len - (len_pss-1))-1;
     int32 last_idx = end_idx>tmpi?tmpi:end_idx;
 
-    for (uint32 i=(current_idx+1); i<(last_idx+1); i++ ){
+    for (int32 i=(current_idx+1); i<(last_idx+1); i++ ){
       chn_tmp = s(i, (i+len_pss-1));
       normalize(chn_tmp);
 
