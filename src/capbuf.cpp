@@ -32,6 +32,10 @@
 #include "hackrf.h"
 #endif
 
+#ifdef HAVE_BLADERF
+#include <libbladeRF.h>
+#endif
+
 using namespace itpp;
 using namespace std;
 
@@ -65,6 +69,49 @@ static int capbuf_hackrf_callback(hackrf_transfer* transfer) {
   return(0);
 }
 
+#endif
+
+#ifdef HAVE_BLADERF
+int16 bladerf_rx_buf[CAPLENGTH*2];  // used for capture_data()
+volatile bool do_exit = false;
+int open_bladerf_board(bladerf_device * & bladerf_dev, unsigned int freq_hz, unsigned int buffer_size) {
+  int status;
+
+  status = bladerf_set_frequency(bladerf_dev, BLADERF_MODULE_RX, freq_hz);
+  if (status != 0) {
+    printf("open_bladerf_board bladerf_set_frequency: Failed to set frequency: %s\n",
+            bladerf_strerror(status));
+    return(-1);
+  }
+
+  status = bladerf_sync_config(bladerf_dev, BLADERF_MODULE_RX, BLADERF_FORMAT_SC16_Q11, 2, buffer_size, 1, 3500);
+  if (status != 0) {
+     printf("open_bladerf_board bladerf_sync_config: Failed to configure sync interface: %s\n",
+             bladerf_strerror(status));
+     return(-1);
+  }
+
+  status = bladerf_enable_module(bladerf_dev, BLADERF_MODULE_RX, true);
+  if (status != 0) {
+     printf("open_bladerf_board bladerf_enable_module: Failed to enable RX module: %s\n",
+             bladerf_strerror(status));
+     return(-1);
+  }
+
+  return(0);
+}
+
+int close_bladerf_board(bladerf_device * & bladerf_dev) {
+  // Disable RX module, shutting down our underlying TX stream
+  int status = bladerf_enable_module(bladerf_dev, BLADERF_MODULE_RX, false);
+  if (status != 0) {
+    printf("close_bladerf_board bladerf_enable_module: Failed to disable RX module: %s\n",
+             bladerf_strerror(status));
+    return(-1);
+  }
+
+  return(0);
+}
 #endif
 
 static void capbuf_rtlsdr_callback(
@@ -296,6 +343,7 @@ int capture_data(
   const string & data_dir,
   rtlsdr_dev_t * & dev,
   hackrf_device * & hackrf_dev,
+  bladerf_device * & bladerf_dev,
   const dev_type_t::dev_type_t & dev_use,
   // Output
   cvec & capbuf,
@@ -573,6 +621,43 @@ int capture_data(
         capbuf(t)=complex<double>((((double)hackrf_rx_buf[(t<<1)])-0.0)/128.0,(((double)hackrf_rx_buf[(t<<1)+1])-0.0)/128.0);
       }
 
+      #endif
+    }  else if (dev_use == dev_type_t::BLADERF) {
+      #ifdef HAVE_BLADERF
+      int status = 0;
+      fc_programmed = fc_requested;
+
+      // open the board-----------------------------------------
+      if (open_bladerf_board(bladerf_dev, fc_requested, CAPLENGTH) == -1) {
+        printf("capture_data: open_bladerf_board() failed\n");
+        ABORT(-1);
+      }
+
+      // Receive samples
+      status = bladerf_sync_rx(bladerf_dev, (void *)bladerf_rx_buf, CAPLENGTH, NULL, 3500);
+      if (status != 0) {
+        printf("capture_data: bladerf_sync_rx : Failed to RX samples 1: %s\n",
+                 bladerf_strerror(status));
+        ABORT(-1);
+      }
+
+      if (do_exit)
+      {
+        printf("\ncapture_data: bladerf_sync_rx: Exiting...\n");
+        ABORT(-1);
+      }
+
+      // close the board---------------------------------------
+      if (close_bladerf_board(bladerf_dev) == -1) {
+        printf("capture_data: close_bladerf_board() failed\n");
+        ABORT(-1);
+      }
+
+      // Convert to complex
+      capbuf.set_size(CAPLENGTH, false);
+      for (uint32 t=0;t<CAPLENGTH;t++) {
+        capbuf(t)=complex<double>((((double)bladerf_rx_buf[(t<<1)])-0.0)/32768.0,(((double)bladerf_rx_buf[(t<<1)+1])-0.0)/32768.0);
+      }
       #endif
     }
   }

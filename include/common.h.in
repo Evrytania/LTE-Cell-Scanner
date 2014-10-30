@@ -5,6 +5,8 @@
 
 #define @HAVE_HACKRF@
 
+#define @HAVE_BLADERF@
+
 // This is filled in by cmake
 #define MAJOR_VERSION @CellSearch_MAJOR_VERSION@
 #define MINOR_VERSION @CellSearch_MINOR_VERSION@
@@ -51,7 +53,7 @@ typedef std::vector < std::vector < float > > vf2d;
 // names conflict with each other and also with ITPP declared enums.
 
 namespace dev_type_t {
-  enum dev_type_t { UNKNOWN = -4321, RTLSDR=9832, HACKRF=432134 };
+  enum dev_type_t { UNKNOWN = -4321, RTLSDR=9832, HACKRF=432134, BLADERF=94703 };
 }
 
 namespace cp_type_t {

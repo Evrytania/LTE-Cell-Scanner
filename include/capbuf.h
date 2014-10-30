@@ -24,14 +24,18 @@
 
 #ifdef HAVE_HACKRF
 #include "hackrf.h"
-
-//uint8 hackrf_rx_buf[CAPLENGTH*2]; // used for capture_data() and hackrf rx callback
-//int hackrf_rx_count; // used for capture_data() and hackrf rx callback
-
 #else
 typedef struct hackrf_device hackrf_device;
 #endif
 
+#ifdef HAVE_BLADERF
+#include <libbladeRF.h>
+typedef struct bladerf_devinfo bladerf_devinfo;
+typedef struct bladerf bladerf_device;
+#else
+typedef struct bladerf_devinfo bladerf_devinfo;
+typedef struct bladerf bladerf_device;
+#endif
 
 typedef struct {
   std::vector <unsigned char> * buf;
@@ -78,6 +82,7 @@ int capture_data(
   const std::string & str,
   rtlsdr_dev_t * & dev,
   hackrf_device * & hackrf_dev,
+  bladerf_device * & bladerf_dev,
   const dev_type_t::dev_type_t & dev_use,
   // Output
   itpp::cvec & capbuf,

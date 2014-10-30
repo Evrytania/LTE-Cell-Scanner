@@ -29,6 +29,10 @@
 #include "hackrf.h"
 #endif
 
+#ifdef HAVE_BLADERF
+#include <libbladeRF.h>
+#endif
+
 // 'Extensions' to itpp that probably should have been included in itpp.
 namespace itpp_ext {
 

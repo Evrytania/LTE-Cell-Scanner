@@ -75,6 +75,10 @@
 #include "hackrf.h"
 #endif
 
+#ifdef HAVE_BLADERF
+#include <libbladeRF.h>
+#endif // HAVE_BLADERF
+
 // This LTE cell search algorithm was designed under the following guidelines:
 //
 // 1) Low performance hardware

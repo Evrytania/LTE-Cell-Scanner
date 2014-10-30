@@ -30,6 +30,10 @@
 #include "hackrf.h"
 #endif
 
+#ifdef HAVE_BLADERF
+#include <libbladeRF.h>
+#endif
+
 using namespace itpp;
 using namespace std;
 

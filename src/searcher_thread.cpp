@@ -49,6 +49,10 @@
 #include "hackrf.h"
 #endif
 
+#ifdef HAVE_BLADERF
+#include <libbladeRF.h>
+#endif // HAVE_BLADERF
+
 using namespace itpp;
 using namespace std;
 

@@ -15,6 +15,10 @@ ELSE ( HACKRF_FOUND )
   ENDIF ( OPENCL_FOUND )
 ENDIF ( HACKRF_FOUND )
 
+IF ( LIBBLADERF_FOUND )
+  LIST(APPEND common_link_libs ${LIBBLADERF_LIBRARIES})
+ENDIF ( LIBBLADERF_FOUND )
+
 # Create the cell search executable
 ADD_EXECUTABLE (CellSearch CellSearch.cpp)
 TARGET_LINK_LIBRARIES (CellSearch general LTE_MISC)

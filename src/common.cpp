@@ -27,6 +27,10 @@
 #include "hackrf.h"
 #endif
 
+#ifdef HAVE_BLADERF
+#include <libbladeRF.h>
+#endif
+
 using namespace std;
 
 // Cell class member functions
