@@ -31,7 +31,18 @@
 #include <curses.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
+
+#ifdef HAVE_HACKRF
+#include "hackrf.h"
+#endif
+
 #include "rtl-sdr.h"
+
+#ifdef HAVE_BLADERF
+//#include <libbladeRF.h>
+extern void bladerf_close(bladerf_device *device);
+#endif // HAVE_BLADERF
+
 #include "common.h"
 #include "macros.h"
 #include "lte_lib.h"
@@ -793,7 +804,21 @@ void display_thread(
     switch (ch) {
       case 'q':
       case 'Q':
-        //endwin();
+        if (global_thread_data.dev_use() == dev_type_t::RTLSDR) {
+          rtlsdr_close( global_thread_data.rtlsdr_dev() );
+          global_thread_data.rtlsdr_dev(NULL);
+        } else if (global_thread_data.dev_use() == dev_type_t::HACKRF) {
+          #ifdef HAVE_HACKRF
+          hackrf_close( global_thread_data.hackrf_dev() );
+          global_thread_data.hackrf_dev(NULL);
+          hackrf_exit();
+          #endif
+        } else if (global_thread_data.dev_use() == dev_type_t::BLADERF) {
+          #ifdef HAVE_BLADERF
+          bladerf_close( global_thread_data.bladerf_dev() );
+          global_thread_data.bladerf_dev(NULL);
+          #endif
+        }
         ABORT(-1);
         break;
       case 'r':

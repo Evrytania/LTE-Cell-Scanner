@@ -1,6 +1,8 @@
 #ifndef HAVE_LTE_TRACKER_H
 #define HAVE_LTE_TRACKER_H
 
+#include "capbuf.h"
+
 //
 // Data structures used to communicate between threads.
 //
@@ -296,6 +298,36 @@ class global_thread_data_t {
       initial_frequency_offset_private=f;
     }
 
+    inline rtlsdr_dev_t* rtlsdr_dev() {
+      boost::mutex::scoped_lock lock(rtlsdr_dev_mutex);
+      rtlsdr_dev_t* r=rtlsdr_dev_private;
+      return r;
+    }
+    inline void rtlsdr_dev(rtlsdr_dev_t * f) {
+      boost::mutex::scoped_lock lock(rtlsdr_dev_mutex);
+      rtlsdr_dev_private=f;
+    }
+
+    inline hackrf_device* hackrf_dev() {
+      boost::mutex::scoped_lock lock(hackrf_dev_mutex);
+      hackrf_device* r=hackrf_dev_private;
+      return r;
+    }
+    inline void hackrf_dev(hackrf_device * f) {
+      boost::mutex::scoped_lock lock(hackrf_dev_mutex);
+      hackrf_dev_private=f;
+    }
+
+    inline bladerf_device* bladerf_dev() {
+      boost::mutex::scoped_lock lock(bladerf_dev_mutex);
+      bladerf_device* r=bladerf_dev_private;
+      return r;
+    }
+    inline void bladerf_dev(bladerf_device * f) {
+      boost::mutex::scoped_lock lock(bladerf_dev_mutex);
+      bladerf_dev_private=f;
+    }
+
     // Read/write searcher cycle time (via mutex).
     // Mutex makes sure that no read or write is interrupted when
     // only part of the data has been read.
@@ -371,6 +403,15 @@ class global_thread_data_t {
 
     boost::mutex raw_seconds_dropped_mutex;
     uint32 raw_seconds_dropped_private;
+
+    boost::mutex rtlsdr_dev_mutex;
+    rtlsdr_dev_t* rtlsdr_dev_private;
+
+    boost::mutex hackrf_dev_mutex;
+    hackrf_device* hackrf_dev_private;
+
+    boost::mutex bladerf_dev_mutex;
+    bladerf_device* bladerf_dev_private;
 };
 
 // IPC between main thread and searcher thread covering data capture issues.

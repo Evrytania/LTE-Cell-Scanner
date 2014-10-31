@@ -929,12 +929,12 @@ int config_bladerf(
     signal(SIGABRT, &sigint_callback_handler);
   #endif
 
-//// test read samples from dev
-//  cvec capbuf(CAPLENGTH);
-//  double fc_programmed;
-//  rtlsdr_dev *fake_rtlsdr_dev = NULL;
-//  hackrf_device *fake_hackrf_dev = NULL;
-//  capture_data(fc, 1, false, " ", false, " ", " ",fake_rtlsdr_dev,fake_hackrf_dev,dev,dev_type_t::BLADERF, capbuf, fc_programmed, fs_programmed,0);
+// test read samples from dev
+  cvec capbuf(CAPLENGTH);
+  double fc_programmed;
+  rtlsdr_dev *fake_rtlsdr_dev = NULL;
+  hackrf_device *fake_hackrf_dev = NULL;
+  capture_data(fc, 1, false, " ", false, " ", " ",fake_rtlsdr_dev,fake_hackrf_dev,dev,dev_type_t::BLADERF, capbuf, fc_programmed, fs_programmed,0);
 
   printf("config_bladerf: set bladeRF to %fMHz %usps BW %fMHz GAIN %ddB BLADERF_LB_NONE.\n", (float)actual_frequency/1000000.0f, actual_sample_rate, (float)actual_bw/1000000.0f, gain);
   return(status);
@@ -1491,9 +1491,9 @@ int main(
   // program CellSearch with only one center frequency. All information
   // is discarded except for the frequency offset.
   double fc_programmed, correction_new;
-  double initial_k_factor = 1;
-  cout << fc_requested << " " << fs_programmed << " " << ppm << " " << correction << " " << correction_new << " " << use_recorded_data << " " << filename << " " << rtl_sdr_format << " "  << noise_power << " "  << drop_secs << " " <<  repeat << "\n";
-  cout << dev << " " << hackrf_dev << " " << bladerf_dev << " " <<  dev_use << " " <<  fc_programmed << " " <<  initial_sampling_carrier_twist << " " <<  initial_k_factor << " " <<  record_bin_filename << " " <<  load_bin_filename << " " <<  opencl_platform << " " <<  opencl_device << " " <<  filter_workitem << " " <<  xcorr_workitem << " " <<  num_reserve << "\n";
+  double initial_k_factor = 1.0;
+//  cout << fc_requested << " " << fs_programmed << " " << ppm << " " << correction << " " << correction_new << " " << use_recorded_data << " " << filename << " " << rtl_sdr_format << " "  << noise_power << " "  << drop_secs << " " <<  repeat << "\n";
+//  cout << dev << " " << hackrf_dev << " " << bladerf_dev << " " <<  dev_use << " " <<  fc_programmed << " " <<  initial_sampling_carrier_twist << " " <<  initial_k_factor << " " <<  record_bin_filename << " " <<  load_bin_filename << " " <<  opencl_platform << " " <<  opencl_device << " " <<  filter_workitem << " " <<  xcorr_workitem << " " <<  num_reserve << "\n";
   double initial_freq_offset=kalibrate(fc_requested,fs_programmed,ppm,correction,correction_new,use_recorded_data,filename,rtl_sdr_format,noise_power,drop_secs,repeat,dev,hackrf_dev,bladerf_dev,dev_use,fc_programmed,initial_sampling_carrier_twist,initial_k_factor,record_bin_filename,load_bin_filename,opencl_platform,opencl_device,filter_workitem,xcorr_workitem,num_reserve);
 //  // ---------------- stop and close hackrf
 //  Real_Timer tt;
@@ -1545,6 +1545,10 @@ int main(
   global_thread_data.xcorr_workitem(filter_workitem/4);
   global_thread_data.opencl_platform(opencl_platform);
   global_thread_data.opencl_device(opencl_device);
+
+  global_thread_data.rtlsdr_dev(dev);
+  global_thread_data.hackrf_dev(hackrf_dev);
+  global_thread_data.bladerf_dev(bladerf_dev);
 
   // Start the cell searcher thread.
   // Now that the oscillator has been calibrated, we can perform
