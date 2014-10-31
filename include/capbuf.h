@@ -25,7 +25,7 @@
 #ifdef HAVE_HACKRF
 #include "hackrf.h"
 #else
-typedef struct hackrf_device hackrf_device;
+typedef struct hackrf_device{} hackrf_device;
 #endif
 
 #ifdef HAVE_BLADERF
@@ -33,8 +33,8 @@ typedef struct hackrf_device hackrf_device;
 typedef struct bladerf_devinfo bladerf_devinfo;
 typedef struct bladerf bladerf_device;
 #else
-typedef struct bladerf_devinfo bladerf_devinfo;
-typedef struct bladerf bladerf_device;
+typedef struct bladerf_devinfo{} bladerf_devinfo;
+typedef struct bladerf{} bladerf_device;
 #endif
 
 typedef struct {

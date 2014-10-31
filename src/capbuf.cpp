@@ -76,7 +76,7 @@ int16 bladerf_rx_buf[CAPLENGTH*2];  // used for capture_data()
 volatile bool do_exit = false;
 int open_bladerf_board(bladerf_device * & bladerf_dev, unsigned int freq_hz, unsigned int buffer_size) {
   int status;
-
+//  cout << "bladerf_dev " << bladerf_dev << "\n";
   status = bladerf_set_frequency(bladerf_dev, BLADERF_MODULE_RX, freq_hz);
   if (status != 0) {
     printf("open_bladerf_board bladerf_set_frequency: Failed to set frequency: %s\n",
@@ -626,7 +626,6 @@ int capture_data(
       #ifdef HAVE_BLADERF
       int status = 0;
       fc_programmed = fc_requested;
-
       // open the board-----------------------------------------
       if (open_bladerf_board(bladerf_dev, fc_requested, CAPLENGTH) == -1) {
         printf("capture_data: open_bladerf_board() failed\n");
@@ -656,7 +655,7 @@ int capture_data(
       // Convert to complex
       capbuf.set_size(CAPLENGTH, false);
       for (uint32 t=0;t<CAPLENGTH;t++) {
-        capbuf(t)=complex<double>((((double)bladerf_rx_buf[(t<<1)])-0.0)/32768.0,(((double)bladerf_rx_buf[(t<<1)+1])-0.0)/32768.0);
+        capbuf(t)=complex<double>((((double)bladerf_rx_buf[(t<<1)])-0.0)/2048.0,(((double)bladerf_rx_buf[(t<<1)+1])-0.0)/2048.0);
       }
       #endif
     }

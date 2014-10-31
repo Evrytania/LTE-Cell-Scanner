@@ -909,7 +909,7 @@ int main(
     #ifdef HAVE_BLADERF
       if ( config_bladerf(sampling_carrier_twist,correction,device_index,freq_start,bladerf_dev,fs_programmed,gain) == 0 ) {
         bladerf_exist = 1;
-        cout << "HACKRF device FOUND!\n";
+        cout << "BLADERF device FOUND!\n";
       }
     #endif
 

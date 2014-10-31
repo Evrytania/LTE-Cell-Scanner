@@ -125,8 +125,8 @@
 using namespace itpp;
 using namespace std;
 
-#define DBG(CODE) CODE
-//#define DBG(CODE)
+//#define DBG(CODE) CODE
+#define DBG(CODE)
 
 //#define FILTER_MCHN_SIMPLE_KERNEL // just for debug purpose. It should be removed before formal release
 

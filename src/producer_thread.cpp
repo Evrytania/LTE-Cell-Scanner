@@ -105,7 +105,7 @@ void producer_thread(
     const double frequency_offset=global_thread_data.frequency_offset();
     double k_factor = 1.0;// !!!THIS need to be handled correctly in the future when carrier-sampling isn't twisted. TIMING info should be updated according to phase rotation of FD response of main path
 
-    if ( global_thread_data.dev_use()==dev_type_t::RTLSDR ) {// !!!THIS need to be handled correctly in the future when carrier-sampling isn't twisted. TIMING info should be updated according to phase rotation of FD response of main path
+    if ( global_thread_data.dev_use()!=dev_type_t::RTLSDR ) {// !!!THIS need to be handled correctly in the future when carrier-sampling isn't twisted. TIMING info should be updated according to phase rotation of FD response of main path
       if (global_thread_data.sampling_carrier_twist()){
         k_factor=(global_thread_data.fc_programmed-frequency_offset)/global_thread_data.fc_programmed;
       } else {

@@ -222,7 +222,7 @@ void parse_commandline(
   opencl_device = 0;
   filter_workitem = 32;
   xcorr_workitem = 2;
-  num_reserve = 1;
+  num_reserve = 2;
   gain = -9999;
 
   while (1) {
@@ -262,7 +262,7 @@ void parse_commandline(
     };
     /* getopt_long stores the option index here. */
     int option_index = 0;
-    int c = getopt_long (argc, argv, "hvbf:m:tp:c:i:a:j:w:u:xz:y:l:rd:sn:1:2:3:4:5:6:7:8:9:",
+    int c = getopt_long (argc, argv, "hvbf:m:tp:c:i:a:g:j:w:u:xz:y:l:rd:sn:1:2:3:4:5:6:7:8:9:",
                      long_options, &option_index);
 
     /* Detect the end of the options. */
@@ -836,7 +836,7 @@ int config_bladerf(
   const double & correction,
   const int32 & device_index_cmdline,
   const double & fc,
-  bladerf_device *dev,
+  bladerf_device * & dev,
   double & fs_programmed,
   const int16 & gain
 ) {
@@ -929,12 +929,12 @@ int config_bladerf(
     signal(SIGABRT, &sigint_callback_handler);
   #endif
 
-// test read samples from dev
-  cvec capbuf(CAPLENGTH);
-  double fc_programmed;
-  rtlsdr_dev *fake_rtlsdr_dev = NULL;
-  hackrf_device *fake_hackrf_dev = NULL;
-  capture_data(fc, 1, false, " ", false, " ", " ",fake_rtlsdr_dev,fake_hackrf_dev,dev,dev_type_t::BLADERF, capbuf, fc_programmed, fs_programmed,0);
+//// test read samples from dev
+//  cvec capbuf(CAPLENGTH);
+//  double fc_programmed;
+//  rtlsdr_dev *fake_rtlsdr_dev = NULL;
+//  hackrf_device *fake_hackrf_dev = NULL;
+//  capture_data(fc, 1, false, " ", false, " ", " ",fake_rtlsdr_dev,fake_hackrf_dev,dev,dev_type_t::BLADERF, capbuf, fc_programmed, fs_programmed,0);
 
   printf("config_bladerf: set bladeRF to %fMHz %usps BW %fMHz GAIN %ddB BLADERF_LB_NONE.\n", (float)actual_frequency/1000000.0f, actual_sample_rate, (float)actual_bw/1000000.0f, gain);
   return(status);
@@ -1451,7 +1451,7 @@ int main(
     #ifdef HAVE_BLADERF
       if ( config_bladerf(initial_sampling_carrier_twist,correction,device_index,fc_requested,bladerf_dev,fs_programmed,gain) == 0 ) {
         bladerf_exist = 1;
-        cout << "HACKRF device FOUND!\n";
+        cout << "BLADERF device FOUND!\n";
       }
     #endif
 
@@ -1492,8 +1492,9 @@ int main(
   // is discarded except for the frequency offset.
   double fc_programmed, correction_new;
   double initial_k_factor = 1;
+  cout << fc_requested << " " << fs_programmed << " " << ppm << " " << correction << " " << correction_new << " " << use_recorded_data << " " << filename << " " << rtl_sdr_format << " "  << noise_power << " "  << drop_secs << " " <<  repeat << "\n";
+  cout << dev << " " << hackrf_dev << " " << bladerf_dev << " " <<  dev_use << " " <<  fc_programmed << " " <<  initial_sampling_carrier_twist << " " <<  initial_k_factor << " " <<  record_bin_filename << " " <<  load_bin_filename << " " <<  opencl_platform << " " <<  opencl_device << " " <<  filter_workitem << " " <<  xcorr_workitem << " " <<  num_reserve << "\n";
   double initial_freq_offset=kalibrate(fc_requested,fs_programmed,ppm,correction,correction_new,use_recorded_data,filename,rtl_sdr_format,noise_power,drop_secs,repeat,dev,hackrf_dev,bladerf_dev,dev_use,fc_programmed,initial_sampling_carrier_twist,initial_k_factor,record_bin_filename,load_bin_filename,opencl_platform,opencl_device,filter_workitem,xcorr_workitem,num_reserve);
-
 //  // ---------------- stop and close hackrf
 //  Real_Timer tt;
 //  tt.tic();
