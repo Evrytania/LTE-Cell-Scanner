@@ -2,6 +2,7 @@ An OpenCL accelerated TDD/FDD LTE Scanner (from rtlsdr/hackRF/bladeRF A/D sample
 
 ------------------------------
 New features, make and Usages
+------------------------------
 
 **0x00. basic method to build program**
             
@@ -24,7 +25,7 @@ CellSearch and LTE-Tracker program will be generated in build/src. Use "--help" 
 
 to disable OpenCL (OpenCL is on by default). See some notes on OpenCL support in later chapters.
 
-**0x03. Change gian by hand. **
+**0x03. Change gian by hand.**
 
 Use "-g X" to set gain value X to hardware. If "-g" is not used, default values are used:
 
@@ -34,7 +35,7 @@ Use "-g X" to set gain value X to hardware. If "-g" is not used, default values 
 
 gain is important to get good rx performance. If CellSearch reports like "input level: avg abs(real) 0.00594959 avg abs(imag) 0.00614887", where the numbers are far below 1, larger gain value should be considered.
 
-**0x04. "-t" forces into original carrier-sampling-clock twisted mode. **
+**0x04. "-t" forces into original carrier-sampling-clock twisted mode.**
 
 Without "-t" leads to non-twisted mode (default mode)
 
@@ -84,6 +85,7 @@ Optimal number of workitems is platform-device dependent. Optimal values should 
 
 --------------------
 News:
+--------------------
 
 2014-10: support bladeRF now.
 
@@ -96,6 +98,7 @@ News:
 
 -----------------------------
 Bakcups
+------------------------------
 
 Before explore this LTE Scanner, it's better for you to do some homeworks:
 
