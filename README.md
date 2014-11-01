@@ -1,8 +1,9 @@
 An OpenCL accelerated TDD/FDD LTE Scanner (from rtlsdr/hackRF/bladeRF A/D samples to PDSCH output and RRC SIB messages decoded). By Jiao Xianjun (putaoshu@gmail.com). Tech blog: http://sdr-x.github.io
 
----------------New features, make and Usages--------------------------
+------------------------------
+New features, make and Usages
 
-0x00. basic method to build program
+**0x00. basic method to build program**
             
             mkdir build
             cd build
@@ -11,56 +12,62 @@ An OpenCL accelerated TDD/FDD LTE Scanner (from rtlsdr/hackRF/bladeRF A/D sample
             
 CellSearch and LTE-Tracker program will be generated in build/src. Use "--help" when invoke program to see all options
 
-0x01. cmake to build for different hadware
+**0x01. cmake to build for different hadware**
       
-                  cmake ../ -DUSE_BLADERF=1   -- build for bladeRF
-                  cmake ../ -DUSE_HACKRF=1    -- build for hackRF
-                  cmake ../                   -- default for rtlsdr
+            cmake ../ -DUSE_BLADERF=1   -- build for bladeRF
+            cmake ../ -DUSE_HACKRF=1    -- build for hackRF
+            cmake ../                   -- default for rtlsdr
 
-0x02. Disable OpenCL acceleration support. Use
+**0x02. Disable OpenCL acceleration support. Use**
 
             cmake .. -DUSE_OPENCL=0
 
 to disable OpenCL (OpenCL is on by default). See some notes on OpenCL support in later chapters.
 
-0x03. Change gian by hand. Use "-g X" to set gain value X to hardware. If "-g" is not used, default values are used:
+**0x03. Change gian by hand. **
 
-                  rtlsdr default  0 (AGC)
-                  hackRF default  40dB (VGA gain, can be adjusted by "-g"), LAN gain is fixed at 40dB
-                  bladeRF default 60dB + maximum LNA gain. "-g" can set total gain which will be distributed to LNA VGA1 VGA2 automatically
+Use "-g X" to set gain value X to hardware. If "-g" is not used, default values are used:
+
+            rtlsdr default  0 (AGC)
+            hackRF default  40dB (VGA gain, can be adjusted by "-g"), LAN gain is fixed at 40dB
+            bladeRF default 60dB + maximum LNA gain. "-g" can set total gain which will be distributed to LNA VGA1 VGA2 automatically
 
 gain is important to get good rx performance. If CellSearch reports like "input level: avg abs(real) 0.00594959 avg abs(imag) 0.00614887", where the numbers are far below 1, larger gain value should be considered.
 
-0x04. "-t" forces into original carrier-sampling-clock twisted mode. Without "-t" leads to non-twisted mode (default mode)
+**0x04. "-t" forces into original carrier-sampling-clock twisted mode. **
 
-0x05. Capture to and reload from raw bin file
+Without "-t" leads to non-twisted mode (default mode)
 
-      "CellSearch --freq-start 1860e6 --recbin a.bin" saves signal in a.bin while doing cell search at frequency 1.86GHz
-      "CellSearch --loadbin test/f1890_s1.92_g0_0.16s.bin" searches LTE cell in test/f1890_s1.92_g0_0.16s.bin
+**0x05. Capture to and reload from raw bin file**
 
-0x06. "--num-try x" performs x tries of searching at each frequency. When signal is weak, only one try may not have you good luck.
+            "CellSearch --freq-start 1860e6 --recbin a.bin" saves signal in a.bin while doing cell search at frequency 1.86GHz
+            "CellSearch --loadbin test/f1890_s1.92_g0_0.16s.bin" searches LTE cell in test/f1890_s1.92_g0_0.16s.bin
 
-ATTENTION!!! Please use release version instead of dev trunk if you want a 100% workable program.
+**0x06. "--num-try x" performs x tries of searching at each frequency.**
+
+When signal is weak, only one try may not have you good luck.
+
+**ATTENTION!!! Please use release version instead of dev trunk if you want a 100% workable program.**
 
 ----------------------------------------------------------------------
 Notes
-----------------------------------------------------------------------
-0x01. About carrier-sampling-clock twisted and non-twisted mode.
+
+**0x01. About carrier-sampling-clock twisted and non-twisted mode.**
 
 Default mode supports external LNB and fast pre-search.
 See detailed explanation in https://github.com/JiaoXianjun/rtl-sdr-LTE , and videos: (inside China): http://v.youku.com/v_show/id_XNjc1MjIzMDEy.html ,
  (outside China): http://www.youtube.com/watch?v=4zRLgxzn4Pc )
 
-0x02. About OpenCL.
+**0x02. About OpenCL.**
 
-2.1 Make sure OpenCL SDK (Intel, AMD, Nvidia) has been installed in your system correctly, if you want LTE Scanner accelerated by OpenCL.
+**2.1** Make sure OpenCL SDK (Intel, AMD, Nvidia) has been installed in your system correctly, if you want LTE Scanner accelerated by OpenCL.
 
-2.2 IMPORTANT! Before run, those kernel files (src/*.cl) should be put IN THE SAME DIRECTORY AS executable program or in $PATH.
+**2.2 IMPORTANT!** Before run, those kernel files (src/*.cl) should be put IN THE SAME DIRECTORY AS executable program or in $PATH.
 Because they need to be compiled and executed by OpenCL runtime after program launch.
 
-2.3 Test an OpenCL example:
+**2.3 Test an OpenCL example:**
 
-      CellSearch --loadbin test/f1890_s1.92_g0_0.16s.bin --opencl-platform=0 --opencl-device=0 --filter-workitem=32 --xcorr-workitem=2
+            CellSearch --loadbin test/f1890_s1.92_g0_0.16s.bin --opencl-platform=0 --opencl-device=0 --filter-workitem=32 --xcorr-workitem=2
 
 OpenCL platform and device are specified by "--opencl-platform=idx1 --opencl-device=idx2" to decide which CPU/GPU is used.
 When program runs, it tells you how many platforms are detected in total. Default index is 0.
@@ -73,9 +80,10 @@ Default value is 2. Number of workitems of PSS correlation'2nd-NDrange-dimension
 
 Optimal number of workitems is platform-device dependent. Optimal values should be found according to your computer configuration.
 
-2.4 ATTENTION!!! If you got -4(CL_MEM_OBJECT_ALLOCATION_FAILURE) or -5(CL_OUT_OF_RESOURCES) error in some OpenCL platform-device, try smaller PPM value to narrow frequency offset range. Because less range less OpenCL work-items needed.
+**2.4 ATTENTION!!!** If you got -4(CL_MEM_OBJECT_ALLOCATION_FAILURE) or -5(CL_OUT_OF_RESOURCES) error in some OpenCL platform-device, try smaller PPM value to narrow frequency offset range. Because less range less OpenCL work-items needed.
 
--------------------------------News:----------------------------------
+--------------------
+News:
 
 2014-10: support bladeRF now.
 
@@ -86,7 +94,8 @@ Optimal number of workitems is platform-device dependent. Optimal values should 
 2014-05: 20MHz LTE PDCCH DCI format1A for SI-RNTI has been detected successfully from HACKRF captured signal, and corresponding SIB PDSCH constellation is shown. Run: Matlab/LTE_DL_receiver.m
  (http://youtu.be/2JH_EGdHyYE  http://v.youku.com/v_show/id_XNzE3NDYwMDgw.html)
 
------------------------------bakcup-----------------------------------
+-----------------------------
+Bakcups
 
 Before explore this LTE Scanner, it's better for you to do some homeworks:
 
