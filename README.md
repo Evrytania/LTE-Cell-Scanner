@@ -1,8 +1,10 @@
-An OpenCL accelerated TDD/FDD LTE Scanner (from A/D samples to PDSCH output. LTE RRC ASN1 messages decoded). By Jiao Xianjun (putaoshu@gmail.com).
+An OpenCL accelerated TDD/FDD LTE Scanner (from rtlsdr/hackRF/bladeRF A/D samples to PDSCH output and RRC SIB messages decoded). By Jiao Xianjun (putaoshu@gmail.com).
 
 Tech blog: http://sdr-x.github.io
 
 -------------------------------News:----------------------------------
+
+2014-10: support bladeRF now.
 
 2014-07: Now Matlab can parse SIB automatically by calling asn1c. See doc in asn1_test and http://sdr-x.github.io/LTE-SIB-decoding-by-asn1c/ . (Don't forget compling the progname in your own computer!)
 
