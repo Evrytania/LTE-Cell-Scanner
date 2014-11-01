@@ -52,6 +52,7 @@ When signal is weak, only one try may not have you good luck.
 
 ----------------------------------------------------------------------
 Notes
+----------------------------------------------------------------------
 
 **0x01. About carrier-sampling-clock twisted and non-twisted mode.**
 
@@ -127,10 +128,9 @@ Introduction video before: (inside China) http://pan.baidu.com/s/1o6qbLGY ,
 Introduction video before: (inside China) http://v.youku.com/v_show/id_XNjc1MjIzMDEy.html ,
 (outside China) http://www.youtube.com/watch?v=4zRLgxzn4Pc
 
+--------------------------------------------------------------------------
 Original Readme of James Peroulas's LTE Cell Scanner / Tracker
-========================================================================
-
---------------------------
+--------------------------------------------------------------------------
 LTE Cell Scanner / Tracker
 --------------------------
 
