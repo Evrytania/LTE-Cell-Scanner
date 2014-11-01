@@ -3,10 +3,10 @@ An OpenCL accelerated TDD/FDD LTE Scanner (from rtlsdr/hackRF/bladeRF A/D sample
 New features, make and Usages
 ----------------------------------------------------------------------
 
-  mkdir build
-  cd build
-  cmake ../
-  make
+      mkdir build
+      cd build
+      cmake ../
+      make
 
 program will be generated in build/src.
 
