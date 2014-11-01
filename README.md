@@ -2,7 +2,7 @@ An OpenCL accelerated TDD/FDD LTE Scanner (from rtlsdr/hackRF/bladeRF A/D sample
 
 ---------------New features, make and Usages--------------------------
 
-0. basic method to build program
+-0-. basic method to build program
             
             mkdir build
             cd build
