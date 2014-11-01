@@ -3,12 +3,12 @@ An OpenCL accelerated TDD/FDD LTE Scanner (from rtlsdr/hackRF/bladeRF A/D sample
 ---------------New features, make and Usages--------------------------
 
 0. basic method to build program
-      
-      mkdir build
-      cd build
-      cmake ../
-      make
-      
+            
+            mkdir build
+            cd build
+            cmake ../
+            make
+            
 CellSearch and LTE-Tracker program will be generated in build/src. Use "--help" when invoke program to see all options
 
 1. cmake to build for different hadware
