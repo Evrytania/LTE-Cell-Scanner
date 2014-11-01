@@ -1,6 +1,14 @@
-An OpenCL accelerated TDD/FDD LTE Scanner (from rtlsdr/hackRF/bladeRF A/D samples to PDSCH output and RRC SIB messages decoded). By Jiao Xianjun (putaoshu@gmail.com).
+An OpenCL accelerated TDD/FDD LTE Scanner (from rtlsdr/hackRF/bladeRF A/D samples to PDSCH output and RRC SIB messages decoded). By Jiao Xianjun (putaoshu@gmail.com). Tech blog: http://sdr-x.github.io
+----------------------------------------------------------------------
+New features, make and Usages
+----------------------------------------------------------------------
 
-Tech blog: http://sdr-x.github.io
+  mkdir build
+  cd build
+  cmake ../
+  make
+
+program will be generated in build/src.
 
 -------------------------------News:----------------------------------
 
@@ -23,6 +31,8 @@ Before explore this LTE Scanner, it's better for you to do some homeworks:
 
 3. hackrf board: http://greatscottgadgets.com/hackrf/ , https://github.com/mossmann/hackrf
 
+4. bladeRF board: 
+
 COMPATIBLE rtl-sdr and hackrf version:
 librtlsdr (https://github.com/steve-m/librtlsdr) release v0.5.2 (Not v0.5.3 at least for my computer)
 libhackrf (https://github.com/mossmann/hackrf  ) revision around 2014 April 1st.
@@ -30,8 +40,6 @@ libhackrf (https://github.com/mossmann/hackrf  ) revision around 2014 April 1st.
 ATTENTION!!! Please use release version instead of dev trunk if you want a 100% workable program.
 
 ATTENTION!!! If you got -4(CL_MEM_OBJECT_ALLOCATION_FAILURE) or -5(CL_OUT_OF_RESOURCES) error in some OpenCL platform-device, try smaller PPM value to narrow frequency offset range (only valid in original twist mode: -t).
-
-MATLAB algorithm study and experiments are in : https://github.com/JiaoXianjun/rtl-sdr-LTE . Moved to Matlab dir this repo now.
 
 See TODO if you want to contribute. Any questions or interests, feel free to contact me. putaoshu@gmail.com
 
