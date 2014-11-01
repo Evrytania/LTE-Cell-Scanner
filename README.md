@@ -2,7 +2,7 @@ An OpenCL accelerated TDD/FDD LTE Scanner (from rtlsdr/hackRF/bladeRF A/D sample
 
 ---------------New features, make and Usages--------------------------
 
--0-. basic method to build program
+0x00. basic method to build program
             
             mkdir build
             cd build
@@ -11,47 +11,47 @@ An OpenCL accelerated TDD/FDD LTE Scanner (from rtlsdr/hackRF/bladeRF A/D sample
             
 CellSearch and LTE-Tracker program will be generated in build/src. Use "--help" when invoke program to see all options
 
-1. cmake to build for different hadware
+0x01. cmake to build for different hadware
       
-      cmake ../ -DUSE_BLADERF=1   -- build for bladeRF
-      cmake ../ -DUSE_HACKRF=1    -- build for hackRF
-      cmake ../                   -- default for rtlsdr
+                  cmake ../ -DUSE_BLADERF=1   -- build for bladeRF
+                  cmake ../ -DUSE_HACKRF=1    -- build for hackRF
+                  cmake ../                   -- default for rtlsdr
 
-2. Disable OpenCL acceleration support. Use
+0x02. Disable OpenCL acceleration support. Use
 
-      cmake .. -DUSE_OPENCL=0
+            cmake .. -DUSE_OPENCL=0
 
 to disable OpenCL (OpenCL is on by default). See some notes on OpenCL support in later chapters.
 
-3. Change gian by hand. Use "-g X" to set gain value X to hardware. If "-g" is not used, default values are used:
+0x03. Change gian by hand. Use "-g X" to set gain value X to hardware. If "-g" is not used, default values are used:
 
-      rtlsdr default  0 (AGC)
-      hackRF default  40dB (VGA gain, can be adjusted by "-g"), LAN gain is fixed at 40dB
-      bladeRF default 60dB + maximum LNA gain. "-g" can set total gain which will be distributed to LNA VGA1 VGA2 automatically
+                  rtlsdr default  0 (AGC)
+                  hackRF default  40dB (VGA gain, can be adjusted by "-g"), LAN gain is fixed at 40dB
+                  bladeRF default 60dB + maximum LNA gain. "-g" can set total gain which will be distributed to LNA VGA1 VGA2 automatically
 
 gain is important to get good rx performance. If CellSearch reports like "input level: avg abs(real) 0.00594959 avg abs(imag) 0.00614887", where the numbers are far below 1, larger gain value should be considered.
 
-4. "-t" forces into original carrier-sampling-clock twisted mode. Without "-t" leads to non-twisted mode (default mode)
+0x04. "-t" forces into original carrier-sampling-clock twisted mode. Without "-t" leads to non-twisted mode (default mode)
 
-5. Capture to and reload from raw bin file
+0x05. Capture to and reload from raw bin file
 
       "CellSearch --freq-start 1860e6 --recbin a.bin" saves signal in a.bin while doing cell search at frequency 1.86GHz
       "CellSearch --loadbin test/f1890_s1.92_g0_0.16s.bin" searches LTE cell in test/f1890_s1.92_g0_0.16s.bin
 
-6. "--num-try x" performs x tries of searching at each frequency. When signal is weak, only one try may not have you good luck.
+0x06. "--num-try x" performs x tries of searching at each frequency. When signal is weak, only one try may not have you good luck.
 
 ATTENTION!!! Please use release version instead of dev trunk if you want a 100% workable program.
 
 ----------------------------------------------------------------------
 Notes
 ----------------------------------------------------------------------
-1. About carrier-sampling-clock twisted and non-twisted mode.
+0x01. About carrier-sampling-clock twisted and non-twisted mode.
 
 Default mode supports external LNB and fast pre-search.
 See detailed explanation in https://github.com/JiaoXianjun/rtl-sdr-LTE , and videos: (inside China): http://v.youku.com/v_show/id_XNjc1MjIzMDEy.html ,
  (outside China): http://www.youtube.com/watch?v=4zRLgxzn4Pc )
 
-2. About OpenCL.
+0x02. About OpenCL.
 
 2.1 Make sure OpenCL SDK (Intel, AMD, Nvidia) has been installed in your system correctly, if you want LTE Scanner accelerated by OpenCL.
 
