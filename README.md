@@ -62,12 +62,12 @@ See detailed explanation in https://github.com/JiaoXianjun/rtl-sdr-LTE , and vid
 
 **0x02. About OpenCL.**
 
-**2.1** Make sure OpenCL SDK (Intel, AMD, Nvidia) has been installed in your system correctly, if you want LTE Scanner accelerated by OpenCL.
+**0x02.1** Make sure OpenCL SDK (Intel, AMD, Nvidia) has been installed in your system correctly, if you want LTE Scanner accelerated by OpenCL.
 
-**2.2 IMPORTANT!** Before run, those kernel files (src/*.cl) should be put IN THE SAME DIRECTORY AS executable program or in $PATH.
+**0x02.2 IMPORTANT!** Before run, those kernel files (src/*.cl) should be put IN THE SAME DIRECTORY AS executable program or in $PATH.
 Because they need to be compiled and executed by OpenCL runtime after program launch.
 
-**2.3 Test an OpenCL example:**
+**0x02.3 Test an OpenCL example:**
 
             CellSearch --loadbin test/f1890_s1.92_g0_0.16s.bin --opencl-platform=0 --opencl-device=0 --filter-workitem=32 --xcorr-workitem=2
 
@@ -82,7 +82,7 @@ Default value is 2. Number of workitems of PSS correlation'2nd-NDrange-dimension
 
 Optimal number of workitems is platform-device dependent. Optimal values should be found according to your computer configuration.
 
-**2.4 ATTENTION!!!** If you got -4(CL_MEM_OBJECT_ALLOCATION_FAILURE) or -5(CL_OUT_OF_RESOURCES) error in some OpenCL platform-device, try smaller PPM value to narrow frequency offset range. Because less range less OpenCL work-items needed.
+**0x02.4 ATTENTION!!!** If you got -4(CL_MEM_OBJECT_ALLOCATION_FAILURE) or -5(CL_OUT_OF_RESOURCES) error in some OpenCL platform-device, try smaller PPM value to narrow frequency offset range. Because less range less OpenCL work-items needed.
 
 --------------------
 News:
@@ -101,7 +101,7 @@ News:
 Bakcups
 ------------------------------
 
-Before explore this LTE Scanner, it's better for you to do some homeworks:
+Before explore this LTE Scanner, it's better for you to do some homeworks: (my blog: http://sdr-x.github.io/ if you have time)
 
 1. Original FDD only LTE Cell Scanner / Tracker: https://github.com/Evrytania/LTE-Cell-Scanner , by James Peroulas.
 
