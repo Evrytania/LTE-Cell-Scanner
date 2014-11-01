@@ -21,12 +21,15 @@
 #include <queue>
 #include <curses.h>
 #include <boost/math/special_functions/gamma.hpp>
-#include "rtl-sdr.h"
 #include "common.h"
 #include "capbuf.h"
 #include "macros.h"
 #include "itpp_ext.h"
 #include "dsp.h"
+
+#ifdef HAVE_RTLSDR
+#include "rtl-sdr.h"
+#endif // HAVE_RTLSDR
 
 #ifdef HAVE_HACKRF
 #include "hackrf.h"
@@ -114,6 +117,7 @@ int close_bladerf_board(bladerf_device * & bladerf_dev) {
 }
 #endif
 
+#ifdef HAVE_RTLSDR
 static void capbuf_rtlsdr_callback(
   unsigned char * buf,
   uint32_t len,
@@ -125,7 +129,7 @@ static void capbuf_rtlsdr_callback(
   callback_package_t & cp=*cp_p;
   vector <unsigned char> * capbuf_raw_p=cp.buf;
   vector <unsigned char> & capbuf_raw=*capbuf_raw_p;
-  rtlsdr_dev_t * dev=cp.dev;
+  rtlsdr_device * dev=cp.dev;
 
   if (len==0) {
     cerr << "Error: received no samples from USB device..." << endl;
@@ -154,7 +158,7 @@ double calculate_fc_programmed_in_context(
   const double & fc_requested,
   const bool & use_recorded_data,
   const char * load_bin_filename,
-  rtlsdr_dev_t * & dev
+  rtlsdr_device * & dev
 ) {
   double fc_programmed;
   bool load_bin_flag = (strlen(load_bin_filename)>4);
@@ -189,6 +193,7 @@ double calculate_fc_programmed_in_context(
   }
   return(fc_programmed);
 }
+#endif // HAVE_RTLSDR
 
 int write_header_to_bin(
   // input
@@ -341,7 +346,7 @@ int capture_data(
   const bool & use_recorded_data,
   const char * load_bin_filename,
   const string & data_dir,
-  rtlsdr_dev_t * & dev,
+  rtlsdr_device * & rtlsdr_dev,
   hackrf_device * & hackrf_dev,
   bladerf_device * & bladerf_dev,
   const dev_type_t::dev_type_t & dev_use,
@@ -395,7 +400,7 @@ int capture_data(
     itf.close();
 
 //    fc_programmed=fc_requested; // be careful about this!
-//    fc_programmed = calculate_fc_programmed_in_context(fc_requested, use_recorded_data, load_bin_filename, dev);
+//    fc_programmed = calculate_fc_programmed_in_context(fc_requested, use_recorded_data, load_bin_filename, rtlsdr_dev);
     fc_programmed = fc_p(0);
     fs_programmed = fs_p(0);
 
@@ -495,7 +500,7 @@ int capture_data(
     delete[] capbuf_raw;
 
 //    fc_programmed=fc_requested; // be careful about this!
-//    fc_programmed = calculate_fc_programmed_in_context(fc_requested, use_recorded_data, load_bin_filename, dev);
+//    fc_programmed = calculate_fc_programmed_in_context(fc_requested, use_recorded_data, load_bin_filename, rtlsdr_dev);
     fc_programmed = fc_programmed_tmp;
     fs_programmed = fs_programmed_tmp;
   } else {
@@ -504,13 +509,14 @@ int capture_data(
     }
 
     if (dev_use == dev_type_t::RTLSDR) {
+      #ifdef HAVE_RTLSDR
       // Calculate the actual center frequency that was programmed.
-      fc_programmed = calculate_fc_programmed_in_context(fc_requested, use_recorded_data, load_bin_filename, dev);
+      fc_programmed = calculate_fc_programmed_in_context(fc_requested, use_recorded_data, load_bin_filename, rtlsdr_dev);
 
       // Center frequency
       uint8 n_fail=0;
-  //    while (rtlsdr_set_center_freq(dev,itpp::round(fc_requested*correction))<0) {
-      while (rtlsdr_set_center_freq(dev,itpp::round(fc_programmed*correction))<0) {
+  //    while (rtlsdr_set_center_freq(rtlsdr_dev,itpp::round(fc_requested*correction))<0) {
+      while (rtlsdr_set_center_freq(rtlsdr_dev,itpp::round(fc_programmed*correction))<0) {
         n_fail++;
         if (n_fail>=5) {
           cerr << "capture_data Error: unable to set center frequency" << endl;
@@ -521,10 +527,10 @@ int capture_data(
       }
 
   //    // Calculate the actual center frequency that was programmed.
-  //    if (rtlsdr_get_tuner_type(dev)==RTLSDR_TUNER_E4000) {
+  //    if (rtlsdr_get_tuner_type(rtlsdr_dev)==RTLSDR_TUNER_E4000) {
   //      // This does not return the true center frequency, only the requested
   //      // center frequency.
-  //      //fc_programmed=(double)rtlsdr_get_center_freq(dev);
+  //      //fc_programmed=(double)rtlsdr_get_center_freq(rtlsdr_dev);
   //      // Directly call some rtlsdr frequency calculation routines.
   //      fc_programmed=compute_fc_programmed(28.8e6,fc_requested);
   //      // For some reason, this will tame the slow time offset drift.
@@ -541,7 +547,7 @@ int capture_data(
   //    }
   //
   //    // Reset the buffer
-  //    if (rtlsdr_reset_buffer(dev)<0) {
+  //    if (rtlsdr_reset_buffer(rtlsdr_dev)<0) {
   //      cerr << "capture_data Error: unable to reset RTLSDR buffer" << endl;
   //      ABORT(-1);
   //    }
@@ -552,9 +558,9 @@ int capture_data(
       capbuf_raw.reserve(CAPLENGTH*2);
       callback_package_t cp;
       cp.buf=&capbuf_raw;
-      cp.dev=dev;
+      cp.dev=rtlsdr_dev;
 
-      rtlsdr_read_async(dev,capbuf_rtlsdr_callback,(void *)&cp,0,0);
+      rtlsdr_read_async(rtlsdr_dev,capbuf_rtlsdr_callback,(void *)&cp,0,0);
 
       // Convert to complex
       capbuf.set_size(CAPLENGTH, false);
@@ -573,6 +579,8 @@ int capture_data(
         //capbuf(t)=complex<double>((capbuf_raw[(t<<1)+1]-127.0)/128.0,-(capbuf_raw[(t<<1)]-127.0)/128.0);
       }
       //cout << "capbuf power: " << db10(sigpower(capbuf)) << " dB" << endl;
+
+      #endif // HAVE_RTLSDR
     } else if (dev_use == dev_type_t::HACKRF) {
 
       #ifdef HAVE_HACKRF

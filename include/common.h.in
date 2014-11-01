@@ -3,6 +3,8 @@
 
 #define @USE_OPENCL@
 
+#define @HAVE_RTLSDR@
+
 #define @HAVE_HACKRF@
 
 #define @HAVE_BLADERF@

@@ -60,7 +60,6 @@
 #include <boost/math/special_functions/gamma.hpp>
 #include <sys/time.h>
 #include <curses.h>
-#include "rtl-sdr.h"
 #include "common.h"
 #include "lte_lib.h"
 #include "constants.h"
@@ -70,6 +69,10 @@
 #include "searcher.h"
 #include "filter_coef.h"
 #include "capbuf.h"
+
+#ifdef HAVE_RTLSDR
+#include "rtl-sdr.h"
+#endif // HAVE_RTLSDR
 
 #ifdef HAVE_HACKRF
 #include "hackrf.h"

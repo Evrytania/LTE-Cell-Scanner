@@ -21,9 +21,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <curses.h>
-#include "rtl-sdr.h"
 #include "common.h"
 #include "macros.h"
+
+#ifdef HAVE_RTLSDR
+#include "rtl-sdr.h"
+#endif // HAVE_RTLSDR
 
 #ifdef HAVE_HACKRF
 #include "hackrf.h"

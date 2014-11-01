@@ -32,17 +32,6 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 
-#ifdef HAVE_HACKRF
-#include "hackrf.h"
-#endif
-
-#include "rtl-sdr.h"
-
-#ifdef HAVE_BLADERF
-//#include <libbladeRF.h>
-extern void bladerf_close(bladerf_device *device);
-#endif // HAVE_BLADERF
-
 #include "common.h"
 #include "macros.h"
 #include "lte_lib.h"
@@ -51,8 +40,20 @@ extern void bladerf_close(bladerf_device *device);
 #include "itpp_ext.h"
 #include "searcher.h"
 #include "dsp.h"
-#include "rtl-sdr.h"
 #include "LTE-Tracker.h"
+
+#ifdef HAVE_HACKRF
+#include "hackrf.h"
+#endif
+
+#ifdef HAVE_RTLSDR
+#include "rtl-sdr.h"
+#endif
+
+#ifdef HAVE_BLADERF
+//#include <libbladeRF.h>
+extern void bladerf_close(bladerf_device *device);
+#endif // HAVE_BLADERF
 
 #define RED 1
 #define GREEN 2
@@ -546,7 +547,7 @@ void display_thread(
       // Header and footer
       {
         stringstream ss;
-        ss << "OpenCL LTE-Tracker v" << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << " -- www.evrytania.com; 1.0 to 1.1: OpenCL/TDD/HACKRF/ext-LNB added by Jiao X.J.(putaoshu@gmail.com).";
+        ss << "LTE-Tracker www.evrytania.com; 1.0 to " << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_LEVEL << ": OpenCL/TDD/HACKRF/bladeRF/ext-LNB added by Jiao.(putaoshu@gmail.com).";
         move(0,0);
         attron(COLOR_PAIR(CYAN));
         print_center(ss.str());
@@ -578,10 +579,10 @@ void display_thread(
         printw("\n");
       }
       attron(COLOR_PAIR(MAGENTA));
-      printw("[init. FO: %6.0lfHz][track FO: %6.2lfHz]",global_thread_data.initial_frequency_offset(), global_thread_data.frequency_offset()-global_thread_data.initial_frequency_offset());
+      printw("[InitFO: %5.0lfHz][TrackFO: %5.2lfHz]",global_thread_data.initial_frequency_offset(), global_thread_data.frequency_offset()-global_thread_data.initial_frequency_offset());
       //attron(A_BOLD);
 //      printw("[searcher delay: %.1lf s]",global_thread_data.searcher_cycle_time());
-      printw("[searcher delay: %f s][rqst %5.2lfMHz][prog %5.2lfMHz][fs %5.4lfMHz][k %f][twist %d]",global_thread_data.searcher_cycle_time(), global_thread_data.fc_requested/1e6, global_thread_data.fc_programmed/1e6, global_thread_data.fs_programmed/1e6, global_thread_data.k_factor(), global_thread_data.sampling_carrier_twist());
+      printw("[SearcherDelay: %4.2fs][rqst %5.2lfMHz][prog %5.2lfMHz][fs %5.2lfMHz][k %5.3lf][twist %d]",global_thread_data.searcher_cycle_time(), global_thread_data.fc_requested/1e6, global_thread_data.fc_programmed/1e6, global_thread_data.fs_programmed/1e6, global_thread_data.k_factor(), global_thread_data.sampling_carrier_twist());
       //attroff(A_BOLD);
 
       if (fifo_status) {
@@ -805,18 +806,26 @@ void display_thread(
       case 'q':
       case 'Q':
         if (global_thread_data.dev_use() == dev_type_t::RTLSDR) {
-          rtlsdr_close( global_thread_data.rtlsdr_dev() );
-          global_thread_data.rtlsdr_dev(NULL);
+          #ifdef HAVE_RTLSDR
+          if ( global_thread_data.rtlsdr_dev()!=NULL ) {
+            rtlsdr_close( global_thread_data.rtlsdr_dev() );
+            global_thread_data.rtlsdr_dev(NULL);
+          }
+          #endif
         } else if (global_thread_data.dev_use() == dev_type_t::HACKRF) {
           #ifdef HAVE_HACKRF
-          hackrf_close( global_thread_data.hackrf_dev() );
-          global_thread_data.hackrf_dev(NULL);
-          hackrf_exit();
+          if (global_thread_data.hackrf_dev()!=NULL) {
+            hackrf_close( global_thread_data.hackrf_dev() );
+            global_thread_data.hackrf_dev(NULL);
+            hackrf_exit();
+          }
           #endif
         } else if (global_thread_data.dev_use() == dev_type_t::BLADERF) {
           #ifdef HAVE_BLADERF
-          bladerf_close( global_thread_data.bladerf_dev() );
-          global_thread_data.bladerf_dev(NULL);
+          if (global_thread_data.bladerf_dev()!=NULL) {
+            bladerf_close( global_thread_data.bladerf_dev() );
+            global_thread_data.bladerf_dev(NULL);
+          }
           #endif
         }
         ABORT(-1);

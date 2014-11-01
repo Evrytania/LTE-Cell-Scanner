@@ -20,11 +20,14 @@
 #include <complex>
 #include <cmath>
 #include <boost/math/special_functions/gamma.hpp>
-#include "rtl-sdr.h"
 #include "common.h"
 #include "macros.h"
 #include "itpp_ext.h"
 #include "dsp.h"
+
+#ifdef HAVE_RTLSDR
+#include "rtl-sdr.h"
+#endif // HAVE_RTLSDR
 
 #ifdef HAVE_HACKRF
 #include "hackrf.h"

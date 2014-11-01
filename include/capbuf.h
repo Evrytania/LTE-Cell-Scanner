@@ -22,6 +22,13 @@
 // Number of complex samples to capture.
 #define CAPLENGTH 153600
 
+#ifdef HAVE_RTLSDR
+#include "rtl-sdr.h"
+typedef rtlsdr_dev_t rtlsdr_device;
+#else
+typedef struct rtlsdr_dev_t{} rtlsdr_device;
+#endif
+
 #ifdef HAVE_HACKRF
 #include "hackrf.h"
 #else
@@ -37,27 +44,26 @@ typedef struct bladerf_devinfo{} bladerf_devinfo;
 typedef struct bladerf{} bladerf_device;
 #endif
 
+#ifdef HAVE_RTLSDR
 typedef struct {
   std::vector <unsigned char> * buf;
-  rtlsdr_dev_t * dev;
+  rtlsdr_device * dev;
 } callback_package_t;
-
-#ifdef HAVE_HACKRF
-
-typedef struct {
-  std::vector <unsigned char> * buf;
-  hackrf_device * dev;
-} callback_hackrf_package_t;
-
-#endif
-
 double calculate_fc_programmed_in_context(
   // Inputs
   const double & fc_requested,
   const bool & use_recorded_data,
   const char * load_bin_filename,
-  rtlsdr_dev_t * & dev
+  rtlsdr_device * & dev
 );
+#endif // HAVE_RTLSDR
+
+#ifdef HAVE_HACKRF
+typedef struct {
+  std::vector <unsigned char> * buf;
+  hackrf_device * dev;
+} callback_hackrf_package_t;
+#endif
 
 int read_header_from_bin(
   // input
@@ -80,7 +86,7 @@ int capture_data(
   const bool & use_recorded_data,
   const char * load_bin_filename,
   const std::string & str,
-  rtlsdr_dev_t * & dev,
+  rtlsdr_device * & dev,
   hackrf_device * & hackrf_dev,
   bladerf_device * & bladerf_dev,
   const dev_type_t::dev_type_t & dev_use,

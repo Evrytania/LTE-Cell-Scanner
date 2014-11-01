@@ -33,7 +33,6 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <curses.h>
-#include "rtl-sdr.h"
 #include "common.h"
 #include "macros.h"
 #include "lte_lib.h"
@@ -44,6 +43,10 @@
 #include "dsp.h"
 #include "LTE-Tracker.h"
 #include "filter_coef.h"
+
+#ifdef HAVE_RTLSDR
+#include "rtl-sdr.h"
+#endif // HAVE_RTLSDR
 
 #ifdef HAVE_HACKRF
 #include "hackrf.h"
