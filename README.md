@@ -14,7 +14,9 @@ New features, make and Usages
     cmake ../ -DUSE_OPENCL=0    -- disable OpenCL (See notes in later chapter)
     make
 
-CellSearch and LTE-Tracker program will be generated in build/src. Use "--help" when invoke program to see all options
+CellSearch and LTE-Tracker program will be generated in build/src. Use "--help" when invoke program to see all options.
+
+(You may need some related libraries, such as itpp, fftw, libboost-, Curses, ... etc.)
 
 **0x02. basic usage (If you have OpenCL, make sure those .cl files in LTE-Cell-Scanner/src have been copy to program directory)**
             
