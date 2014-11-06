@@ -38,7 +38,7 @@ CellSearch and LTE-Tracker program will be generated in build/src. Use "--help" 
     
 *0x02.2* LTE-Tracker -f 1890000000  (try to track LTE Cell at 1890MHz)
 
-*0x02.3* LTE_DL_receiver (Matlab script. Decode RRC SIB ASN1 message in PDSCH by reading captured signal bin file)
+*0x02.3* LTE_DL_receiver (Matlab script. Decode RRC SIB message in PDSCH by reading captured signal bin file)
 
 *0x02.4* LTE_DL_receiver 1890 40 40 (Matlab script. Decode SIB at 1890MHz lively with LNA VGA gain of hackRF 40dB 40dB)
 
