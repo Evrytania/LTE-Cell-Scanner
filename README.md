@@ -5,7 +5,7 @@ New features, make and Usages
 ------------------------------
 
 **0x01. basic method to build program**
-            
+
     mkdir build
     cd build
     cmake ../                   -- default for rtlsdr and OpenCL ON;   OR
@@ -13,12 +13,13 @@ New features, make and Usages
     cmake ../ -DUSE_HACKRF=1    -- build for hackRF
     cmake ../ -DUSE_OPENCL=0    -- disable OpenCL (See notes in later chapter)
     make
-            
+
 CellSearch and LTE-Tracker program will be generated in build/src. Use "--help" when invoke program to see all options
 
 **0x02. basic usage (If you have OpenCL, make sure those .cl files in LTE-Cell-Scanner/src have been copy to program directory)**
             
-    **CellSearch** --freq-start 1890000000   (try to search LTE Cell at 1890MHz)
+0x02.1 **run: CellSearch --freq-start 1890000000   (try to search LTE Cell at 1890MHz)**
+
     output:
     ...
     Detected a TDD cell! At freqeuncy 1890MHz, try 0
@@ -33,10 +34,12 @@ CellSearch and LTE-Tracker program will be generated in build/src. Use "--help" 
     DPX  CID  A     fc  freq-offset RXPWR  C   nRB  P   PR  CrystalCorrectionFactor
     TDD  253  2  1890M         -48h   -17  N  100   N  1/2   0.99999997458380551763
     
-    **LTE-Tracker** -f 1890000000  (try to track LTE Cell at 1890MHz)
+0x02.2 **run: LTE-Tracker -f 1890000000  (try to track LTE Cell at 1890MHz)**
     
-    **LTE_DL_receiver**    (Matlab script. Decode RRC SIB ASN1 message in PDSCH by reading captured signal bin file)
-    **LTE_DL_receiver** 1890 40 40 (Matlab script. Decode SIB at 1890MHz lively with LNA VGA gain of hackRF 40dB 40dB)
+0x02.3 **run: LTE_DL_receiver (Matlab script. Decode RRC SIB ASN1 message in PDSCH by reading captured signal bin file)**
+
+0x02.4 **run: LTE_DL_receiver 1890 40 40 (Matlab script. Decode SIB at 1890MHz lively with LNA VGA gain of hackRF 40dB 40dB)**
+
     output:
     ...
     TDD SFN-864 ULDL-2-|D|S|U|D|D|D|S|U|D|D| CID-216 nPort-2 CP-normal PHICH-DUR-normal-RES-1
