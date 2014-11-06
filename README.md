@@ -4,74 +4,69 @@ An OpenCL accelerated TDD/FDD LTE Scanner (from rtlsdr/hackRF/bladeRF A/D sample
 New features, make and Usages
 ------------------------------
 
-**0x00. basic method to build program**
+**0x01. basic method to build program**
             
     mkdir build
     cd build
-    cmake ../                   -- default for rtlsdr;   OR
+    cmake ../                   -- default for rtlsdr and OpenCL ON;   OR
     cmake ../ -DUSE_BLADERF=1   -- build for bladeRF;    OR
     cmake ../ -DUSE_HACKRF=1    -- build for hackRF
+    cmake ../ -DUSE_OPENCL=0    -- disable OpenCL (See notes in later chapter)
     make
             
 CellSearch and LTE-Tracker program will be generated in build/src. Use "--help" when invoke program to see all options
 
-**0x01. basic usage (If you have OpenCL, make sure those .cl files in LTE-Cell-Scanner/src have been copy to program directory)**
+**0x02. basic usage (If you have OpenCL, make sure those .cl files in LTE-Cell-Scanner/src have been copy to program directory)**
             
-            **CellSearch** --freq-start 1890000000   (try to search LTE Cell at 1890MHz)
-            output:
-            ...
-            Detected a TDD cell! At freqeuncy 1890MHz, try 0
-            cell ID: 253
-            PSS ID: 1
-            RX power level: -17.0064 dB
-            residual frequency offset: -48.0366 Hz
-                        k_factor: 1
-            ...
-            Detected the following cells:
-            Meaning -- DPX:TDD/FDD; A: #antenna ports C: CP type ; P: PHICH duration ; PR: PHICH resource type
-            DPX  CID  A     fc  freq-offset RXPWR  C   nRB  P   PR  CrystalCorrectionFactor
-            TDD  253  2  1890M         -48h   -17  N  100   N  1/2   0.99999997458380551763
-
-            **LTE-Tracker** -f 1890000000  (try to track LTE Cell at 1890MHz)
-
-            **LTE_DL_receiver**    (Matlab script. Decode RRC SIB ASN1 message in PDSCH by reading captured signal bin file)
-            **LTE_DL_receiver** 1890 40 40 (Matlab script. Decode SIB at 1890MHz lively with LNA VGA gain of hackRF 40dB 40dB)
-            output:
-            ...
-            TDD SFN-864 ULDL-2-|D|S|U|D|D|D|S|U|D|D| CID-216 nPort-2 CP-normal PHICH-DUR-normal-RES-1
-            SF0 PHICH1 PDCCH1 RNTI: 
-            ...
-            SF4 PHICH1 PDCCH1 RNTI: SI-RNTI SI-RNTI 
-            PDCCH   No.0  4CCE: Localized VRB from RB0 to RB11 MCS-7 HARQ-0 NEWind-0 RV-0 TPC-1 DAI-0
-            Calling asn1c decoder (../asn1_test/LTE-BCCH-DL-SCH-decode/progname) for BCCH-DL-SCH-Message.
-            ../asn1_test/LTE-BCCH-DL-SCH-decode/progname tmp_sib_info.per -p BCCH-DL-SCH-Message
-            <BCCH-DL-SCH-Message>
-                <message>
-                    <c1>
-                        <systemInformation>
-                            <criticalExtensions>
-                                <systemInformation-r8>
-                                    <sib-TypeAndInfo>
-                                            <sib2>
-                                                <radioResourceConfigCommon>
-                                                    <rach-ConfigCommon>
-                                                        <preambleInfo>
-                                                            <numberOfRA-Preambles><n52/></numberOfRA-Preambles>
-            ...
-            
-**0x02. Disable OpenCL acceleration support. Use**
-
-            cmake .. -DUSE_OPENCL=0
-
-to disable OpenCL (OpenCL is on by default). See some notes on OpenCL support in later chapters.
+    **CellSearch** --freq-start 1890000000   (try to search LTE Cell at 1890MHz)
+    output:
+    ...
+    Detected a TDD cell! At freqeuncy 1890MHz, try 0
+    cell ID: 253
+    PSS ID: 1
+    RX power level: -17.0064 dB
+    residual frequency offset: -48.0366 Hz
+                k_factor: 1
+    ...
+    Detected the following cells:
+    Meaning -- DPX:TDD/FDD; A: #antenna ports C: CP type ; P: PHICH duration ; PR: PHICH resource type
+    DPX  CID  A     fc  freq-offset RXPWR  C   nRB  P   PR  CrystalCorrectionFactor
+    TDD  253  2  1890M         -48h   -17  N  100   N  1/2   0.99999997458380551763
+    
+    **LTE-Tracker** -f 1890000000  (try to track LTE Cell at 1890MHz)
+    
+    **LTE_DL_receiver**    (Matlab script. Decode RRC SIB ASN1 message in PDSCH by reading captured signal bin file)
+    **LTE_DL_receiver** 1890 40 40 (Matlab script. Decode SIB at 1890MHz lively with LNA VGA gain of hackRF 40dB 40dB)
+    output:
+    ...
+    TDD SFN-864 ULDL-2-|D|S|U|D|D|D|S|U|D|D| CID-216 nPort-2 CP-normal PHICH-DUR-normal-RES-1
+    SF0 PHICH1 PDCCH1 RNTI: 
+    ...
+    SF4 PHICH1 PDCCH1 RNTI: SI-RNTI SI-RNTI 
+    PDCCH   No.0  4CCE: Localized VRB from RB0 to RB11 MCS-7 HARQ-0 NEWind-0 RV-0 TPC-1 DAI-0
+    Calling asn1c decoder (../asn1_test/LTE-BCCH-DL-SCH-decode/progname) for BCCH-DL-SCH-Message.
+    ../asn1_test/LTE-BCCH-DL-SCH-decode/progname tmp_sib_info.per -p BCCH-DL-SCH-Message
+    <BCCH-DL-SCH-Message>
+        <message>
+            <c1>
+                <systemInformation>
+                    <criticalExtensions>
+                        <systemInformation-r8>
+                            <sib-TypeAndInfo>
+                                    <sib2>
+                                        <radioResourceConfigCommon>
+                                            <rach-ConfigCommon>
+                                                <preambleInfo>
+                                                    <numberOfRA-Preambles><n52/></numberOfRA-Preambles>
+    ...
 
 **0x03. Change gian by hand.**
 
 Use "-g X" to set gain value X to hardware. If "-g" is not used, default values are used:
 
-            rtlsdr default  0 (AGC)
-            hackRF default  40dB (VGA gain, can be adjusted by "-g"), LAN gain is fixed at 40dB
-            bladeRF default 60dB + maximum LNA gain. "-g" can set total gain which will be distributed to LNA VGA1 VGA2 automatically
+    rtlsdr default  0 (AGC)
+    hackRF default  40dB (VGA gain, can be adjusted by "-g"), LAN gain is fixed at 40dB
+    bladeRF default 60dB + maximum LNA gain. "-g" can set total gain which will be distributed to LNA VGA1 VGA2 automatically
 
 gain is important to get good rx performance. If CellSearch reports like "input level: avg abs(real) 0.00594959 avg abs(imag) 0.00614887", where the numbers are far below 1, larger gain value should be considered.
 
@@ -81,8 +76,8 @@ Without "-t" leads to non-twisted mode (default mode)
 
 **0x05. Capture to and reload from raw bin file**
 
-            "CellSearch --freq-start 1860e6 --recbin a.bin" saves signal in a.bin while doing cell search at frequency 1.86GHz
-            "CellSearch --loadbin test/f1890_s1.92_g0_0.16s.bin" searches LTE cell in test/f1890_s1.92_g0_0.16s.bin
+    "CellSearch --freq-start 1860e6 --recbin a.bin" saves signal in a.bin while doing cell search at frequency 1.86GHz
+    "CellSearch --loadbin test/f1890_s1.92_g0_0.16s.bin" searches LTE cell in test/f1890_s1.92_g0_0.16s.bin
 
 **0x06. "--num-try x" performs x tries of searching at each frequency.**
 
@@ -109,7 +104,7 @@ Because they need to be compiled and executed by OpenCL runtime after program la
 
 **0x02.3 Test an OpenCL example:**
 
-            CellSearch --loadbin test/f1890_s1.92_g0_0.16s.bin --opencl-platform=0 --opencl-device=0 --filter-workitem=32 --xcorr-workitem=2
+    CellSearch --loadbin test/f1890_s1.92_g0_0.16s.bin --opencl-platform=0 --opencl-device=0 --filter-workitem=32 --xcorr-workitem=2
 
 OpenCL platform and device are specified by "--opencl-platform=idx1 --opencl-device=idx2" to decide which CPU/GPU is used.
 When program runs, it tells you how many platforms are detected in total. Default index is 0.
