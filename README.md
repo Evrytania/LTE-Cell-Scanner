@@ -6,12 +6,12 @@ New features, make and Usages
 
 **0x00. basic method to build program**
             
-            mkdir build
-            cd build
-            cmake ../                   -- default for rtlsdr;   OR
-            cmake ../ -DUSE_BLADERF=1   -- build for bladeRF;    OR
-            cmake ../ -DUSE_HACKRF=1    -- build for hackRF
-            make
+    mkdir build
+    cd build
+    cmake ../                   -- default for rtlsdr;   OR
+    cmake ../ -DUSE_BLADERF=1   -- build for bladeRF;    OR
+    cmake ../ -DUSE_HACKRF=1    -- build for hackRF
+    make
             
 CellSearch and LTE-Tracker program will be generated in build/src. Use "--help" when invoke program to see all options
 
