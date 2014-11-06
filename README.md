@@ -20,7 +20,7 @@ CellSearch and LTE-Tracker program will be generated in build/src. Use "--help" 
 
 **0x02. basic usage (If you have OpenCL, make sure those .cl files in LTE-Cell-Scanner/src have been copy to program directory)**
             
-0x02.1 **run: CellSearch --freq-start 1890000000   (try to search LTE Cell at 1890MHz)**
+*0x02.1* CellSearch --freq-start 1890000000   (try to search LTE Cell at 1890MHz)
 
     output:
     ...
@@ -36,11 +36,11 @@ CellSearch and LTE-Tracker program will be generated in build/src. Use "--help" 
     DPX  CID  A     fc  freq-offset RXPWR  C   nRB  P   PR  CrystalCorrectionFactor
     TDD  253  2  1890M         -48h   -17  N  100   N  1/2   0.99999997458380551763
     
-0x02.2 **run: LTE-Tracker -f 1890000000  (try to track LTE Cell at 1890MHz)**
-    
-0x02.3 **run: LTE_DL_receiver (Matlab script. Decode RRC SIB ASN1 message in PDSCH by reading captured signal bin file)**
+*0x02.2* LTE-Tracker -f 1890000000  (try to track LTE Cell at 1890MHz)
 
-0x02.4 **run: LTE_DL_receiver 1890 40 40 (Matlab script. Decode SIB at 1890MHz lively with LNA VGA gain of hackRF 40dB 40dB)**
+*0x02.3* LTE_DL_receiver (Matlab script. Decode RRC SIB ASN1 message in PDSCH by reading captured signal bin file)
+
+*0x02.4* LTE_DL_receiver 1890 40 40 (Matlab script. Decode SIB at 1890MHz lively with LNA VGA gain of hackRF 40dB 40dB)
 
     output:
     ...
