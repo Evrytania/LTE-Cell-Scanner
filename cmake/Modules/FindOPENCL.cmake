@@ -10,6 +10,8 @@
 
 FIND_PATH(OPENCL_INCLUDE_DIR CL/cl.h
   /usr/include
+  opt/intel/intel-opencl-1.2-6.0.0.1049/opencl-1.2-sdk-6.0.0.1049/include
+  /opt/AMDAPPSDK-3.0/include
   /opt/AMDAPP/include/
   /usr/local/include
   /usr/local/cuda/include/
@@ -18,6 +20,8 @@ FIND_PATH(OPENCL_INCLUDE_DIR CL/cl.h
 
 FIND_LIBRARY(OPENCL_LIBRARY libOpenCL.so
   /usr/lib64
+  /opt/intel/intel-opencl-1.2-6.0.0.1049/opencl-1.2-6.0.0.1049/lib64
+  /opt/AMDAPPSDK-3.0/lib/x86_64/sdk
   /opt/AMDAPP/lib/x86_64
   /usr/lib
   /usr/local/lib
