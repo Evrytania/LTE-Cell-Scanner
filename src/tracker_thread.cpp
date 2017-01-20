@@ -181,10 +181,10 @@ void get_fd(
   const complex <double> bpo_coeff=complex<double>(cos(bulk_phase_offset),sin(bulk_phase_offset));
   for (uint8 t=1;t<=36;t++) {
     phase=-k*t;
-    coeff.real()=cos(phase);
-    coeff.imag()=sin(phase);
+    coeff.real(cos(phase));
+    coeff.imag(sin(phase));
     syms(35+t)*=bpo_coeff*coeff;
-    coeff.imag()=-coeff.imag();
+    coeff.imag(-coeff.imag());
     syms(36-t)*=bpo_coeff*coeff;
   }
   // At this point, we have the frequency domain data for this slot and
