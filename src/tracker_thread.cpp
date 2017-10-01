@@ -156,18 +156,15 @@ void get_fd(
     n_samp_elapsed=(sym_num==0)?128+10:128+9;
   }
   //syms=exp(J*bulk_phase_offset)*elem_mult(syms,exp((-J*2*pi*tracked_cell.fifo.front().late/128)*cn));
-  complex <double> coeff;
-  double phase;
   const double k=2*pi*pdu.late/128;
   bulk_phase_offset=WRAP(bulk_phase_offset+2*pi*n_samp_elapsed*(1/(FS_LTE/16))*-frequency_offset,-pi,pi);
   const complex <double> bpo_coeff=complex<double>(cos(bulk_phase_offset),sin(bulk_phase_offset));
   for (uint8 t=1;t<=36;t++) {
-    phase=-k*t;
-    coeff.real()=cos(phase);
-    coeff.imag()=sin(phase);
-    syms(35+t)*=bpo_coeff*coeff;
-    coeff.imag()=-coeff.imag();
-    syms(36-t)*=bpo_coeff*coeff;
+    double phase=-k*t;
+    double real=cos(phase);
+    double imag=sin(phase);
+    syms(35+t)*=bpo_coeff*complex<double>(real, imag);
+    syms(36-t)*=bpo_coeff*complex<double>(real, -imag);
   }
   // At this point, we have the frequency domain data for this slot and
   // this symbol number. FOC and TOC has already been performed.
