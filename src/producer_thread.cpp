@@ -118,17 +118,16 @@ void producer_thread(
         global_thread_data.raw_seconds_dropped_inc();
       }
       n_samples=BLOCK_SIZE;
-      complex <double> sample_temp;
       for (uint16 t=0;t<BLOCK_SIZE;t++) {
         if (sampbuf_sync.fifo.size()<2) {
           n_samples=t;
           break;
         }
-        sample_temp.real()=(sampbuf_sync.fifo.front()-127.0)/128.0;
+        double real =(sampbuf_sync.fifo.front()-127.0)/128.0;
         sampbuf_sync.fifo.pop_front();
-        sample_temp.imag()=(sampbuf_sync.fifo.front()-127.0)/128.0;
+        double imag =(sampbuf_sync.fifo.front()-127.0)/128.0;
         sampbuf_sync.fifo.pop_front();
-        samples(t)=sample_temp;
+        samples(t) = complex<double>(real, imag);
         sample_time+=(FS_LTE/16)/(fs_programmed*k_factor);
         //sample_time=itpp_ext::matlab_mod(sample_time,19200.0);
         if (sample_time>19200.0)
